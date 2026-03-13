@@ -93,7 +93,17 @@ function HoleCard({
     : hasScore ? scoreToPar(score, hole.par)
     : { label: "", color: "" }
 
-  const ptsColor =
+  // Mobile pts badge (border style)
+  const ptsBadgeMobile =
+    isNR         ? "border-orange-900/50 bg-orange-900/30 text-orange-400/80" :
+    pts === null ? "border-white/10 text-white/15" :
+    pts >= 3     ? "border-[#C9A84C] bg-[#C9A84C]/15 text-[#C9A84C]" :
+    pts === 2    ? "border-white/20 bg-white/5 text-white" :
+    pts === 1    ? "border-white/10 bg-transparent text-white/40" :
+                   "border-red-900/40 bg-red-900/20 text-red-400/70"
+
+  // Desktop pts badge (filled square, original style)
+  const ptsBadgeDesktop =
     isNR         ? "bg-orange-900/40 text-orange-400/70" :
     pts === null ? "bg-transparent text-white/15" :
     pts >= 3     ? "bg-[#C9A84C] text-black" :
@@ -103,11 +113,8 @@ function HoleCard({
 
   function handleStep(delta: number) {
     if (isNR) return
-    if (score === null) {
-      onChange(netParGross)
-    } else {
-      onChange(Math.max(1, Math.min(12, score + delta)))
-    }
+    if (score === null) onChange(netParGross)
+    else onChange(Math.max(1, Math.min(12, score + delta)))
   }
 
   function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
@@ -117,68 +124,133 @@ function HoleCard({
     if (!isNaN(n) && n >= 1 && n <= 12) onChange(n)
   }
 
+  // Shared sub-components rendered in both layouts
+  const nrButton = (extra: string) => (
+    <button
+      onClick={onToggleNR}
+      className={`text-xs tracking-widest uppercase border rounded-sm transition-colors ${extra}
+        ${isNR
+          ? "border-orange-400/60 text-orange-400 bg-orange-900/20"
+          : "border-white/15 text-white/30 hover:border-orange-400/40 hover:text-orange-400/60"}`}>
+      NR
+    </button>
+  )
+
+  const scoreInput = (cls: string, lineH: string) => isNR ? (
+    <span className={`font-[family-name:var(--font-playfair)] text-4xl flex items-center justify-center text-white/20 ${cls}`}>
+      —
+    </span>
+  ) : (
+    <input
+      type="text"
+      inputMode="numeric"
+      pattern="[0-9]*"
+      value={score === null ? "" : String(score)}
+      onChange={handleInputChange}
+      className={`font-[family-name:var(--font-playfair)] text-4xl text-center bg-transparent
+        outline-none text-white caret-[#C9A84C] border rounded-sm transition-colors p-0
+        ${score === null ? "border-[#C9A84C]/50" : "border-[#C9A84C]/15"} ${cls}`}
+      style={{ lineHeight: lineH }}
+    />
+  )
+
   return (
-    <div className={`bg-[#0f2418] border rounded-sm px-4 py-4 flex items-center gap-3 transition-colors
+    <div className={`bg-[#0f2418] border rounded-sm transition-colors
       ${isNR ? "border-orange-900/50" : "border-[#1e3d28]"}`}>
 
-      {/* Hole badge */}
-      <div className="flex flex-col items-center justify-center w-9 flex-shrink-0">
-        <span className="font-[family-name:var(--font-playfair)] text-2xl text-white leading-none">
-          {hole.hole_number}
-        </span>
-        <span className="text-white/20 text-[10px] uppercase tracking-widest mt-0.5">hole</span>
+      {/* ══ MOBILE LAYOUT — single column, 3 rows (hidden at sm+) ══ */}
+      <div className="sm:hidden">
+
+        {/* Row 1: hole info + NR toggle */}
+        <div className="flex items-center justify-between px-4 pt-4 pb-3">
+          <div className="flex items-baseline gap-3">
+            <span className="font-[family-name:var(--font-playfair)] text-3xl text-white leading-none w-8">
+              {hole.hole_number}
+            </span>
+            <span className="text-white/50 text-sm">
+              Par <span className="text-white font-semibold">{hole.par}</span>
+            </span>
+            <span className="text-white/30 text-sm">SI {hole.stroke_index}</span>
+            {yardage && <span className="text-white/25 text-xs">{yardage} yds</span>}
+          </div>
+          {nrButton("px-3 py-1.5")}
+        </div>
+
+        {/* Row 2: score stepper — buttons flex to fill width */}
+        <div className="flex items-center gap-3 px-4 pb-3">
+          <button onClick={() => handleStep(-1)} disabled={isNR}
+            className="flex-1 h-16 rounded-sm border border-[#1e3d28] text-white/60 text-4xl leading-none
+              hover:border-[#C9A84C] hover:text-[#C9A84C] active:scale-95 transition-all
+              flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed">
+            −
+          </button>
+          {scoreInput("w-20 h-16", "4rem")}
+          <button onClick={() => handleStep(1)} disabled={isNR}
+            className="flex-1 h-16 rounded-sm border border-[#1e3d28] text-white/60 text-4xl leading-none
+              hover:border-[#C9A84C] hover:text-[#C9A84C] active:scale-95 transition-all
+              flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed">
+            +
+          </button>
+        </div>
+
+        {/* Row 3: score label + stableford pts */}
+        <div className="flex items-center justify-between px-4 pb-4">
+          <span className={`text-sm font-semibold ${color || "text-white/15"}`}>
+            {label || "—"}
+          </span>
+          <div className={`flex items-baseline gap-1.5 px-3 py-1.5 rounded-sm border ${ptsBadgeMobile}`}>
+            <span className="text-xl font-bold leading-none font-[family-name:var(--font-playfair)]">
+              {pts ?? "·"}
+            </span>
+            <span className="text-xs opacity-60 leading-none">pts</span>
+          </div>
+        </div>
       </div>
 
-      {/* Hole info */}
-      <div className="flex flex-col gap-0.5 w-16 flex-shrink-0">
-        <span className="text-white/60 text-sm">Par <span className="text-white font-semibold">{hole.par}</span></span>
-        <span className="text-white/50 text-xs">SI {hole.stroke_index}</span>
-        {yardage && <span className="text-white/50 text-xs">{yardage} yds</span>}
-        {label && label !== "Par" && (
-          <span className={`text-xs font-semibold mt-0.5 ${color}`}>{label}</span>
-        )}
-      </div>
+      {/* ══ DESKTOP LAYOUT — single horizontal row (hidden below sm) ══ */}
+      <div className="hidden sm:flex items-center gap-3 px-4 py-4">
 
-      {/* Score stepper */}
-      <div className="flex items-center gap-2 flex-1 justify-center">
-        <button onClick={() => handleStep(-1)} disabled={isNR}
-          className="w-14 h-14 rounded-full border border-[#1e3d28] text-white/60 text-4xl leading-none
-            hover:border-[#C9A84C] hover:text-[#C9A84C] active:scale-95 transition-all
-            flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed">−</button>
+        {/* Hole badge */}
+        <div className="flex flex-col items-center justify-center w-9 flex-shrink-0">
+          <span className="font-[family-name:var(--font-playfair)] text-2xl text-white leading-none">
+            {hole.hole_number}
+          </span>
+          <span className="text-white/20 text-[10px] uppercase tracking-widest mt-0.5">hole</span>
+        </div>
 
-        {isNR ? (
-          <span className="font-[family-name:var(--font-playfair)] text-4xl w-14 h-14 flex items-center justify-center text-white/20">—</span>
-        ) : (
-          <input
-            type="text"
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={score === null ? "" : String(score)}
-            onChange={handleInputChange}
-            className={`font-[family-name:var(--font-playfair)] text-4xl w-14 h-14 text-center leading-none bg-transparent outline-none text-white caret-[#C9A84C] border rounded-sm transition-colors p-0 align-middle
-              ${score === null ? "border-[#C9A84C]/50" : "border-[#C9A84C]/15"}`}
-            style={{ lineHeight: '3.5rem' }}
-          />
-        )}
+        {/* Hole info */}
+        <div className="flex flex-col gap-0.5 w-16 flex-shrink-0">
+          <span className="text-white/60 text-sm">Par <span className="text-white font-semibold">{hole.par}</span></span>
+          <span className="text-white/50 text-xs">SI {hole.stroke_index}</span>
+          {yardage && <span className="text-white/50 text-xs">{yardage} yds</span>}
+          {label && label !== "Par" && (
+            <span className={`text-xs font-semibold mt-0.5 ${color}`}>{label}</span>
+          )}
+        </div>
 
-        <button onClick={() => handleStep(1)} disabled={isNR}
-          className="w-14 h-14 rounded-full border border-[#1e3d28] text-white/60 text-4xl leading-none
-            hover:border-[#C9A84C] hover:text-[#C9A84C] active:scale-95 transition-all
-            flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed">+</button>
+        {/* Score stepper + NR */}
+        <div className="flex items-center gap-2 flex-1 justify-center">
+          <button onClick={() => handleStep(-1)} disabled={isNR}
+            className="w-14 h-14 rounded-full border border-[#1e3d28] text-white/60 text-4xl leading-none
+              hover:border-[#C9A84C] hover:text-[#C9A84C] active:scale-95 transition-all
+              flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed">
+            −
+          </button>
+          {scoreInput("w-14 h-14", "3.5rem")}
+          <button onClick={() => handleStep(1)} disabled={isNR}
+            className="w-14 h-14 rounded-full border border-[#1e3d28] text-white/60 text-4xl leading-none
+              hover:border-[#C9A84C] hover:text-[#C9A84C] active:scale-95 transition-all
+              flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed">
+            +
+          </button>
+          {nrButton("px-2 py-1.5 flex-shrink-0")}
+        </div>
 
-        <button onClick={onToggleNR}
-          className={`text-xs tracking-widest uppercase border px-2 py-1.5 rounded-sm transition-colors flex-shrink-0
-            ${isNR
-              ? "border-orange-400/60 text-orange-400 bg-orange-900/20"
-              : "border-white/15 text-white/30 hover:border-orange-400/40 hover:text-orange-400/60"}`}>
-          NR
-        </button>
-      </div>
-
-      {/* Stableford badge */}
-      <div className={`w-9 h-9 rounded-sm flex flex-col items-center justify-center flex-shrink-0 ${ptsColor}`}>
-        <span className="text-base font-bold leading-none">{pts ?? "·"}</span>
-        <span className="text-[10px] opacity-60 leading-none mt-0.5">{pts !== null || isNR ? "pts" : ""}</span>
+        {/* Stableford badge */}
+        <div className={`w-9 h-9 rounded-sm flex flex-col items-center justify-center flex-shrink-0 ${ptsBadgeDesktop}`}>
+          <span className="text-base font-bold leading-none">{pts ?? "·"}</span>
+          <span className="text-[10px] opacity-60 leading-none mt-0.5">{pts !== null || isNR ? "pts" : ""}</span>
+        </div>
       </div>
     </div>
   )
@@ -327,7 +399,7 @@ export default function ScoreEntryForm({ players, courses }: { players: Player[]
   }
 
   return (
-    <div className="max-w-lg mx-auto px-4 pb-16">
+    <div className="w-full max-w-lg mx-auto px-4 pb-16 overflow-x-hidden">
 
       {/* Progress steps */}
       <div className="flex items-center gap-2 py-6">

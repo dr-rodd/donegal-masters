@@ -21,7 +21,7 @@ export default async function ScoreEntryPage() {
   const courses = coursesRes.data
 
   return (
-    <div className="min-h-screen bg-[#0a1a0e] text-white">
+    <div className="min-h-screen bg-[#0a1a0e] text-white overflow-x-hidden">
       {/* Header */}
       <div className="border-b border-[#1e3d28] sticky top-0 z-20 bg-[#0a1a0e]">
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
