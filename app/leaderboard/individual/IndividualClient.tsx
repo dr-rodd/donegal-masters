@@ -1,0 +1,541 @@
+"use client"
+
+import { useState } from "react"
+import Link from "next/link"
+
+// ─── Types ─────────────────────────────────────────────────────
+
+type ViewMode = "stableford" | "stroke"
+
+type Course  = { id: string; name: string }
+type Round   = { id: string; round_number: number; courses: Course | null }
+type Team    = { name: string; color: string }
+type Player  = { id: string; name: string; role: string; handicap: number; team_id: string | null; teams: Team | null }
+type Hole    = { id: string; hole_number: number; par: number; stroke_index: number; course_id: string }
+type RoundHcp = { round_id: string; player_id: string; playing_handicap: number }
+type Score   = { player_id: string; hole_id: string; round_id: string; stableford_points: number; gross_score: number; no_return: boolean }
+
+interface Props {
+  rounds:        Round[]
+  players:       Player[]
+  holes:         Hole[]
+  scores:        Score[]
+  roundHandicaps: RoundHcp[]
+}
+
+// ─── Constants ─────────────────────────────────────────────────
+
+const ROLE_FILTERS = [
+  { key: "all", label: "All" },
+  { key: "dad", label: "Dads" },
+  { key: "mum", label: "Mums" },
+  { key: "son", label: "Sons" },
+] as const
+
+const ROLE_TEXT: Record<string, string> = {
+  dad: "text-blue-300",
+  mum: "text-rose-300",
+  son: "text-emerald-300",
+}
+
+const MEDALS = ["🥇", "🥈", "🥉"]
+
+const COURSE_SHORT: Record<string, string> = {
+  "Old Tom Morris":    "Old Tom",
+  "St Patricks Links": "St Patrick",
+  "Sandy Hills":       "Sandy Hills",
+}
+
+// ─── Helpers ───────────────────────────────────────────────────
+
+function playerRoundStableford(playerId: string, roundId: string, scores: Score[]) {
+  return scores
+    .filter(s => s.player_id === playerId && s.round_id === roundId)
+    .reduce((sum, s) => sum + s.stableford_points, 0)
+}
+
+// Minimum gross that yields 0 stableford points on a given hole
+function nrGross(hole: Hole, playingHandicap: number): number {
+  const shots = hole.stroke_index <= playingHandicap ? 1 : 0
+  return hole.par + shots + 1
+}
+
+function playerRoundGross(playerId: string, roundId: string, scores: Score[], holes: Hole[], roundHandicaps: RoundHcp[]) {
+  const ph = roundHandicaps.find(h => h.player_id === playerId && h.round_id === roundId)?.playing_handicap ?? 0
+  return scores
+    .filter(s => s.player_id === playerId && s.round_id === roundId)
+    .reduce((sum, s) => {
+      if (s.no_return) {
+        const hole = holes.find(h => h.id === s.hole_id)
+        return sum + (hole ? nrGross(hole, ph) : 0)
+      }
+      return sum + s.gross_score
+    }, 0)
+}
+
+function playerRoundHasNR(playerId: string, roundId: string, scores: Score[]) {
+  return scores.some(s => s.player_id === playerId && s.round_id === roundId && s.no_return)
+}
+
+function playerTotalStableford(playerId: string, scores: Score[]) {
+  return scores.filter(s => s.player_id === playerId).reduce((sum, s) => sum + s.stableford_points, 0)
+}
+
+function playerTotalGross(playerId: string, scores: Score[], holes: Hole[], roundHandicaps: RoundHcp[]) {
+  return scores
+    .filter(s => s.player_id === playerId)
+    .reduce((sum, s) => {
+      if (s.no_return) {
+        const hole = holes.find(h => h.id === s.hole_id)
+        const ph = roundHandicaps.find(h => h.player_id === playerId && h.round_id === s.round_id)?.playing_handicap ?? 0
+        return sum + (hole ? nrGross(hole, ph) : 0)
+      }
+      return sum + s.gross_score
+    }, 0)
+}
+
+function playerHasAnyNR(playerId: string, scores: Score[]) {
+  return scores.some(s => s.player_id === playerId && s.no_return)
+}
+
+// Nett strokes per hole = par - stableford_points + 2
+// For NR holes stableford_points treated as 0 (equivalent to double bogey nett)
+function playerRoundNett(playerId: string, roundId: string, scores: Score[], holes: Hole[]) {
+  return scores
+    .filter(s => s.player_id === playerId && s.round_id === roundId)
+    .reduce((sum, s) => {
+      const hole = holes.find(h => h.id === s.hole_id)
+      if (!hole) return sum
+      const pts = s.no_return ? 0 : s.stableford_points
+      return sum + (hole.par - pts + 2)
+    }, 0)
+}
+
+function playerTotalNett(playerId: string, scores: Score[], holes: Hole[]) {
+  return scores
+    .filter(s => s.player_id === playerId)
+    .reduce((sum, s) => {
+      const hole = holes.find(h => h.id === s.hole_id)
+      if (!hole) return sum
+      const pts = s.no_return ? 0 : s.stableford_points
+      return sum + (hole.par - pts + 2)
+    }, 0)
+}
+
+function playerBadges(playerId: string, scores: Score[], holes: Hole[]) {
+  let birdies = 0, eagles = 0
+  for (const s of scores) {
+    if (s.player_id !== playerId || s.no_return) continue
+    const hole = holes.find(h => h.id === s.hole_id)
+    if (!hole) continue
+    const diff = s.gross_score - hole.par
+    if (diff === -1) birdies++
+    else if (diff <= -2) eagles++
+  }
+  return { birdies, eagles }
+}
+
+function statusLabel(status: number): string {
+  if (status === 0) return "AS"
+  const up = Math.abs(status)
+  return status > 0 ? `${up} UP` : `${up} DN`
+}
+
+function statusColor(status: number) {
+  if (status === 0) return "text-white/40"
+  return status > 0 ? "text-[#C9A84C]" : "text-rose-400"
+}
+
+// ─── Matchplay ─────────────────────────────────────────────────
+
+function MatchplaySection({ playerA, playerB, rounds, holes, scores, noShots, onToggleNoShots }: {
+  playerA: Player; playerB: Player
+  rounds: Round[]; holes: Hole[]; scores: Score[]
+  noShots: boolean; onToggleNoShots: () => void
+}) {
+  let runningStatus = 0
+
+  const higherHcpIsA = playerA.handicap >= playerB.handicap
+
+  const roundData = rounds.map(round => {
+    const courseHoles = holes
+      .filter(h => h.course_id === round.courses?.id)
+      .sort((a, b) => a.hole_number - b.hole_number)
+
+    const holeResults = courseHoles.map(hole => {
+      const aScore = scores.find(s => s.player_id === playerA.id && s.hole_id === hole.id && s.round_id === round.id)
+      const bScore = scores.find(s => s.player_id === playerB.id && s.hole_id === hole.id && s.round_id === round.id)
+
+      let result: "A" | "B" | "H" | null = null
+      if (aScore !== undefined && bScore !== undefined) {
+        if (noShots) {
+          // Gross score comparison: lower gross wins; NR loses
+          if (aScore.no_return && bScore.no_return) result = "H"
+          else if (aScore.no_return)  { runningStatus--; result = "B" }
+          else if (bScore.no_return)  { runningStatus++; result = "A" }
+          else if (aScore.gross_score < bScore.gross_score) { runningStatus++; result = "A" }
+          else if (bScore.gross_score < aScore.gross_score) { runningStatus--; result = "B" }
+          else result = "H"
+        } else {
+          // Stableford comparison: higher points wins
+          if (aScore.stableford_points > bScore.stableford_points)      { runningStatus++; result = "A" }
+          else if (bScore.stableford_points > aScore.stableford_points) { runningStatus--; result = "B" }
+          else result = "H"
+        }
+      }
+
+      const snapshot = runningStatus
+      return { hole, aScore, bScore, result, status: snapshot }
+    })
+
+    return { round, holeResults }
+  })
+
+  const finalStatus  = runningStatus
+  const totalHoles   = rounds.reduce((n, r) => n + holes.filter(h => h.course_id === r.courses?.id).length, 0)
+  const playedHoles  = scores.filter(s => s.player_id === playerA.id || s.player_id === playerB.id).length > 0
+    ? roundData.flatMap(r => r.holeResults).filter(h => h.result !== null).length
+    : 0
+  const remaining    = totalHoles - playedHoles
+
+  const matchResult = () => {
+    if (playedHoles === 0) return null
+    if (remaining > 0 && Math.abs(finalStatus) <= remaining) return null
+    if (finalStatus === 0) return "Match all square"
+    const winner = finalStatus > 0 ? playerA.name.split(" ")[0] : playerB.name.split(" ")[0]
+    const up = Math.abs(finalStatus)
+    return remaining === 0
+      ? `${winner} wins ${up} UP`
+      : `${winner} wins ${up}&${remaining}`
+  }
+
+  const result = matchResult()
+
+  const noShotsBtn = (
+    <button
+      onClick={onToggleNoShots}
+      className={`px-2 py-0.5 text-xs border rounded-sm transition-colors ${
+        noShots
+          ? "border-[#C9A84C]/60 bg-[#C9A84C]/10 text-[#C9A84C]"
+          : "border-[#1e3d28] text-white/30 hover:text-white/50"
+      }`}
+    >
+      No shots
+    </button>
+  )
+
+  return (
+    <div className="space-y-4">
+
+      {/* Player name header with No shots toggle */}
+      <div className="flex items-center justify-between px-1">
+        <div className="flex items-center gap-2">
+          <span className="text-[#C9A84C] font-medium text-sm">{playerA.name.split(" ")[0]}</span>
+          {higherHcpIsA && noShotsBtn}
+        </div>
+        <span className="text-white/25 text-xs uppercase tracking-widest">vs</span>
+        <div className="flex items-center gap-2">
+          {!higherHcpIsA && noShotsBtn}
+          <span className="text-rose-300 font-medium text-sm">{playerB.name.split(" ")[0]}</span>
+        </div>
+      </div>
+
+      {/* Match result banner */}
+      {result && (
+        <div className="border border-[#C9A84C]/40 bg-[#C9A84C]/10 rounded-sm px-5 py-3 text-center">
+          <span className="font-[family-name:var(--font-playfair)] text-[#C9A84C] text-xl">{result}</span>
+        </div>
+      )}
+
+      {roundData.map(({ round, holeResults }) => {
+        const played = holeResults.filter(h => h.result !== null)
+        if (played.length === 0) return (
+          <div key={round.id} className="border border-[#1e3d28] bg-[#0f2418] rounded-sm px-4 py-3">
+            <p className="text-white/40 text-sm">{round.courses?.name} — no scores yet</p>
+          </div>
+        )
+
+        return (
+          <div key={round.id} className="border border-[#1e3d28] bg-[#0f2418] rounded-sm overflow-hidden">
+            <div className="px-4 py-2.5 border-b border-[#1e3d28] flex items-center justify-between">
+              <span className="font-[family-name:var(--font-playfair)] text-white text-sm">{round.courses?.name}</span>
+              <span className="text-white/30 text-xs tracking-widest uppercase">Day {round.round_number}</span>
+            </div>
+
+            <div className="overflow-x-auto">
+              <table className="w-full text-xs border-collapse">
+                <thead>
+                  <tr className="border-b border-[#1e3d28]">
+                    <th className="text-left px-3 py-2 text-white/25 font-normal min-w-[36px]">Hole</th>
+                    <th className="text-right px-3 py-2 text-[#C9A84C]/60 font-semibold min-w-[80px]">{playerA.name.split(" ")[0]}</th>
+                    <th className="text-center px-2 py-2 text-white/20 font-normal min-w-[40px]"></th>
+                    <th className="text-left px-3 py-2 text-rose-300/60 font-semibold min-w-[80px]">{playerB.name.split(" ")[0]}</th>
+                    <th className="text-center px-3 py-2 text-white/25 font-normal min-w-[56px]">Match</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {holeResults.map(({ hole, aScore, bScore, result, status }) => {
+                    const hasScores = aScore !== undefined && bScore !== undefined
+                    const aPts = aScore?.stableford_points ?? null
+                    const bPts = bScore?.stableford_points ?? null
+                    const aGross = aScore?.gross_score ?? null
+                    const bGross = bScore?.gross_score ?? null
+                    const remaining = holeResults.filter(h => h.result === null).length
+
+                    return (
+                      <tr key={hole.id} className={`border-t border-[#1e3d28]/40 ${!hasScores ? "opacity-30" : ""}`}>
+                        <td className="px-3 py-1.5 text-white/40">{hole.hole_number}</td>
+
+                        {/* A score */}
+                        <td className={`text-right px-3 py-1.5 font-medium
+                          ${result === "A" ? "text-[#C9A84C] font-bold" : result === "H" ? "text-white/60" : "text-white/35"}`}>
+                          {aGross !== null ? (
+                            noShots
+                              ? aScore?.no_return ? <span className="text-orange-400/70">NR</span> : aGross
+                              : <>{aGross}<sup className="text-[9px] opacity-60 ml-0.5">{aPts}</sup></>
+                          ) : "—"}
+                        </td>
+
+                        {/* Hole result */}
+                        <td className="text-center px-2 py-1.5">
+                          {result === "A" && <span className="text-[#C9A84C] font-bold">›</span>}
+                          {result === "B" && <span className="text-rose-400 font-bold">‹</span>}
+                          {result === "H" && <span className="text-white/20">·</span>}
+                          {result === null && <span className="text-white/10">–</span>}
+                        </td>
+
+                        {/* B score */}
+                        <td className={`px-3 py-1.5 font-medium
+                          ${result === "B" ? "text-rose-300 font-bold" : result === "H" ? "text-white/60" : "text-white/35"}`}>
+                          {bGross !== null ? (
+                            noShots
+                              ? bScore?.no_return ? <span className="text-orange-400/70">NR</span> : bGross
+                              : <>{bGross}<sup className="text-[9px] opacity-60 ml-0.5">{bPts}</sup></>
+                          ) : "—"}
+                        </td>
+
+                        {/* Running status */}
+                        <td className={`text-center px-3 py-1.5 font-semibold ${hasScores ? statusColor(status) : "text-white/10"}`}>
+                          {hasScores ? statusLabel(status) : "—"}
+                        </td>
+                      </tr>
+                    )
+                  })}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+// ─── Main component ────────────────────────────────────────────
+
+export default function IndividualClient({ rounds, players, holes, scores, roundHandicaps }: Props) {
+  const [filter, setFilter]       = useState<"all" | "dad" | "mum" | "son">("all")
+  const [viewMode, setViewMode]   = useState<ViewMode>("stableford")
+  const [playerAId, setPlayerAId] = useState("")
+  const [playerBId, setPlayerBId] = useState("")
+  const [noShots, setNoShots]     = useState(false)
+
+  const filteredPlayers = filter === "all" ? players : players.filter(p => p.role === filter)
+
+  const standings = filteredPlayers
+    .map(p => {
+      const byRound = rounds.map(r => ({
+        score: viewMode === "stableford"
+          ? playerRoundStableford(p.id, r.id, scores)
+          : playerRoundGross(p.id, r.id, scores, holes, roundHandicaps),
+        nett: playerRoundNett(p.id, r.id, scores, holes),
+        hasNR: viewMode === "stroke" ? playerRoundHasNR(p.id, r.id, scores) : false,
+      }))
+      const total = viewMode === "stableford"
+        ? playerTotalStableford(p.id, scores)
+        : playerTotalGross(p.id, scores, holes, roundHandicaps)
+      const totalNett = playerTotalNett(p.id, scores, holes)
+      const hasNR = viewMode === "stroke" ? playerHasAnyNR(p.id, scores) : false
+      return { player: p, byRound, total, totalNett, hasNR, badges: playerBadges(p.id, scores, holes) }
+    })
+    .sort((a, b) => viewMode === "stroke" ? a.total - b.total : b.total - a.total)
+
+  const playerA = players.find(p => p.id === playerAId)
+  const playerB = players.find(p => p.id === playerBId)
+
+  return (
+    <div className="space-y-10">
+
+      {/* ── Individual standings ── */}
+      <section>
+        <div className="flex items-center gap-4 mb-5 flex-wrap">
+          <h2 className="font-[family-name:var(--font-playfair)] text-xl text-white">Standings</h2>
+
+          {/* Stableford / Stroke toggle */}
+          <div className="flex rounded-sm border border-[#1e3d28] overflow-hidden text-xs">
+            <button
+              onClick={() => setViewMode("stableford")}
+              className={`px-3 py-1.5 transition-colors ${
+                viewMode === "stableford"
+                  ? "bg-[#C9A84C]/15 text-[#C9A84C] border-r border-[#C9A84C]/20"
+                  : "text-white/30 hover:text-white/50 border-r border-[#1e3d28]"
+              }`}
+            >
+              Stableford
+            </button>
+            <button
+              onClick={() => setViewMode("stroke")}
+              className={`px-3 py-1.5 transition-colors ${
+                viewMode === "stroke"
+                  ? "bg-[#C9A84C]/15 text-[#C9A84C]"
+                  : "text-white/30 hover:text-white/50"
+              }`}
+            >
+              Stroke
+            </button>
+          </div>
+
+          {/* Role filters */}
+          <div className="flex gap-1.5">
+            {ROLE_FILTERS.map(f => (
+              <button
+                key={f.key}
+                onClick={() => setFilter(f.key as any)}
+                className={`px-3 py-1 text-xs tracking-wide border rounded-sm transition-colors
+                  ${filter === f.key
+                    ? "border-[#C9A84C]/60 bg-[#C9A84C]/10 text-[#C9A84C]"
+                    : "border-[#1e3d28] text-white/35 hover:text-white/60"}`}
+              >
+                {f.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="border border-[#1e3d28] rounded-sm overflow-hidden">
+          <table className="w-full border-collapse text-sm">
+            <thead>
+              <tr className="border-b border-[#1e3d28]">
+                <th className="text-left px-4 py-3 text-white/25 font-normal w-8">#</th>
+                <th className="text-left px-4 py-3 text-white/25 font-normal">Player</th>
+                {rounds.map(r => (
+                  <th key={r.id} className="text-center px-3 py-3 text-white/25 font-normal text-xs">
+                    <div>Day {r.round_number}</div>
+                    <div className="text-white/15 text-[9px]">{r.courses?.name ? (COURSE_SHORT[r.courses.name] ?? r.courses.name) : ""}</div>
+                  </th>
+                ))}
+                <th className="text-center px-4 py-3 text-white/25 font-normal">
+                  {viewMode === "stroke" ? "Gross" : "Total"}
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {standings.length === 0 ? (
+                <tr>
+                  <td colSpan={rounds.length + 3} className="px-4 py-8 text-center text-white/20 text-sm">No scores yet</td>
+                </tr>
+              ) : standings.map(({ player, byRound, total, totalNett, hasNR, badges }, i) => (
+                <tr key={player.id} className="border-t border-[#1e3d28]/50 hover:bg-white/[0.02] transition-colors">
+                  <td className="px-4 py-3 text-white/30">
+                    {i < 3 ? MEDALS[i] : <span className="text-sm">{i + 1}</span>}
+                  </td>
+                  <td className="px-4 py-3">
+                    <div className="flex items-center gap-2">
+                      {player.teams && (
+                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams.color }} />
+                      )}
+                      <Link href={`/scorecard/${player.id}?from=individual`} className="text-white font-medium hover:text-[#C9A84C] transition-colors">
+                        {player.name}
+                      </Link>
+                      {"🦅".repeat(badges.eagles)}{"🦤".repeat(badges.birdies)}
+                      <span className={`text-xs ${ROLE_TEXT[player.role] ?? "text-white/30"}`}>
+                        {player.role}
+                      </span>
+                    </div>
+                  </td>
+                  {byRound.map((r, j) => (
+                    <td key={j} className="text-center px-3 py-3 text-white/50">
+                      {r.score > 0
+                        ? <>
+                            {r.score}
+                            {viewMode === "stroke" && <span className="text-white/30 ml-0.5">({r.nett})</span>}
+                            {r.hasNR && <span className="text-orange-400/60 text-[10px] ml-0.5">NR</span>}
+                          </>
+                        : <span className="text-white/20">—</span>
+                      }
+                    </td>
+                  ))}
+                  <td className="text-center px-4 py-3 font-[family-name:var(--font-playfair)] text-[#C9A84C] text-xl font-bold">
+                    {total > 0
+                      ? <>
+                          {total}
+                          {viewMode === "stroke" && <span className="text-white/40 ml-1">({totalNett})</span>}
+                        </>
+                      : <span className="text-white/20 text-sm font-normal">—</span>
+                    }
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      {/* ── Matchplay ── */}
+      <section>
+        <h2 className="font-[family-name:var(--font-playfair)] text-xl text-white mb-5">Matchplay</h2>
+
+        {/* Player selectors */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+          <div>
+            <label className="block text-xs tracking-[0.2em] uppercase text-white/30 mb-1.5">Player A</label>
+            <select
+              value={playerAId}
+              onChange={e => { setPlayerAId(e.target.value); setNoShots(false) }}
+              className="w-full bg-[#0f2418] border border-[#1e3d28] text-white px-4 py-3 rounded-sm appearance-none focus:outline-none focus:border-[#C9A84C] text-sm"
+            >
+              <option value="">Select player…</option>
+              {players.map(p => (
+                <option key={p.id} value={p.id} disabled={p.id === playerBId}>
+                  {p.name} ({p.role})
+                </option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs tracking-[0.2em] uppercase text-white/30 mb-1.5">Player B</label>
+            <select
+              value={playerBId}
+              onChange={e => { setPlayerBId(e.target.value); setNoShots(false) }}
+              className="w-full bg-[#0f2418] border border-[#1e3d28] text-white px-4 py-3 rounded-sm appearance-none focus:outline-none focus:border-[#C9A84C] text-sm"
+            >
+              <option value="">Select player…</option>
+              {players.map(p => (
+                <option key={p.id} value={p.id} disabled={p.id === playerAId}>
+                  {p.name} ({p.role})
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        {playerA && playerB ? (
+          <MatchplaySection
+            playerA={playerA}
+            playerB={playerB}
+            rounds={rounds}
+            holes={holes}
+            scores={scores}
+            noShots={noShots}
+            onToggleNoShots={() => setNoShots(v => !v)}
+          />
+        ) : (
+          <div className="border border-[#1e3d28] bg-[#0f2418] rounded-sm px-4 py-10 text-center text-white/20 text-sm">
+            Select two players to view matchplay
+          </div>
+        )}
+      </section>
+
+    </div>
+  )
+}
