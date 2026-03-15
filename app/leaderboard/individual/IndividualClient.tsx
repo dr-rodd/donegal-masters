@@ -32,10 +32,10 @@ const ROLE_FILTERS = [
   { key: "son", label: "Sons" },
 ] as const
 
-const ROLE_TEXT: Record<string, string> = {
-  dad: "text-blue-300",
-  mum: "text-rose-300",
-  son: "text-emerald-300",
+const ROLE_DOT: Record<string, string> = {
+  dad: "bg-blue-400",
+  mum: "bg-rose-400",
+  son: "bg-emerald-400",
 }
 
 const MEDALS = ["🥇", "🥈", "🥉"]
@@ -416,15 +416,15 @@ export default function IndividualClient({ rounds, players, holes, scores, round
           <table className="w-full border-collapse text-sm">
             <thead>
               <tr className="border-b border-[#1e3d28]">
-                <th className="text-left px-4 py-3 text-white/25 font-normal w-8">#</th>
-                <th className="text-left px-4 py-3 text-white/25 font-normal">Player</th>
+                <th className="text-left px-2 sm:px-4 py-3 text-white/25 font-normal w-6">#</th>
+                <th className="text-left px-2 sm:px-4 py-3 text-white/25 font-normal">Player</th>
                 {rounds.map(r => (
-                  <th key={r.id} className="text-center px-3 py-3 text-white/25 font-normal text-xs">
+                  <th key={r.id} className="text-center px-1 sm:px-3 py-3 text-white/25 font-normal text-xs">
                     <div>Day {r.round_number}</div>
-                    <div className="text-white/15 text-[9px]">{r.courses?.name ? (COURSE_SHORT[r.courses.name] ?? r.courses.name) : ""}</div>
+                    <div className="text-white/15 text-[9px] hidden sm:block">{r.courses?.name ? (COURSE_SHORT[r.courses.name] ?? r.courses.name) : ""}</div>
                   </th>
                 ))}
-                <th className="text-center px-4 py-3 text-white/25 font-normal">
+                <th className="text-center px-2 sm:px-4 py-3 text-white/25 font-normal">
                   {viewMode === "stroke" ? "Gross" : "Total"}
                 </th>
               </tr>
@@ -436,40 +436,35 @@ export default function IndividualClient({ rounds, players, holes, scores, round
                 </tr>
               ) : standings.map(({ player, byRound, total, totalNett, hasNR, badges }, i) => (
                 <tr key={player.id} className="border-t border-[#1e3d28]/50 hover:bg-white/[0.02] transition-colors">
-                  <td className="px-4 py-3 text-white/30">
-                    {i < 3 ? MEDALS[i] : <span className="text-sm">{i + 1}</span>}
+                  <td className="px-2 sm:px-4 py-3 text-white/30 text-xs sm:text-sm">
+                    {i < 3 ? MEDALS[i] : <span>{i + 1}</span>}
                   </td>
-                  <td className="px-4 py-3">
-                    <div className="flex items-center gap-2">
-                      {player.teams && (
-                        <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams.color }} />
-                      )}
-                      <Link href={`/scorecard/${player.id}?from=individual`} className="text-white font-medium hover:text-[#C9A84C] transition-colors">
+                  <td className="px-2 sm:px-4 py-3">
+                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ROLE_DOT[player.role] ?? "bg-white/30"}`} />
+                      <Link href={`/scorecard/${player.id}?from=individual`} className="text-white font-medium hover:text-[#C9A84C] transition-colors truncate">
                         {player.name}
                       </Link>
-                      {"🦅".repeat(badges.eagles)}{"🦤".repeat(badges.birdies)}
-                      <span className={`text-xs ${ROLE_TEXT[player.role] ?? "text-white/30"}`}>
-                        {player.role}
-                      </span>
+                      <span className="hidden sm:inline">{"🦅".repeat(badges.eagles)}{"🦤".repeat(badges.birdies)}</span>
                     </div>
                   </td>
                   {byRound.map((r, j) => (
-                    <td key={j} className="text-center px-3 py-3 text-white/50">
+                    <td key={j} className="text-center px-1 sm:px-3 py-3 text-white/50 text-xs sm:text-sm">
                       {r.score > 0
                         ? <>
                             {r.score}
-                            {viewMode === "stroke" && <span className="text-white/30 ml-0.5">({r.nett})</span>}
+                            {viewMode === "stroke" && <span className="text-white/30 ml-0.5 hidden sm:inline">({r.nett})</span>}
                             {r.hasNR && <span className="text-orange-400/60 text-[10px] ml-0.5">NR</span>}
                           </>
                         : <span className="text-white/20">—</span>
                       }
                     </td>
                   ))}
-                  <td className="text-center px-4 py-3 font-[family-name:var(--font-playfair)] text-[#C9A84C] text-xl font-bold">
+                  <td className="text-center px-2 sm:px-4 py-3 font-[family-name:var(--font-playfair)] text-[#C9A84C] text-lg sm:text-xl font-bold">
                     {total > 0
                       ? <>
                           {total}
-                          {viewMode === "stroke" && <span className="text-white/40 ml-1">({totalNett})</span>}
+                          {viewMode === "stroke" && <span className="text-white/40 ml-1 hidden sm:inline">({totalNett})</span>}
                         </>
                       : <span className="text-white/20 text-sm font-normal">—</span>
                     }
