@@ -1,6 +1,7 @@
 "use client"
 
 import { useState } from "react"
+import { useRouter } from "next/navigation"
 import { supabaseAdmin } from "@/lib/supabase-admin"
 
 type Action = "reset-scores" | "reset-teams"
@@ -54,6 +55,7 @@ async function executeAction(action: Action): Promise<void> {
 }
 
 export default function SettingsClient() {
+  const router = useRouter()
   const [activeAction, setActiveAction] = useState<Action | null>(null)
   const [password, setPassword]         = useState("")
   const [wrongPassword, setWrongPassword] = useState(false)
@@ -90,6 +92,7 @@ export default function SettingsClient() {
       setStatus("success")
       setMessage(config.successMessage)
       setActiveAction(null)
+      router.refresh() // invalidate router cache so leaderboard re-fetches fresh data
     } catch (e: any) {
       setStatus("error")
       setMessage(e.message ?? "An error occurred.")
