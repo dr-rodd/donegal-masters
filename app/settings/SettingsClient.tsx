@@ -1,7 +1,7 @@
 "use client"
 
 import { useState } from "react"
-import { supabase } from "@/lib/supabase"
+import { supabaseAdmin } from "@/lib/supabase-admin"
 
 type Action = "reset-scores" | "reset-teams"
 type Status = "idle" | "confirming" | "loading" | "success" | "error"
@@ -39,13 +39,13 @@ const PASSWORD = "donegal2026"
 async function executeAction(action: Action): Promise<void> {
   if (action === "reset-scores") {
     const [scoresRes, hcpsRes] = await Promise.all([
-      supabase.from("scores").delete().not("round_id", "is", null),
-      supabase.from("round_handicaps").delete().not("round_id", "is", null),
+      supabaseAdmin.from("scores").delete().not("round_id", "is", null),
+      supabaseAdmin.from("round_handicaps").delete().not("round_id", "is", null),
     ])
     if (scoresRes.error) throw new Error(scoresRes.error.message)
     if (hcpsRes.error) throw new Error(hcpsRes.error.message)
   } else {
-    const { error } = await supabase
+    const { error } = await supabaseAdmin
       .from("players")
       .update({ team_id: null })
       .not("id", "is", null)
