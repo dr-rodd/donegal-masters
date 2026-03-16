@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, Fragment } from "react"
 import Link from "next/link"
 
 // ─── Types ─────────────────────────────────────────────────────
@@ -293,32 +293,39 @@ function OverallTab({ rounds, teams, holes, scores }: {
         </thead>
         <tbody>
           {rows.map(({ team, byRound, total }, i) => (
-            <tr key={team.id} className="border-t border-[#1e3d28]/50">
-              <td className="px-4 py-3">
-                <div className="flex items-center gap-2 flex-wrap">
-                  <span className="text-lg">{MEDALS[i]}</span>
-                  <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
-                  <span className="font-[family-name:var(--font-playfair)] text-white text-lg font-semibold">{team.name}</span>
-                  <span className="text-white/20 text-sm">·</span>
-                  {sortedPlayers(team.players).map((p, j, arr) => (
-                    <span key={p.id} className="flex items-center gap-2">
-                      <Link href={`/scorecard/${p.id}?from=leaderboard`} className="text-sm font-medium text-[#C9A84C] hover:text-white transition-colors">
+            <Fragment key={team.id}>
+              {/* Full-width team name title row */}
+              <tr className={i > 0 ? "border-t-2 border-[#1e3d28]" : ""}>
+                <td colSpan={rounds.length + 2} className="px-4 pt-3 pb-1">
+                  <div className="flex items-center gap-2">
+                    <span>{MEDALS[i]}</span>
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
+                    <span className="font-[family-name:var(--font-playfair)] text-white font-semibold">{team.name}</span>
+                  </div>
+                </td>
+              </tr>
+              {/* Members + scores row */}
+              <tr>
+                <td className="px-4 pb-3 align-middle">
+                  <div className="flex flex-col">
+                    {sortedPlayers(team.players).map(p => (
+                      <Link key={p.id} href={`/scorecard/${p.id}?from=leaderboard`}
+                        className="text-xs text-[#C9A84C]/70 hover:text-[#C9A84C] transition-colors leading-relaxed">
                         {p.name.split(" ")[0]}
                       </Link>
-                      {j < arr.length - 1 && <span className="text-white/20 text-sm">·</span>}
-                    </span>
-                  ))}
-                </div>
-              </td>
-              {byRound.map((pts, j) => (
-                <td key={j} className="text-center px-3 py-3 text-white/50">
-                  {pts > 0 ? pts : <span className="text-white/20">—</span>}
+                    ))}
+                  </div>
                 </td>
-              ))}
-              <td className="text-center px-4 py-3 font-[family-name:var(--font-playfair)] text-[#C9A84C] text-xl font-bold">
-                {total > 0 ? total : <span className="text-white/20 text-sm font-normal">—</span>}
-              </td>
-            </tr>
+                {byRound.map((pts, j) => (
+                  <td key={j} className="text-center px-3 pb-3 text-white/50 align-middle">
+                    {pts > 0 ? pts : <span className="text-white/20">—</span>}
+                  </td>
+                ))}
+                <td className="text-center px-4 pb-3 font-[family-name:var(--font-playfair)] text-[#C9A84C] text-xl font-bold align-middle">
+                  {total > 0 ? total : <span className="text-white/20 text-sm font-normal">—</span>}
+                </td>
+              </tr>
+            </Fragment>
           ))}
         </tbody>
       </table>
