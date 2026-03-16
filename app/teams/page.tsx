@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import TeamsClient from "./TeamsClient"
+import Poller from "@/app/components/Poller"
 
 export const dynamic = "force-dynamic"
 
@@ -26,6 +27,7 @@ export default async function TeamsPage() {
         </div>
       </div>
 
+      <Poller />
       <div className="max-w-6xl mx-auto px-4 py-8">
         <p className="text-white/30 text-xs tracking-widest uppercase text-center mb-8">
           Drag players between teams · Click a team name to edit

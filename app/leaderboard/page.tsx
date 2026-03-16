@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import LeaderboardClient from "./LeaderboardClient"
+import Poller from "@/app/components/Poller"
 
 export const revalidate = 30
 
@@ -38,6 +39,7 @@ export default async function LeaderboardPage() {
         </div>
       </div>
 
+      <Poller />
       <div className="max-w-5xl mx-auto px-4 py-8">
         <LeaderboardClient
           rounds={(rounds ?? []) as any}
