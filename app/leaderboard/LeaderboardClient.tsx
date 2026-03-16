@@ -295,12 +295,12 @@ function OverallTab({ rounds, teams, holes, scores }: {
           {rows.map(({ team, byRound, total }, i) => (
             <Fragment key={team.id}>
               {/* Full-width team name title row */}
-              <tr className={i > 0 ? "border-t-2 border-[#1e3d28]" : ""}>
-                <td colSpan={rounds.length + 2} className="px-4 pt-3 pb-1">
+              <tr className={i > 0 ? "border-t border-[#1e3d28]" : ""}>
+                <td colSpan={rounds.length + 2} className="px-4 pt-2.5 pb-1">
                   <div className="flex items-center gap-2">
                     <span>{MEDALS[i]}</span>
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
-                    <span className="font-[family-name:var(--font-playfair)] text-white font-semibold">{team.name}</span>
+                    <span className="font-[family-name:var(--font-playfair)] text-white text-base font-semibold">{team.name}</span>
                   </div>
                 </td>
               </tr>
