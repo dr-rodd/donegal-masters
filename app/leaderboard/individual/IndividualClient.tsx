@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import Link from "next/link"
+import { features } from "@/lib/features"
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -439,14 +440,34 @@ export default function IndividualClient({ rounds, players, holes, scores, round
                   <td className="px-2 sm:px-4 py-3 text-white/30 text-xs sm:text-sm">
                     {i < 3 ? MEDALS[i] : <span>{i + 1}</span>}
                   </td>
-                  <td className="px-2 sm:px-4 py-3">
-                    <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
-                      <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ROLE_DOT[player.role] ?? "bg-white/30"}`} />
-                      <Link href={`/scorecard/${player.id}?from=individual`} className="text-white font-medium hover:text-[#C9A84C] transition-colors truncate">
-                        {player.name}
-                      </Link>
-                      <span className="hidden sm:inline">{"🦅".repeat(badges.eagles)}{"🦤".repeat(badges.birdies)}</span>
-                    </div>
+                  <td className="px-2 sm:px-4 py-2.5">
+                    {(() => {
+                      const showEmojis = features.birdieEmojis()
+                      const showScorecard = features.scorecardViewer()
+                      const emojiStr = showEmojis
+                        ? "🦅".repeat(badges.eagles) + "🦤".repeat(badges.birdies)
+                        : ""
+                      const wrap = showEmojis && badges.eagles + badges.birdies > 5
+                      const nameEl = showScorecard
+                        ? (cls: string) => <Link href={`/scorecard/${player.id}?from=individual`} className={`text-white font-medium hover:text-[#C9A84C] transition-colors ${cls}`}>{player.name}</Link>
+                        : (cls: string) => <span className={`text-white font-medium ${cls}`}>{player.name}</span>
+                      return (
+                        <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
+                          <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ROLE_DOT[player.role] ?? "bg-white/30"}`} />
+                          {wrap ? (
+                            <div className="min-w-0">
+                              {nameEl("block truncate leading-snug")}
+                              <span className="text-[0.55em] leading-none opacity-75 mt-0.5 block">{emojiStr}</span>
+                            </div>
+                          ) : (
+                            <div className="flex items-baseline gap-1 min-w-0 flex-1">
+                              {nameEl("truncate min-w-0")}
+                              {emojiStr && <span className="text-[0.55em] leading-none flex-shrink-0">{emojiStr}</span>}
+                            </div>
+                          )}
+                        </div>
+                      )
+                    })()}
                   </td>
                   {byRound.map((r, j) => (
                     <td key={j} className="text-center px-1 sm:px-3 py-3 text-white/50 text-xs sm:text-sm">
@@ -477,7 +498,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
       </section>
 
       {/* ── Matchplay ── */}
-      <section>
+      {features.matchplay() && <section>
         <h2 className="font-[family-name:var(--font-playfair)] text-xl text-white mb-5">Matchplay</h2>
 
         {/* Player selectors */}
@@ -529,7 +550,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
             Select two players to view matchplay
           </div>
         )}
-      </section>
+      </section>}
 
     </div>
   )

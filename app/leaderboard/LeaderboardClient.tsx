@@ -2,6 +2,7 @@
 
 import { useState, Fragment } from "react"
 import Link from "next/link"
+import { features } from "@/lib/features"
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -195,9 +196,10 @@ function TeamScorecard({ team, holes, scores, roundHandicaps, roundId }: {
                     <td className="px-3 py-1.5">
                       <div className="flex items-center gap-1.5">
                         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ROLE_DOT[player.role] ?? "bg-white/30"}`} />
-                        <Link href={`/scorecard/${player.id}?from=leaderboard`} className="text-xs text-[#C9A84C] hover:text-white transition-colors">
-                          {player.name.split(" ")[0]}
-                        </Link>
+                        {features.scorecardViewer()
+                          ? <Link href={`/scorecard/${player.id}?from=leaderboard`} className="text-xs text-[#C9A84C] hover:text-white transition-colors">{player.name.split(" ")[0]}</Link>
+                          : <span className="text-xs text-[#C9A84C]">{player.name.split(" ")[0]}</span>
+                        }
                         {hcp && <span className="text-white/20 text-[10px]">ph{hcp.playing_handicap}</span>}
                       </div>
                     </td>
@@ -309,10 +311,9 @@ function OverallTab({ rounds, teams, holes, scores }: {
                 <td className="px-4 pb-3 align-middle">
                   <div className="flex flex-col">
                     {sortedPlayers(team.players).map(p => (
-                      <Link key={p.id} href={`/scorecard/${p.id}?from=leaderboard`}
-                        className="text-xs text-[#C9A84C]/70 hover:text-[#C9A84C] transition-colors leading-relaxed">
-                        {p.name.split(" ")[0]}
-                      </Link>
+                      features.scorecardViewer()
+                        ? <Link key={p.id} href={`/scorecard/${p.id}?from=leaderboard`} className="text-xs text-[#C9A84C]/70 hover:text-[#C9A84C] transition-colors leading-relaxed">{p.name.split(" ")[0]}</Link>
+                        : <span key={p.id} className="text-xs text-[#C9A84C]/70 leading-relaxed">{p.name.split(" ")[0]}</span>
                     ))}
                   </div>
                 </td>

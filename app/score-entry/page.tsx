@@ -5,20 +5,14 @@ import Link from "next/link"
 export const dynamic = "force-dynamic"
 
 export default async function ScoreEntryPage() {
-  const [playersRes, coursesRes] = await Promise.all([
+  const [playersRes, roundsRes] = await Promise.all([
     supabase.from("players").select("id, name, role, handicap, gender").order("name"),
-    supabase.from("courses").select("id, name").order("name").then(res => {
-      if (res.data) {
-        const order = ["Sandy Hills", "St Patricks Links", "Old Tom Morris"]
-        res.data.sort((a, b) => order.indexOf(a.name) - order.indexOf(b.name))
-      }
-      return res
-    }),
+    supabase.from("rounds").select("round_number, courses(id, name)").order("round_number"),
   ])
-  console.log("[score-entry] players:", playersRes.data, "error:", playersRes.error)
-  console.log("[score-entry] courses:", coursesRes.data, "error:", coursesRes.error)
   const players = playersRes.data
-  const courses = coursesRes.data
+  const courses = (roundsRes.data ?? [])
+    .map((r: any) => r.courses)
+    .filter(Boolean)
 
   return (
     <div className="min-h-screen bg-[#0a1a0e] text-white overflow-x-hidden">

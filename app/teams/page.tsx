@@ -6,10 +6,12 @@ import Poller from "@/app/components/Poller"
 export const dynamic = "force-dynamic"
 
 export default async function TeamsPage() {
-  const [{ data: teams }, { data: players }] = await Promise.all([
+  const [{ data: teams }, { data: players }, { data: rounds }] = await Promise.all([
     supabase.from("teams").select("id, name, color").order("name"),
     supabase.from("players").select("id, name, role, handicap, team_id, gender").order("name"),
+    supabase.from("rounds").select("status"),
   ])
+  const hasActiveRound = rounds?.some((r: any) => r.status === "active") ?? false
 
   return (
     <div className="min-h-screen bg-[#0a1a0e] text-white">
@@ -27,7 +29,7 @@ export default async function TeamsPage() {
         </div>
       </div>
 
-      <Poller />
+      <Poller isActive={hasActiveRound} />
       <div className="max-w-6xl mx-auto px-4 py-8">
         <p className="text-white/30 text-xs tracking-widest uppercase text-center mb-8">
           Drag players between teams · Click a team name to edit

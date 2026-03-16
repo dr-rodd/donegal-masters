@@ -7,12 +7,14 @@ export const revalidate = 30
 
 export default async function IndividualPage() {
   const [roundsRes, playersRes, holesRes, scoresRes, hcpsRes] = await Promise.all([
-    supabase.from("rounds").select("id, round_number, courses(id, name)").order("round_number"),
+    supabase.from("rounds").select("id, round_number, status, courses(id, name)").order("round_number"),
     supabase.from("players").select("id, name, role, handicap, team_id, teams(name, color)").order("name"),
     supabase.from("holes").select("id, hole_number, par, stroke_index, course_id").order("hole_number"),
     supabase.from("scores").select("player_id, hole_id, round_id, stableford_points, gross_score, no_return"),
     supabase.from("round_handicaps").select("round_id, player_id, playing_handicap"),
   ])
+
+  const hasActiveRound = roundsRes.data?.some((r: any) => r.status === "active") ?? false
 
   return (
     <div className="min-h-screen bg-[#0a1a0e] text-white">
@@ -28,7 +30,7 @@ export default async function IndividualPage() {
         </div>
       </div>
 
-      <Poller />
+      <Poller isActive={hasActiveRound} />
       <div className="max-w-5xl mx-auto px-4 py-8">
         <IndividualClient
           rounds={(roundsRes.data ?? []) as any}
