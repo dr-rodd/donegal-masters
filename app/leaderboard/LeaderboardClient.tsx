@@ -38,6 +38,12 @@ const ROLE_DOT: Record<string, string> = {
 
 const MEDALS = ["🥇", "🥈", "🥉", "4️⃣"]
 
+const COURSE_LOGO: Record<string, string> = {
+  "Old Tom Morris":    "/oldtomlogo.png",
+  "Sandy Hills":       "/sandyhillslogo.png",
+  "St Patricks Links": "/stpatrickslogo.png",
+}
+
 const ROLE_ORDER: Record<string, number> = { dad: 0, mum: 1, son: 2 }
 function sortedPlayers(players: Player[]) {
   return [...players].sort((a, b) => (ROLE_ORDER[a.role] ?? 3) - (ROLE_ORDER[b.role] ?? 3))
@@ -138,7 +144,7 @@ function TeamScorecard({ team, holes, scores, roundHandicaps, roundId }: {
           <table className="text-[13px] border-collapse w-full">
             <thead>
               <tr className="border-b border-[#1e3d28]">
-                <th className="text-left px-3 py-1.5 text-white/25 font-normal min-w-[64px]">Hole</th>
+                <th className="sticky left-0 z-10 bg-[#0f2418] text-left px-3 py-1.5 text-white/25 font-normal min-w-[72px] border-r border-[#1e3d28]/60">Hole</th>
                 {frontHoles.map(h => <th key={h.id} className="text-center px-1 py-1.5 text-white/25 font-normal min-w-[30px]">{h.hole_number}</th>)}
                 <th className="text-center px-2 py-1.5 text-white/25 font-normal">Out</th>
                 {backHoles.map(h => <th key={h.id} className="text-center px-1 py-1.5 text-white/25 font-normal min-w-[30px]">{h.hole_number}</th>)}
@@ -147,7 +153,7 @@ function TeamScorecard({ team, holes, scores, roundHandicaps, roundId }: {
                 <th className="text-center px-2 py-1.5 text-white/25 font-normal">Pts</th>
               </tr>
               <tr className="border-b border-[#1e3d28]">
-                <th className="text-left px-3 py-1 text-white/20 font-normal">Par</th>
+                <th className="sticky left-0 z-10 bg-[#0f2418] text-left px-3 py-1 text-white/20 font-normal border-r border-[#1e3d28]/60">Par</th>
                 {frontHoles.map(h => <th key={h.id} className="text-center px-1 py-1 text-white/20 font-normal">{h.par}</th>)}
                 <th className="text-center px-2 py-1 text-white/20 font-normal">{outPar}</th>
                 {backHoles.map(h => <th key={h.id} className="text-center px-1 py-1 text-white/20 font-normal">{h.par}</th>)}
@@ -158,7 +164,7 @@ function TeamScorecard({ team, holes, scores, roundHandicaps, roundId }: {
             <tbody>
               {/* Best-ball row */}
               <tr className="border-t border-[#1e3d28]">
-                <td className="px-3 py-1.5 text-white/40 text-xs uppercase tracking-wider">Best</td>
+                <td className="sticky left-0 z-10 bg-[#0f2418] px-3 py-1.5 text-white/40 text-xs uppercase tracking-wider border-r border-[#1e3d28]/60">Best</td>
                 {front.map(h => h.hasScore
                   ? <ScoreCell key={h.hole.id} gross={h.gross} pts={h.pts} nr={h.nr} role={h.role} />
                   : <EmptyCell key={h.hole.id} />
@@ -193,7 +199,7 @@ function TeamScorecard({ team, holes, scores, roundHandicaps, roundId }: {
 
                 return (
                   <tr key={player.id} className="border-t border-[#1e3d28]/30">
-                    <td className="px-3 py-1.5">
+                    <td className="sticky left-0 z-10 bg-[#0f2418] px-3 py-1.5 border-r border-[#1e3d28]/60">
                       <div className="flex items-center gap-1.5">
                         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ROLE_DOT[player.role] ?? "bg-white/30"}`} />
                         {features.scorecardViewer()
@@ -337,7 +343,12 @@ function OverallTab({ rounds, teams, holes, scores }: {
 // ─── Main component ────────────────────────────────────────────
 
 export default function LeaderboardClient({ rounds, teams, holes, scores, roundHandicaps }: Props) {
-  const tabs = rounds.map(r => ({ key: r.id, label: `Day ${r.round_number}`, sub: r.courses?.name ?? "" }))
+  const tabs = rounds.map(r => ({
+    key:  r.id,
+    label: `Day ${r.round_number}`,
+    sub:  r.courses?.name ?? "",
+    logo: r.courses?.name ? (COURSE_LOGO[r.courses.name] ?? null) : null,
+  }))
   const [active, setActive] = useState(tabs[0]?.key ?? "")
 
   return (
@@ -354,13 +365,29 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
               <button
                 key={tab.key}
                 onClick={() => setActive(tab.key)}
-                className={`flex flex-col items-center justify-center text-center flex-1 px-4 py-4 rounded-sm transition-colors border
+                className={`relative flex flex-col items-center justify-center text-center flex-1 px-4 py-4 rounded-sm transition-colors border
                   ${isActive
                     ? "bg-[#C9A84C]/10 border-[#C9A84C]/40 text-[#C9A84C]"
                     : "bg-white/[0.03] border-[#1e3d28] text-white/40 hover:bg-white/[0.06] hover:text-white/60"}`}
               >
                 <span className="font-[family-name:var(--font-playfair)] text-base sm:text-lg font-semibold leading-tight">{tab.sub}</span>
                 <span className={`text-[10px] mt-1 tracking-[0.15em] uppercase ${isActive ? "text-[#C9A84C]/50" : "text-white/25"}`}>{tab.label}</span>
+                {tab.logo && (
+                  <div
+                    className="absolute right-0 top-1/2 -translate-y-1/2 -translate-x-1/2 h-12 w-12"
+                    style={{
+                      backgroundColor: "currentColor",
+                      WebkitMaskImage: `url(${tab.logo})`,
+                      maskImage: `url(${tab.logo})`,
+                      WebkitMaskSize: "contain",
+                      maskSize: "contain",
+                      WebkitMaskRepeat: "no-repeat",
+                      maskRepeat: "no-repeat",
+                      WebkitMaskPosition: "center",
+                      maskPosition: "center",
+                    }}
+                  />
+                )}
               </button>
             )
           })}
