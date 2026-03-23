@@ -340,6 +340,22 @@ function OverallTab({ rounds, teams, holes, scores }: {
   )
 }
 
+// ─── Logo mask helper ───────────────────────────────────────────
+
+function logoMask(src: string): React.CSSProperties {
+  return {
+    backgroundColor: "currentColor",
+    WebkitMaskImage: `url(${src})`,
+    maskImage: `url(${src})`,
+    WebkitMaskSize: "contain",
+    maskSize: "contain",
+    WebkitMaskRepeat: "no-repeat",
+    maskRepeat: "no-repeat",
+    WebkitMaskPosition: "center",
+    maskPosition: "center",
+  }
+}
+
 // ─── Main component ────────────────────────────────────────────
 
 export default function LeaderboardClient({ rounds, teams, holes, scores, roundHandicaps }: Props) {
@@ -365,28 +381,25 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
               <button
                 key={tab.key}
                 onClick={() => setActive(tab.key)}
-                className={`relative flex flex-col items-center justify-center text-center flex-1 px-4 py-4 rounded-sm transition-colors border
+                className={`relative flex-1 rounded-sm transition-colors border
                   ${isActive
                     ? "bg-[#C9A84C]/10 border-[#C9A84C]/40 text-[#C9A84C]"
                     : "bg-white/[0.03] border-[#1e3d28] text-white/40 hover:bg-white/[0.06] hover:text-white/60"}`}
               >
-                <span className="font-[family-name:var(--font-playfair)] text-base sm:text-lg font-semibold leading-tight">{tab.sub}</span>
-                <span className={`text-[10px] mt-1 tracking-[0.15em] uppercase ${isActive ? "text-[#C9A84C]/50" : "text-white/25"}`}>{tab.label}</span>
+                {/* Mobile: logo → course name → day number, stacked */}
+                <div className="flex flex-col items-center justify-center text-center gap-1.5 px-2 py-3 sm:hidden">
+                  {tab.logo && <div className="h-10 w-10 flex-shrink-0" style={logoMask(tab.logo)} />}
+                  <span className="font-[family-name:var(--font-playfair)] text-[11px] font-semibold leading-tight w-full">{tab.sub}</span>
+                  <span className={`text-[9px] tracking-[0.15em] uppercase ${isActive ? "text-[#C9A84C]/50" : "text-white/25"}`}>{tab.label}</span>
+                </div>
+
+                {/* Desktop: text centred, logo right — unchanged */}
+                <div className="hidden sm:flex flex-col items-center justify-center text-center px-4 py-4">
+                  <span className="font-[family-name:var(--font-playfair)] text-lg font-semibold leading-tight">{tab.sub}</span>
+                  <span className={`text-[10px] mt-1 tracking-[0.15em] uppercase ${isActive ? "text-[#C9A84C]/50" : "text-white/25"}`}>{tab.label}</span>
+                </div>
                 {tab.logo && (
-                  <div
-                    className="absolute right-0 top-1/2 -translate-y-1/2 -translate-x-1/2 h-12 w-12"
-                    style={{
-                      backgroundColor: "currentColor",
-                      WebkitMaskImage: `url(${tab.logo})`,
-                      maskImage: `url(${tab.logo})`,
-                      WebkitMaskSize: "contain",
-                      maskSize: "contain",
-                      WebkitMaskRepeat: "no-repeat",
-                      maskRepeat: "no-repeat",
-                      WebkitMaskPosition: "center",
-                      maskPosition: "center",
-                    }}
-                  />
+                  <div className="hidden sm:block absolute right-0 top-1/2 -translate-y-1/2 -translate-x-1/2 h-12 w-12" style={logoMask(tab.logo)} />
                 )}
               </button>
             )
