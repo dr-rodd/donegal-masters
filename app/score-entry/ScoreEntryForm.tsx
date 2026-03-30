@@ -10,9 +10,25 @@ interface Course  { id: string; name: string }
 interface Tee     { id: string; name: string; gender: string; par: number; course_rating: number; slope: number }
 interface Hole    {
   id: string; hole_number: number; par: number; stroke_index: number
+  par_ladies?: number; stroke_index_ladies?: number
   yardage_black?: number; yardage_blue?: number; yardage_white?: number; yardage_red?: number
   yardage_sandstone?: number; yardage_slate?: number; yardage_granite?: number; yardage_claret?: number
 }
+
+const ST_PATRICKS_COURSE_ID = '11111111-0000-0000-0000-000000000003'
+
+interface SubmittedSnapshot {
+  playerName: string
+  courseName: string
+  teeName: string
+  playingHcp: number
+  holes: Hole[]
+  scores: (number | null)[]
+  nrs: boolean[]
+  yardages: Record<string, number>
+  submittedAt: Date
+}
+
 type Phase = "selecting" | "entering" | "submitting" | "done"
 
 // ─── Helpers ──────────────────────────────────────────────
@@ -70,6 +86,166 @@ function StepDot({ n, active, done }: { n: number; active: boolean; done: boolea
       : active ? "border-[#C9A84C] text-[#C9A84C]"
                : "border-white/20 text-white/20"}`}>
       {done ? "✓" : n}
+    </div>
+  )
+}
+
+// ─── Submitted scorecard components ───────────────────────
+
+function ScoreCell({ gross, par, pts }: { gross: number; par: number; pts: number }) {
+  const diff = gross - par
+  const f = "font-[family-name:var(--font-crimson)] leading-none"
+  const ptsColor = pts >= 3 ? "text-[#2d6a4f]" : pts === 0 ? "text-gray-300" : "text-gray-400"
+
+  let shape: React.ReactNode
+  if (diff <= -2) {
+    shape = (
+      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#C9A84C]">
+        <span className={`${f} text-base font-semibold text-[#1a0a00]`}>{gross}</span>
+      </span>
+    )
+  } else if (diff === -1) {
+    shape = (
+      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full border-2 border-[#2d6a4f]">
+        <span className={`${f} text-base text-[#1a5235]`}>{gross}</span>
+      </span>
+    )
+  } else if (diff === 0) {
+    shape = <span className={`${f} text-base text-gray-700`}>{gross}</span>
+  } else if (diff === 1) {
+    shape = (
+      <span className="inline-flex items-center justify-center w-7 h-7 border border-gray-400">
+        <span className={`${f} text-sm text-gray-500`}>{gross}</span>
+      </span>
+    )
+  } else {
+    shape = (
+      <span className="inline-flex items-center justify-center w-7 h-7 bg-gray-300">
+        <span className={`${f} text-sm text-gray-600`}>{gross}</span>
+      </span>
+    )
+  }
+
+  return (
+    <span className="inline-flex items-start gap-0.5">
+      {shape}
+      <sup className={`text-[10px] font-bold leading-none mt-0.5 ${ptsColor}`}>{pts}</sup>
+    </span>
+  )
+}
+
+function SubtotalRow({ label, par, yards, gross, pts, isTotal }: {
+  label: string; par: number; yards: number | null; gross: number; pts: number; isTotal?: boolean
+}) {
+  const crimson = "font-[family-name:var(--font-crimson)]"
+  const bg = isTotal ? "bg-[#1a3a22]" : "bg-gray-100"
+  const textLabel = isTotal ? "text-white/70" : "text-gray-500"
+  const textData = isTotal ? "text-white" : "text-gray-700"
+  const textPts = isTotal ? "text-[#C9A84C]" : "text-[#2d6a4f]"
+  return (
+    <tr className={`border-t-2 ${isTotal ? "border-[#1e3a22]" : "border-gray-200"} ${bg}`}>
+      <td className={`py-2 px-3 text-xs uppercase tracking-wider font-semibold ${textLabel} font-[family-name:var(--font-playfair)]`}>{label}</td>
+      <td className={`text-center py-2 px-2 text-sm font-semibold ${textData} ${crimson}`}>{par}</td>
+      <td className="py-2 px-2" />
+      <td className={`text-center py-2 px-2 text-sm ${textData} ${crimson}`}>{yards ?? "—"}</td>
+      <td className={`text-center py-2 px-2 ${crimson}`}>
+        {gross > 0 ? (
+          <>
+            <span className={`text-sm font-semibold ${textData}`}>{gross}</span>
+            <span className={`text-xs font-bold ml-1.5 ${textPts}`}>{pts}</span>
+          </>
+        ) : "—"}
+      </td>
+    </tr>
+  )
+}
+
+function SubmittedScorecard({ snapshot }: { snapshot: SubmittedSnapshot }) {
+  const { playerName, courseName, teeName, playingHcp, holes, scores, nrs, yardages, submittedAt } = snapshot
+  const crimson = "font-[family-name:var(--font-crimson)]"
+  const front = holes.slice(0, 9)
+  const back  = holes.slice(9, 18)
+
+  function holePts(i: number): number {
+    if (nrs[i] || scores[i] === null) return 0
+    return calcStableford(scores[i]!, holes[i].par, holes[i].stroke_index, playingHcp)
+  }
+  function holeGrossVal(i: number): number {
+    if (nrs[i]) return nrGross(holes[i].par, holes[i].stroke_index, playingHcp)
+    return scores[i] ?? 0
+  }
+  function sumGross(offset: number, len: number) {
+    let t = 0; for (let j = 0; j < len; j++) t += holeGrossVal(offset + j); return t
+  }
+  function sumPts(offset: number, len: number) {
+    let t = 0; for (let j = 0; j < len; j++) t += holePts(offset + j); return t
+  }
+  function sumPar(hs: Hole[])   { return hs.reduce((s, h) => s + h.par, 0) }
+  function sumYards(hs: Hole[]) {
+    let t = 0
+    for (const h of hs) { const y = yardages[h.id]; if (!y) return null; t += y }
+    return t
+  }
+
+  const outPar = sumPar(front), inPar = sumPar(back)
+  const outYards = sumYards(front), inYards = sumYards(back)
+  const totalYards = outYards != null && inYards != null ? outYards + inYards : null
+  const dateStr = submittedAt.toLocaleDateString("en-IE", { day: "numeric", month: "short", year: "numeric" })
+
+  function HoleRow({ hole, i, stripOdd }: { hole: Hole; i: number; stripOdd: boolean }) {
+    const pts  = holePts(i)
+    const isNR = nrs[i]
+    return (
+      <tr className={`border-t border-gray-100 ${stripOdd ? "bg-white" : "bg-gray-50/40"}`}>
+        <td className={`py-2.5 px-3 text-sm font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
+        <td className={`text-center py-2.5 px-2 text-sm text-gray-500 ${crimson}`}>{hole.par}</td>
+        <td className={`text-center py-2.5 px-2 text-xs text-gray-300 ${crimson}`}>{hole.stroke_index}</td>
+        <td className={`text-center py-2.5 px-2 text-xs text-gray-400 ${crimson}`}>{yardages[hole.id] ?? "—"}</td>
+        <td className="text-center py-1.5 px-2">
+          {isNR
+            ? <span className={`text-orange-500 text-sm font-semibold ${crimson}`}>NR</span>
+            : scores[i] !== null
+              ? <ScoreCell gross={scores[i]!} par={hole.par} pts={pts} />
+              : <span className="text-gray-200 text-sm">—</span>
+          }
+        </td>
+      </tr>
+    )
+  }
+
+  return (
+    <div className="mt-4">
+      <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
+        <div className="bg-[#1a3a22] px-4 py-3 flex items-center justify-between">
+          <div>
+            <div className="font-[family-name:var(--font-playfair)] text-white text-base">{playerName}</div>
+            <div className={`text-[#C9A84C]/50 text-xs mt-0.5 ${crimson}`}>{dateStr}</div>
+          </div>
+          <div className={`flex items-center gap-3 text-xs ${crimson}`}>
+            <span className="text-[#C9A84C]/80 capitalize">{teeName.toLowerCase()} tees</span>
+            <span className="text-white/40">hcp {playingHcp}</span>
+          </div>
+        </div>
+
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b-2 border-gray-200 bg-gray-50">
+              <th className="text-left   py-2 px-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide font-[family-name:var(--font-playfair)] w-10">Hole</th>
+              <th className="text-center py-2 px-2 text-[11px] font-normal  text-gray-400 uppercase tracking-wide w-9">Par</th>
+              <th className="text-center py-2 px-2 text-[11px] font-normal  text-gray-400 uppercase tracking-wide w-9">SI</th>
+              <th className="text-center py-2 px-2 text-[11px] font-normal  text-gray-400 uppercase tracking-wide w-12">Yds</th>
+              <th className="text-center py-2 px-2 text-[11px] font-normal  text-gray-400 uppercase tracking-wide">Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {front.map((hole, j) => <HoleRow key={hole.id} hole={hole} i={j}   stripOdd={j % 2 === 0} />)}
+            <SubtotalRow label="Out"   par={outPar}          yards={outYards}   gross={sumGross(0, 9)} pts={sumPts(0, 9)} />
+            {back.map((hole,  j) => <HoleRow key={hole.id} hole={hole} i={9+j} stripOdd={j % 2 === 0} />)}
+            <SubtotalRow label="In"    par={inPar}           yards={inYards}    gross={sumGross(9, 9)} pts={sumPts(9, 9)} />
+            <SubtotalRow label="Total" par={outPar + inPar}  yards={totalYards} gross={sumGross(0, 18)} pts={sumPts(0, 18)} isTotal />
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
@@ -269,7 +445,8 @@ export default function ScoreEntryForm({ players, courses }: { players: Player[]
   const [scores, setScores]     = useState<(number | null)[]>([])
   const [nrs, setNRs]           = useState<boolean[]>([])
   const [yardages, setYardages] = useState<Record<string, number>>({})
-  const [error, setError]       = useState<string | null>(null)
+  const [error, setError]           = useState<string | null>(null)
+  const [snapshot, setSnapshot]     = useState<SubmittedSnapshot | null>(null)
 
   const player      = players.find(p => p.id === playerId)
   const course      = courses.find(c => c.id === courseId)
@@ -308,7 +485,7 @@ export default function ScoreEntryForm({ players, courses }: { players: Player[]
     const [{ data: holeData, error: holesError }, { data: roundData }] = await Promise.all([
       supabase
         .from("holes")
-        .select("id, hole_number, par, stroke_index, yardage_black, yardage_blue, yardage_white, yardage_red, yardage_sandstone, yardage_slate, yardage_granite, yardage_claret")
+        .select("id, hole_number, par, stroke_index, par_ladies, stroke_index_ladies, yardage_black, yardage_blue, yardage_white, yardage_red, yardage_sandstone, yardage_slate, yardage_granite, yardage_claret")
         .eq("course_id", courseId)
         .order("hole_number"),
       supabase.from("rounds").select("id").eq("course_id", courseId).single(),
@@ -326,8 +503,18 @@ export default function ScoreEntryForm({ players, courses }: { players: Player[]
       if (y) yardageMap[h.id] = y
     }
 
+    // Use ladies par/stroke_index for female players on St Patrick's course
+    const isLadies = player?.gender === 'F' && courseId === ST_PATRICKS_COURSE_ID
+    const resolvedHoles = isLadies
+      ? holeData.map(h => ({
+          ...h,
+          par:          h.par_ladies          ?? h.par,
+          stroke_index: h.stroke_index_ladies ?? h.stroke_index,
+        }))
+      : holeData
+
     setRoundId(roundData?.id ?? "")
-    setHoles(holeData)
+    setHoles(resolvedHoles)
     setYardages(yardageMap)
     setScores(holeData.map(() => null))
     setNRs(holeData.map(() => false))
@@ -363,6 +550,18 @@ export default function ScoreEntryForm({ players, courses }: { players: Player[]
       .upsert(rows, { onConflict: "round_id,player_id,hole_id" })
 
     if (error) { setError(error.message); setPhase("entering"); return }
+
+    setSnapshot({
+      playerName:  player.name,
+      courseName:  course?.name ?? "",
+      teeName:     selectedTee?.name ?? "",
+      playingHcp,
+      holes:       [...holes],
+      scores:      [...scores],
+      nrs:         [...nrs],
+      yardages:    { ...yardages },
+      submittedAt: new Date(),
+    })
     setPhase("done")
   }
 
@@ -383,17 +582,20 @@ export default function ScoreEntryForm({ players, courses }: { players: Player[]
 
   if (phase === "done") {
     return (
-      <div className="max-w-lg mx-auto px-4 py-16 flex flex-col items-center gap-6 text-center">
-        <div className="text-5xl">⛳</div>
-        <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white">Scores Saved</h2>
-        <p className="text-white/50 text-sm">
-          {player?.name} · {course?.name} · {selectedTee?.name} tee · {totalPts} pts{hasAnyNR ? " (NR)" : ""}
-        </p>
-        <button
-          onClick={() => { setPhase("selecting"); setPlayerId(""); setCourseId(""); setTeeId(""); setRoundId("") }}
-          className="mt-4 px-8 py-3 border border-white/30 text-white/70 text-sm tracking-[0.25em] uppercase hover:border-[#C9A84C] hover:text-[#C9A84C] transition-colors">
-          Enter Another Score
-        </button>
+      <div className="max-w-lg mx-auto px-4 pb-16">
+        <div className="flex flex-col items-center gap-6 text-center pt-16 pb-8">
+          <div className="text-5xl">⛳</div>
+          <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white">Scores Saved</h2>
+          <p className="text-white/50 text-sm">
+            {snapshot?.playerName} · {snapshot?.courseName} · {snapshot?.teeName} tee · {totalPts} pts{hasAnyNR ? " (NR)" : ""}
+          </p>
+          <button
+            onClick={() => { setPhase("selecting"); setPlayerId(""); setCourseId(""); setTeeId(""); setRoundId("") }}
+            className="px-8 py-3 border border-white/30 text-white/70 text-sm tracking-[0.25em] uppercase hover:border-[#C9A84C] hover:text-[#C9A84C] transition-colors">
+            Enter Another Score
+          </button>
+        </div>
+        {snapshot && <SubmittedScorecard snapshot={snapshot} />}
       </div>
     )
   }
