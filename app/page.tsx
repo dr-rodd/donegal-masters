@@ -43,19 +43,19 @@ export default function Home() {
           <nav className="flex flex-col sm:flex-row gap-3">
             <Link
               href="/teams"
-              className="w-52 text-center py-3 border border-white/30 text-white/70 text-sm tracking-[0.25em] uppercase hover:border-gold hover:text-gold transition-colors duration-300"
+              className="w-[312px] text-center py-[18px] border border-white/30 text-white/70 text-sm tracking-[0.25em] uppercase hover:border-gold hover:text-gold transition-colors duration-300"
             >
               Team Selection
             </Link>
             <Link
               href="/score-entry"
-              className="w-52 text-center py-3 border border-white/30 text-white/70 text-sm tracking-[0.25em] uppercase hover:border-gold hover:text-gold transition-colors duration-300"
+              className="w-[312px] text-center py-[18px] border border-white/30 text-white/70 text-sm tracking-[0.25em] uppercase hover:border-gold hover:text-gold transition-colors duration-300"
             >
               Score Entry
             </Link>
             <Link
               href="/leaderboard"
-              className="w-52 text-center py-3 border border-white/30 text-white/70 text-sm tracking-[0.25em] uppercase hover:border-gold hover:text-gold transition-colors duration-300"
+              className="w-[312px] text-center py-[18px] border border-white/30 text-white/70 text-sm tracking-[0.25em] uppercase hover:border-gold hover:text-gold transition-colors duration-300"
             >
               Leaderboard
             </Link>
