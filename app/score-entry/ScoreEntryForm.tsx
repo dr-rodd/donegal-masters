@@ -22,6 +22,7 @@ interface SubmittedSnapshot {
   playerName: string
   courseName: string
   teeName: string
+  handicapIndex: number
   playingHcp: number
   roundNumber: number
   holes: Hole[]
@@ -30,6 +31,9 @@ interface SubmittedSnapshot {
   yardages: Record<string, number>
   submittedAt: Date
 }
+
+// CSS filter to tint any image to gold (#C9A84C)
+const GOLD_FILTER = "brightness(0) saturate(100%) invert(64%) sepia(36%) saturate(600%) hue-rotate(6deg) brightness(95%) contrast(88%)"
 
 const COURSE_LOGO: Record<string, string> = {
   "Old Tom Morris":    "/oldtomlogo.png",
@@ -193,21 +197,23 @@ function SubtotalRow({ label, par, yards, gross, pts, isTotal, a11y }: {
 }
 
 function SubmittedScorecard({ snapshot, a11y }: { snapshot: SubmittedSnapshot; a11y: boolean }) {
-  const { playerName, courseName, teeName, playingHcp, roundNumber, holes, scores, nrs, yardages, submittedAt } = snapshot
+  const { playerName, courseName, teeName, handicapIndex, playingHcp, roundNumber, holes, scores, nrs, yardages, submittedAt } = snapshot
   const crimson = "font-[family-name:var(--font-crimson)]"
+  const playfair = "font-[family-name:var(--font-playfair)]"
   const front = holes.slice(0, 9)
   const back  = holes.slice(9, 18)
-  const logo  = COURSE_LOGO[courseName]
-  const year  = submittedAt.getFullYear()
-  const dateStr = submittedAt.toLocaleDateString("en-IE", { weekday: "short", day: "numeric", month: "short", year: "numeric" })
 
-  // a11y-responsive size tokens
-  const txSm  = a11y ? "text-base"  : "text-sm"
-  const txXs  = a11y ? "text-sm"    : "text-xs"
-  const tx11  = a11y ? "text-xs"    : "text-[11px]"
-  const txNum = a11y ? "text-gray-900" : "text-gray-700"
-  const txSI  = a11y ? "text-gray-800" : "text-gray-600"
-  const txHdr = a11y ? "text-gray-900" : "text-gray-700"
+  const d = submittedAt
+  const dateStr = `${String(d.getDate()).padStart(2,"0")}/${String(d.getMonth()+1).padStart(2,"0")}/${d.getFullYear()}`
+
+  // a11y size/colour tokens
+  const txSm  = a11y ? "text-base"     : "text-sm"
+  const txXs  = a11y ? "text-sm"       : "text-xs"
+  const tx11  = a11y ? "text-xs"       : "text-[11px]"
+  const txBold = a11y ? "text-black"   : "text-gray-800"
+  const txBody = a11y ? "text-gray-900" : "text-gray-700"
+  const txMid  = a11y ? "text-gray-900" : "text-gray-700"
+  const gold  = "border-[#C9A84C]"
 
   function holePts(i: number): number {
     if (nrs[i] || scores[i] === null) return 0
@@ -217,17 +223,11 @@ function SubmittedScorecard({ snapshot, a11y }: { snapshot: SubmittedSnapshot; a
     if (nrs[i]) return nrGross(holes[i].par, holes[i].stroke_index, playingHcp)
     return scores[i] ?? 0
   }
-  function sumGross(offset: number, len: number) {
-    let t = 0; for (let j = 0; j < len; j++) t += holeGrossVal(offset + j); return t
-  }
-  function sumPts(offset: number, len: number) {
-    let t = 0; for (let j = 0; j < len; j++) t += holePts(offset + j); return t
-  }
+  function sumGross(offset: number, len: number) { let t = 0; for (let j = 0; j < len; j++) t += holeGrossVal(offset + j); return t }
+  function sumPts(offset: number, len: number)   { let t = 0; for (let j = 0; j < len; j++) t += holePts(offset + j);    return t }
   function sumPar(hs: Hole[])   { return hs.reduce((s, h) => s + h.par, 0) }
   function sumYards(hs: Hole[]) {
-    let t = 0
-    for (const h of hs) { const y = yardages[h.id]; if (!y) return null; t += y }
-    return t
+    let t = 0; for (const h of hs) { const y = yardages[h.id]; if (!y) return null; t += y }; return t
   }
 
   const outPar = sumPar(front), inPar = sumPar(back)
@@ -239,16 +239,16 @@ function SubmittedScorecard({ snapshot, a11y }: { snapshot: SubmittedSnapshot; a
     const isNR = nrs[i]
     return (
       <tr className={`border-t border-gray-200 ${alt ? "bg-gray-50" : "bg-white"}`}>
-        <td className={`py-2.5 px-3 ${txSm} font-bold ${txNum} ${crimson}`}>{hole.hole_number}</td>
-        <td className={`text-center py-2.5 px-2 ${txSm} font-semibold ${txNum} ${crimson}`}>{hole.par}</td>
-        <td className={`text-center py-2.5 px-2 ${txXs} ${txSI} ${crimson}`}>{hole.stroke_index}</td>
-        <td className={`text-center py-2.5 px-2 ${txXs} ${txSI} ${crimson}`}>{yardages[hole.id] ?? "—"}</td>
+        <td className={`py-2.5 px-3 ${txSm} font-bold ${txBold} ${crimson}`}>{hole.hole_number}</td>
+        <td className={`text-center py-2.5 px-2 ${txSm} font-semibold ${txBold} ${crimson}`}>{hole.par}</td>
+        <td className={`text-center py-2.5 px-2 ${txXs} ${txMid} ${crimson}`}>{hole.stroke_index}</td>
+        <td className={`text-center py-2.5 px-2 ${txXs} ${txMid} ${crimson}`}>{yardages[hole.id] ?? "—"}</td>
         <td className="text-center py-1.5 px-2">
           {isNR
             ? <span className={`text-orange-600 ${txSm} font-bold ${crimson}`}>NR</span>
             : scores[i] !== null
               ? <ScoreCell gross={scores[i]!} par={hole.par} pts={pts} a11y={a11y} />
-              : <span className={`${txSI} ${txSm}`}>—</span>
+              : <span className={`${txMid} ${txSm}`}>—</span>
           }
         </td>
       </tr>
@@ -257,48 +257,69 @@ function SubmittedScorecard({ snapshot, a11y }: { snapshot: SubmittedSnapshot; a
 
   return (
     <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
-      {/* Card header */}
-      <div className="bg-[#1a3a22] px-4 py-3">
-        <div className="flex items-start justify-between gap-2">
-          {/* Left: logo + competition info */}
-          <div className="flex items-center gap-2.5 min-w-0">
-            {logo && (
-              <Image src={logo} alt={courseName} width={36} height={36} className="object-contain flex-shrink-0 opacity-90" />
-            )}
-            <div className="min-w-0">
-              <div className={`font-[family-name:var(--font-playfair)] ${a11y ? "text-base" : "text-sm"} font-semibold text-white leading-tight`}>
-                Donegal Masters {year} — Day {roundNumber}
-              </div>
-              <div className={`${txXs} text-[#C9A84C] mt-0.5 ${crimson}`}>{dateStr}</div>
-            </div>
+
+      {/* ── Top bar: course name ── */}
+      <div className="bg-[#1a3a22] px-4 py-3 text-center">
+        <span className={`${playfair} ${a11y ? "text-lg" : "text-base"} font-semibold text-white tracking-wide`}>
+          {courseName}
+        </span>
+      </div>
+
+      {/* ── Competition | Date ── */}
+      <div className={`grid grid-cols-2 border-t-2 ${gold}`}>
+        <div className={`px-3 py-2.5 border-r-2 ${gold}`}>
+          <div className={`${tx11} ${txBody} uppercase tracking-wider font-bold ${playfair}`}>Competition</div>
+          <div className={`${txSm} font-semibold ${txBold} mt-0.5`}>Donegal Masters — Day {roundNumber}</div>
+        </div>
+        <div className="px-3 py-2.5">
+          <div className={`${tx11} ${txBody} uppercase tracking-wider font-bold ${playfair}`}>Date</div>
+          <div className={`${txSm} font-semibold ${txBold} mt-0.5 ${crimson}`}>{dateStr}</div>
+        </div>
+      </div>
+
+      {/* ── Player | HCP ── */}
+      <div className={`grid grid-cols-2 border-t-2 ${gold}`}>
+        <div className={`px-3 py-2.5 border-r-2 ${gold} flex items-center`}>
+          <span className={`${playfair} ${a11y ? "text-lg" : "text-base"} font-bold ${txBold}`}>{playerName}</span>
+        </div>
+        <div className="px-3 py-2.5 flex flex-col justify-center gap-0.5">
+          <div className={`${txXs} ${txBody} ${crimson}`}>
+            HCP: <span className={`font-bold ${txBold}`}>{handicapIndex}</span>
           </div>
-          {/* Right: player + hcp */}
-          <div className="text-right flex-shrink-0">
-            <div className={`font-[family-name:var(--font-playfair)] ${a11y ? "text-base" : "text-sm"} text-white font-semibold`}>{playerName}</div>
-            <div className={`${txXs} text-[#C9A84C] mt-0.5 ${crimson}`}>Hcp {playingHcp} · {teeName}</div>
+          <div className={`${txXs} ${txBody} ${crimson}`}>
+            Course HCP: <span className={`font-bold ${txBold}`}>{playingHcp}</span>
           </div>
         </div>
       </div>
 
-      {/* Table */}
-      <table className="w-full border-collapse">
-        <thead>
-          <tr className="border-b-2 border-gray-300 bg-gray-100">
-            <th className={`text-left   py-2 px-3 ${tx11} font-bold ${txHdr} uppercase tracking-wide font-[family-name:var(--font-playfair)] w-10`}>Hole</th>
-            <th className={`text-center py-2 px-2 ${tx11} font-bold ${txHdr} uppercase tracking-wide w-9`}>Par</th>
-            <th className={`text-center py-2 px-2 ${tx11} font-bold ${txHdr} uppercase tracking-wide w-9`}>SI</th>
-            <th className={`text-center py-2 px-2 ${tx11} font-bold ${txHdr} uppercase tracking-wide w-12`}>Yds</th>
-            <th className={`text-center py-2 px-2 ${tx11} font-bold ${txHdr} uppercase tracking-wide`}>Score</th>
-          </tr>
-        </thead>
-        <tbody>
-          {front.map((hole, j) => <HoleRow key={hole.id} hole={hole} i={j}   alt={j % 2 !== 0} />)}
-          <SubtotalRow label="Out"   par={outPar}         yards={outYards}   gross={sumGross(0, 9)}  pts={sumPts(0, 9)}  a11y={a11y} />
-          {back.map((hole,  j) => <HoleRow key={hole.id} hole={hole} i={9+j} alt={j % 2 !== 0} />)}
-          <SubtotalRow label="In"    par={inPar}          yards={inYards}    gross={sumGross(9, 9)}  pts={sumPts(9, 9)}  a11y={a11y} />
-          <SubtotalRow label="Total" par={outPar + inPar} yards={totalYards} gross={sumGross(0, 18)} pts={sumPts(0, 18)} a11y={a11y} isTotal />
-        </tbody>
-      </table>
+      {/* ── Hole table ── */}
+      <div className={`border-t-2 ${gold}`}>
+        <table className="w-full border-collapse">
+          <thead>
+            <tr className="border-b border-gray-300 bg-gray-100">
+              <th className={`text-left   py-2 px-3 ${tx11} font-bold ${txBody} uppercase tracking-wide ${playfair} w-10`}>Hole</th>
+              <th className={`text-center py-2 px-2 ${tx11} font-bold ${txBody} uppercase tracking-wide w-9`}>Par</th>
+              <th className={`text-center py-2 px-2 ${tx11} font-bold ${txBody} uppercase tracking-wide w-9`}>SI</th>
+              <th className={`text-center py-2 px-2 ${tx11} font-bold ${txBody} uppercase tracking-wide w-12`}>Yds</th>
+              <th className={`text-center py-2 px-2 ${tx11} font-bold ${txBody} uppercase tracking-wide`}>Score</th>
+            </tr>
+          </thead>
+          <tbody>
+            {front.map((hole, j) => <HoleRow key={hole.id} hole={hole} i={j}   alt={j % 2 !== 0} />)}
+            <SubtotalRow label="Out"   par={outPar}         yards={outYards}   gross={sumGross(0, 9)}  pts={sumPts(0, 9)}  a11y={a11y} />
+            {back.map((hole,  j) => <HoleRow key={hole.id} hole={hole} i={9+j} alt={j % 2 !== 0} />)}
+            <SubtotalRow label="In"    par={inPar}          yards={inYards}    gross={sumGross(9, 9)}  pts={sumPts(9, 9)}  a11y={a11y} />
+            <SubtotalRow label="Total" par={outPar + inPar} yards={totalYards} gross={sumGross(0, 18)} pts={sumPts(0, 18)} a11y={a11y} isTotal />
+          </tbody>
+        </table>
+      </div>
+
+      {/* ── Footer: score format ── */}
+      <div className="border-t border-gray-300 px-4 py-2 text-center">
+        <span className={`${tx11} uppercase tracking-[0.2em] font-bold ${txBody} ${playfair}`}>
+          Stableford
+        </span>
+      </div>
     </div>
   )
 }
@@ -608,9 +629,10 @@ export default function ScoreEntryForm({ players, courses }: { players: Player[]
     if (error) { setError(error.message); setPhase("entering"); return }
 
     setSnapshot({
-      playerName:  player.name,
-      courseName:  course?.name ?? "",
-      teeName:     selectedTee?.name ?? "",
+      playerName:    player.name,
+      courseName:    course?.name ?? "",
+      teeName:       selectedTee?.name ?? "",
+      handicapIndex: player.handicap,
       playingHcp,
       roundNumber,
       holes:       [...holes],
@@ -653,9 +675,9 @@ export default function ScoreEntryForm({ players, courses }: { players: Player[]
         {/* ── Header section ── */}
         <div className="flex flex-col items-center text-center pt-10 pb-6 gap-5">
 
-          {/* Course logo */}
+          {/* Course logo — tinted gold */}
           {logo && (
-            <Image src={logo} alt={snapshot!.courseName} width={80} height={80} className="object-contain" />
+            <Image src={logo} alt={snapshot!.courseName} width={80} height={80} className="object-contain" style={{ filter: GOLD_FILTER }} />
           )}
 
           {/* Title */}
@@ -680,7 +702,7 @@ export default function ScoreEntryForm({ players, courses }: { players: Player[]
                 {snapshot.courseName} · {snapshot.teeName} Tees
               </p>
               <p className="font-[family-name:var(--font-playfair)] text-[#C9A84C] text-2xl font-bold">
-                {snapPts} pts{snapHasNR ? " (NR)" : ""}
+                {snapPts} pts
               </p>
             </div>
           )}
