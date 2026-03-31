@@ -23,53 +23,98 @@ function getTimeLeft(): TimeLeft | null {
   };
 }
 
-export default function Countdown() {
-  const [mounted, setMounted] = useState(false);
-  const [timeLeft, setTimeLeft] = useState<TimeLeft | null>(null);
+export default function Countdown({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted]       = useState(false);
+  const [timeLeft, setTimeLeft]     = useState<TimeLeft | null>(null);
+  const [timerGone, setTimerGone]   = useState(false);
 
+  // Initialise + start ticker
   useEffect(() => {
     setMounted(true);
-    setTimeLeft(getTimeLeft());
+    const initial = getTimeLeft();
+    if (!initial) {
+      // Already expired on page load — skip straight to nav
+      setTimerGone(true);
+      return;
+    }
+    setTimeLeft(initial);
     const id = setInterval(() => setTimeLeft(getTimeLeft()), 1000);
     return () => clearInterval(id);
   }, []);
 
-  // Pre-mount: empty placeholder prevents hydration mismatch
-  if (!mounted) {
-    return <div className="h-16" />;
-  }
+  // When ticker reaches zero, animate collapse then remove from DOM
+  useEffect(() => {
+    if (!mounted || timerGone || timeLeft !== null) return;
+    const t = setTimeout(() => setTimerGone(true), 700);
+    return () => clearTimeout(t);
+  }, [timeLeft, mounted, timerGone]);
 
-  // Tournament has started
-  if (!timeLeft) {
-    return (
-      <p className="text-gold text-xl tracking-widest uppercase [text-shadow:0_2px_12px_rgba(0,0,0,0.9)]">
-        Tournament Underway
-      </p>
-    );
-  }
-
-  const units = [
-    { label: "Days",    value: timeLeft.days },
-    { label: "Hours",   value: timeLeft.hours },
-    { label: "Minutes", value: timeLeft.minutes },
-    { label: "Seconds", value: timeLeft.seconds },
-  ];
+  // collapsing = timer just hit zero but DOM element not yet removed
+  const collapsing = mounted && !timeLeft && !timerGone;
 
   return (
-    <div className="flex gap-8 sm:gap-12 bg-black/40 px-8 py-6 backdrop-blur-sm">
-      {units.map(({ label, value }) => (
-        <div key={label} className="flex flex-col items-center gap-2">
-          <span
-            className="font-[family-name:var(--font-playfair)] text-5xl sm:text-6xl font-bold tabular-nums"
-            style={{ color: "#C9A84C", textShadow: "0 0 30px rgba(201,168,76,0.5), 0 2px 4px rgba(0,0,0,1)" }}
-          >
-            {String(value).padStart(2, "0")}
-          </span>
-          <span className="text-xs tracking-[0.25em] uppercase text-white font-light">
-            {label}
-          </span>
+    <div className="flex flex-col items-center w-full">
+
+      {/* ── Collapsible timer block ── */}
+      {!timerGone && (
+        <div
+          className="grid w-full"
+          style={{
+            gridTemplateRows: collapsing ? "0fr" : "1fr",
+            transition: "grid-template-rows 700ms ease-in-out",
+          }}
+        >
+          {/* overflow:hidden on inner div is what makes the grid collapse visible */}
+          <div className="overflow-hidden flex flex-col items-center">
+
+            {/* Divider above timer */}
+            <div className="flex items-center gap-4 mb-5">
+              <div className="h-px w-16 bg-gold/40" />
+              <div className="w-1.5 h-1.5 rounded-full bg-gold/60" />
+              <div className="h-px w-16 bg-gold/40" />
+            </div>
+
+            {/* Timer digits — placeholder preserves height before hydration */}
+            {!mounted ? (
+              <div className="h-[84px]" />
+            ) : timeLeft ? (
+              <div className="flex gap-5 sm:gap-8 bg-black/40 px-5 py-4 backdrop-blur-sm">
+                {[
+                  { label: "Days",    value: timeLeft.days },
+                  { label: "Hours",   value: timeLeft.hours },
+                  { label: "Minutes", value: timeLeft.minutes },
+                  { label: "Seconds", value: timeLeft.seconds },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex flex-col items-center gap-1.5">
+                    <span
+                      className="font-[family-name:var(--font-playfair)] text-4xl sm:text-5xl font-bold tabular-nums"
+                      style={{ color: "#C9A84C", textShadow: "0 0 30px rgba(201,168,76,0.5), 0 2px 4px rgba(0,0,0,1)" }}
+                    >
+                      {String(value).padStart(2, "0")}
+                    </span>
+                    <span className="text-[10px] tracking-[0.25em] uppercase text-white/70 font-light">
+                      {label}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+
+            {/* Spacer so divider below timer has breathing room */}
+            <div className="mt-5" />
+          </div>
         </div>
-      ))}
+      )}
+
+      {/* ── Divider always present above nav ── */}
+      <div className="flex items-center gap-4 mb-6">
+        <div className="h-px w-16 bg-gold/40" />
+        <div className="w-1.5 h-1.5 rounded-full bg-gold/60" />
+        <div className="h-px w-16 bg-gold/40" />
+      </div>
+
+      {/* ── Nav buttons — always in the DOM, slide up naturally ── */}
+      {children}
     </div>
   );
 }
