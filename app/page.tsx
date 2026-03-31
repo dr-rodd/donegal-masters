@@ -4,7 +4,7 @@ import Countdown from "./components/Countdown";
 
 export default function Home() {
   return (
-    <main className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden">
+    <main className="relative min-h-dvh flex flex-col items-center justify-center overflow-hidden">
 
       {/* Background image */}
       <Image
