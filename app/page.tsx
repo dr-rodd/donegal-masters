@@ -1,22 +1,19 @@
-import Image from "next/image";
 import Link from "next/link";
 import Countdown from "./components/Countdown";
 
 export default function Home() {
   return (
-    <main className="relative min-h-dvh flex flex-col items-center justify-center overflow-hidden">
-
-      {/* Background image */}
-      <Image
-        src="/rosapenna.jpg"
-        alt="Rosapenna Golf Resort"
-        fill
-        priority
-        className="object-cover object-center"
-      />
-
+    <main
+      className="relative min-h-dvh flex flex-col items-center justify-center pt-16 pb-12 [overflow-y:scroll] [-webkit-overflow-scrolling:touch]"
+      style={{
+        backgroundImage: "url(/rosapenna.jpg)",
+        backgroundSize: "cover",
+        backgroundPosition: "center",
+        backgroundAttachment: "fixed",
+      }}
+    >
       {/* Dark overlay */}
-      <div className="absolute inset-0 bg-black/75" />
+      <div className="absolute inset-0 bg-black/75 pointer-events-none" />
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center text-center px-6">
