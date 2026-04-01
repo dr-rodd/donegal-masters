@@ -4,7 +4,7 @@ import Countdown from "./components/Countdown";
 export default function Home() {
   return (
     <main
-      className="relative min-h-dvh flex flex-col items-center justify-center px-6 pt-10 pb-10 [overflow-y:scroll] [-webkit-overflow-scrolling:touch]"
+      className="relative min-h-dvh flex flex-col items-center justify-center px-6 pt-10 pb-10"
       style={{
         backgroundImage: "url(/rosapenna.jpg)",
         backgroundSize: "cover",

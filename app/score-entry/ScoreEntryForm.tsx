@@ -169,8 +169,8 @@ function ScoreCell({ gross, par, pts, a11y }: { gross: number; par: number; pts:
   )
 }
 
-function SubtotalRow({ label, par, yards, gross, pts, isTotal, a11y }: {
-  label: string; par: number; yards: number | null; gross: number; pts: number; isTotal?: boolean; a11y: boolean
+function SubtotalRow({ label, par, yards, gross, pts, isTotal, a11y, hasNR }: {
+  label: string; par: number; yards: number | null; gross: number; pts: number; isTotal?: boolean; a11y: boolean; hasNR?: boolean
 }) {
   const crimson = "font-[family-name:var(--font-crimson)]"
   const bg        = isTotal ? "bg-[#1a3a22]" : "bg-[#e8e2d4]"
@@ -179,6 +179,7 @@ function SubtotalRow({ label, par, yards, gross, pts, isTotal, a11y }: {
   const textPts   = isTotal ? "text-[#C9A84C] font-bold" : "text-[#2d6a4f] font-semibold"
   const txNum = a11y ? "text-xl"   : "text-base"
   const txLbl = a11y ? "text-base" : "text-sm"
+  const nrClr = isTotal ? "text-orange-300 border-orange-400/50" : "text-orange-700 border-orange-500/50"
   return (
     <tr className={`border-t-2 ${isTotal ? "border-[#0f2418]" : "border-[#C9A84C]/40"} ${bg}`}>
       <td className={`py-3 px-3 ${txLbl} uppercase tracking-wider font-bold ${textLabel} font-[family-name:var(--font-playfair)]`}>{label}</td>
@@ -187,10 +188,15 @@ function SubtotalRow({ label, par, yards, gross, pts, isTotal, a11y }: {
       <td className={`text-center py-3 px-2 ${txLbl} ${textData} ${crimson}`}>{yards ?? "—"}</td>
       <td className={`text-center py-3 px-2 ${crimson}`}>
         {gross > 0 ? (
-          <>
-            <span className={`${txNum} font-semibold ${textData}`}>{gross}</span>
-            <span className={`${txLbl} ml-1.5 ${textPts}`}>{pts}</span>
-          </>
+          <div className="inline-flex flex-col items-center gap-0.5">
+            <div className="flex items-center gap-1">
+              <span className={`${txNum} font-semibold ${textData}`}>{gross}</span>
+              {hasNR && (
+                <span className={`text-[10px] font-bold border rounded-sm px-0.5 leading-tight ${nrClr}`}>NR</span>
+              )}
+            </div>
+            <span className={`${txLbl} ${textPts}`}>{pts}</span>
+          </div>
         ) : "—"}
       </td>
     </tr>
@@ -233,6 +239,9 @@ function SubmittedScorecard({ snapshot, a11y }: { snapshot: SubmittedSnapshot; a
   const outPar = sumPar(front), inPar = sumPar(back)
   const outYards = sumYards(front), inYards = sumYards(back)
   const totalYards = outYards != null && inYards != null ? outYards + inYards : null
+  const outHasNR   = nrs.slice(0, 9).some(Boolean)
+  const inHasNR    = nrs.slice(9, 18).some(Boolean)
+  const totalHasNR = nrs.some(Boolean)
 
   // Gold bar that doesn't reach the card edges
   function GoldBar() {
@@ -324,10 +333,10 @@ function SubmittedScorecard({ snapshot, a11y }: { snapshot: SubmittedSnapshot; a
         </thead>
         <tbody>
           {front.map((hole, j) => <HoleRow key={hole.id} hole={hole} i={j}   alt={j % 2 !== 0} />)}
-          <SubtotalRow label="Out"   par={outPar}         yards={outYards}   gross={sumGross(0, 9)}  pts={sumPts(0, 9)}  a11y={a11y} />
+          <SubtotalRow label="Out"   par={outPar}         yards={outYards}   gross={sumGross(0, 9)}  pts={sumPts(0, 9)}  a11y={a11y} hasNR={outHasNR} />
           {back.map((hole,  j) => <HoleRow key={hole.id} hole={hole} i={9+j} alt={j % 2 !== 0} />)}
-          <SubtotalRow label="In"    par={inPar}          yards={inYards}    gross={sumGross(9, 9)}  pts={sumPts(9, 9)}  a11y={a11y} />
-          <SubtotalRow label="Total" par={outPar + inPar} yards={totalYards} gross={sumGross(0, 18)} pts={sumPts(0, 18)} a11y={a11y} isTotal />
+          <SubtotalRow label="In"    par={inPar}          yards={inYards}    gross={sumGross(9, 9)}  pts={sumPts(9, 9)}  a11y={a11y} hasNR={inHasNR} />
+          <SubtotalRow label="Total" par={outPar + inPar} yards={totalYards} gross={sumGross(0, 18)} pts={sumPts(0, 18)} a11y={a11y} isTotal hasNR={totalHasNR} />
         </tbody>
       </table>
 
