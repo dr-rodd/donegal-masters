@@ -40,7 +40,7 @@ export default function Home() {
 
         {/* Countdown collapses when expired; nav always in DOM below it */}
         <Countdown>
-          <nav className="flex flex-col sm:flex-row gap-3">
+          <nav className="flex flex-col gap-3">
             <Link
               href="/teams"
               className="w-[312px] text-center py-[18px] border border-white/30 text-white/70 text-sm tracking-[0.25em] uppercase hover:border-gold hover:text-gold transition-colors duration-300"
@@ -58,6 +58,12 @@ export default function Home() {
               className="w-[312px] text-center py-[18px] border border-white/30 text-white/70 text-sm tracking-[0.25em] uppercase hover:border-gold hover:text-gold transition-colors duration-300"
             >
               Leaderboard
+            </Link>
+            <Link
+              href="/tee-times"
+              className="w-[312px] text-center py-[18px] border border-white/30 text-white/70 text-sm tracking-[0.25em] uppercase hover:border-gold hover:text-gold transition-colors duration-300"
+            >
+              Tee Times
             </Link>
           </nav>
         </Countdown>
