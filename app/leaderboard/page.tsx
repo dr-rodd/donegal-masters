@@ -25,7 +25,7 @@ export default async function LeaderboardPage() {
   const hasActiveRound = rounds?.some((r: any) => r.status === "active") ?? false
 
   return (
-    <div className="min-h-screen bg-[#0a1a0e] text-white">
+    <div className="min-h-dvh bg-[#0a1a0e] text-white">
       <div className="border-b border-[#1e3d28]">
         <div className="max-w-5xl mx-auto px-4 py-5 flex items-center justify-between">
           <Link href="/" className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">
