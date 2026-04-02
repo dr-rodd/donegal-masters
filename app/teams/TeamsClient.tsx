@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useRef } from "react"
 import {
   DndContext, DragEndEvent, DragOverlay, DragStartEvent,
   MouseSensor, TouchSensor, useSensor, useSensors,
@@ -12,8 +12,8 @@ import SettingsModal from "./SettingsModal"
 // ─── Types ─────────────────────────────────────────────────────
 
 interface Team   { id: string; name: string; color: string }
-interface Player { id: string; name: string; role: string; handicap: number; team_id: string | null; gender: string }
-type PlayerUpdate = { name?: string; handicap?: number; gender?: string }
+interface Player { id: string; name: string; role: string; handicap: number; team_id: string | null; gender: string; is_composite: boolean }
+type PlayerUpdate = { name?: string; handicap?: number; gender?: string; is_composite?: boolean }
 
 const ROLE_ORDER: Record<string, number> = { dad: 0, mum: 1, son: 2 }
 function sortByRole(p: Player[]) {
@@ -46,6 +46,8 @@ function EditPlayerTile({ player, onUpdate }: {
 }) {
   const [name, setName]         = useState(player.name)
   const [handicap, setHandicap] = useState(String(player.handicap))
+  const longPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const didLongPress   = useRef(false)
 
   function saveName() {
     const trimmed = name.trim()
@@ -62,17 +64,51 @@ function EditPlayerTile({ player, onUpdate }: {
     }
   }
 
+  function handleGenderPointerDown() {
+    didLongPress.current = false
+    longPressTimer.current = setTimeout(() => {
+      didLongPress.current = true
+      if (!player.is_composite) {
+        const newName = "Composite " + player.name
+        setName(newName)
+        onUpdate(player.id, { name: newName, is_composite: true })
+      }
+    }, 600)
+  }
+
+  function handleGenderPointerUp() {
+    if (longPressTimer.current) {
+      clearTimeout(longPressTimer.current)
+      longPressTimer.current = null
+    }
+  }
+
+  function handleGenderClick() {
+    if (didLongPress.current) return
+    if (player.is_composite) {
+      const newName = player.name.replace(/^Composite\s+/i, "")
+      setName(newName)
+      onUpdate(player.id, { name: newName, is_composite: false })
+    } else {
+      onUpdate(player.id, { gender: player.gender === "M" ? "F" : "M" })
+    }
+  }
+
   return (
     <div className="border border-[#C9A84C]/20 rounded-sm bg-[#152a1e] px-3 py-2.5 space-y-2">
       {/* Name */}
       <input
         value={name}
-        onChange={e => setName(e.target.value)}
+        onChange={e => !player.is_composite && setName(e.target.value)}
         onBlur={saveName}
         onKeyDown={e => e.key === "Enter" && (e.target as HTMLInputElement).blur()}
-        className="bg-transparent text-white font-bold text-base w-full outline-none border-b border-white/15 focus:border-[#C9A84C]/50 transition-colors pb-0.5"
+        readOnly={player.is_composite}
+        className={`bg-transparent text-white font-bold text-base w-full outline-none border-b transition-colors pb-0.5
+          ${player.is_composite
+            ? "border-[#C9A84C]/30 text-[#C9A84C]/70 cursor-default"
+            : "border-white/15 focus:border-[#C9A84C]/50"}`}
       />
-      {/* Handicap + gender */}
+      {/* Handicap + gender/composite button */}
       <div className="flex items-center gap-2">
         <input
           type="number"
@@ -84,13 +120,18 @@ function EditPlayerTile({ player, onUpdate }: {
           className="border border-[#C9A84C]/50 bg-[#C9A84C]/10 text-[#C9A84C] font-[family-name:var(--font-playfair)] text-xl text-center w-16 outline-none rounded-sm py-0.5 leading-none"
         />
         <button
-          onClick={() => onUpdate(player.id, { gender: player.gender === "M" ? "F" : "M" })}
-          className={`flex-1 py-1.5 rounded-sm text-sm font-bold border transition-colors
-            ${player.gender === "M"
-              ? "bg-blue-900/50 border-blue-400/50 text-blue-300 hover:bg-blue-900/70"
-              : "bg-rose-900/50 border-rose-400/50 text-rose-300 hover:bg-rose-900/70"}`}
+          onPointerDown={handleGenderPointerDown}
+          onPointerUp={handleGenderPointerUp}
+          onPointerLeave={handleGenderPointerUp}
+          onClick={handleGenderClick}
+          className={`flex-1 py-1.5 rounded-sm text-sm font-bold border transition-colors select-none
+            ${player.is_composite
+              ? "bg-[#C9A84C]/20 border-[#C9A84C] text-[#C9A84C] shadow-[0_0_8px_rgba(201,168,76,0.4)]"
+              : player.gender === "M"
+                ? "bg-blue-900/50 border-blue-400/50 text-blue-300 hover:bg-blue-900/70"
+                : "bg-rose-900/50 border-rose-400/50 text-rose-300 hover:bg-rose-900/70"}`}
         >
-          {player.gender === "M" ? "♂ Male" : "♀ Female"}
+          {player.is_composite ? "◈ Composite" : player.gender === "M" ? "♂ Male" : "♀ Female"}
         </button>
       </div>
     </div>

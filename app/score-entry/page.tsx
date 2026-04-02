@@ -6,7 +6,7 @@ export const dynamic = "force-dynamic"
 
 export default async function ScoreEntryPage() {
   const [playersRes, roundsRes] = await Promise.all([
-    supabase.from("players").select("id, name, role, handicap, gender").order("name"),
+    supabase.from("players").select("id, name, role, handicap, gender, is_composite").order("name"),
     supabase.from("rounds").select("round_number, courses(id, name)").order("round_number"),
   ])
   const players = playersRes.data

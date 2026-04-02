@@ -7,7 +7,8 @@ import { useState, useRef } from "react"
 type Course = { id: string; name: string }
 type Round = { id: string; round_number: number; status: string; courses: Course | null }
 type Team = { name: string; color: string }
-type Player = { id: string; name: string; role: string; gender: string; handicap: number; teams: Team | null }
+type Player = { id: string; name: string; role: string; gender: string; handicap: number; is_composite?: boolean; teams: Team | null }
+type CompositeHole = { hole_id: string; round_id: string; source_player_name: string }
 type Hole = {
   id: string
   hole_number: number
@@ -34,6 +35,7 @@ interface Props {
   scores: Score[]
   roundHandicaps: RoundHcp[]
   tees: Tee[]
+  compositeHoles?: CompositeHole[]
 }
 
 // ─── Constants ─────────────────────────────────────────────────
@@ -144,7 +146,7 @@ function SubtotalRow({
 
 // ─── Main component ────────────────────────────────────────────
 
-export default function ScorecardClient({ player, rounds, holes, scores, roundHandicaps, tees }: Props) {
+export default function ScorecardClient({ player, rounds, holes, scores, roundHandicaps, tees, compositeHoles = [] }: Props) {
   const [{ idx, dir }, setNav] = useState({ idx: 0, dir: "" })
   const touchStartX = useRef(0)
 
@@ -159,6 +161,22 @@ export default function ScorecardClient({ player, rounds, holes, scores, roundHa
   const courseId = round.courses?.id ?? ""
   const courseName = round.courses?.name ?? ""
   const shortName = COURSE_SHORT[courseName] ?? courseName
+
+  // Build hole_id → initials map for composite scorecards
+  const compositeMap: Record<string, string> = {}
+  if (player.is_composite) {
+    for (const ch of compositeHoles) {
+      if (ch.round_id === round.id) {
+        const initials = ch.source_player_name
+          .split(" ")
+          .map(w => w[0])
+          .join("")
+          .toUpperCase()
+          .slice(0, 2)
+        compositeMap[ch.hole_id] = initials
+      }
+    }
+  }
 
   const courseHoles = holes
     .filter(h => h.course_id === courseId)
@@ -327,9 +345,17 @@ export default function ScorecardClient({ player, rounds, holes, scores, roundHa
                   const s = holeScore(hole)
                   const pts = s?.stableford_points ?? null
                   const isOdd = i % 2 === 0
+                  const initials = compositeMap[hole.id]
                   return (
                     <tr key={hole.id} className={`border-t border-gray-100 ${isOdd ? "bg-white" : "bg-gray-50/40"}`}>
-                      <td className={`py-2.5 px-3 text-sm font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
+                      <td className={`py-2.5 px-3 text-sm font-semibold text-gray-700 ${crimson}`}>
+                        <div className="flex items-center gap-1">
+                          {hole.hole_number}
+                          {initials && (
+                            <span className="text-[9px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-0.5 rounded-sm leading-tight">{initials}</span>
+                          )}
+                        </div>
+                      </td>
                       <td className={`text-center py-2.5 px-2 text-sm text-gray-500 ${crimson}`}>{hole.par}</td>
                       <td className={`text-center py-2.5 px-2 text-xs text-gray-300 ${crimson}`}>{hole.stroke_index}</td>
                       <td className={`text-center py-2.5 px-2 text-xs text-gray-400 ${crimson}`}>
@@ -370,9 +396,17 @@ export default function ScorecardClient({ player, rounds, holes, scores, roundHa
                   const s = holeScore(hole)
                   const pts = s?.stableford_points ?? null
                   const isOdd = i % 2 === 0
+                  const initials = compositeMap[hole.id]
                   return (
                     <tr key={hole.id} className={`border-t border-gray-100 ${isOdd ? "bg-white" : "bg-gray-50/40"}`}>
-                      <td className={`py-2.5 px-3 text-sm font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
+                      <td className={`py-2.5 px-3 text-sm font-semibold text-gray-700 ${crimson}`}>
+                        <div className="flex items-center gap-1">
+                          {hole.hole_number}
+                          {initials && (
+                            <span className="text-[9px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-0.5 rounded-sm leading-tight">{initials}</span>
+                          )}
+                        </div>
+                      </td>
                       <td className={`text-center py-2.5 px-2 text-sm text-gray-500 ${crimson}`}>{hole.par}</td>
                       <td className={`text-center py-2.5 px-2 text-xs text-gray-300 ${crimson}`}>{hole.stroke_index}</td>
                       <td className={`text-center py-2.5 px-2 text-xs text-gray-400 ${crimson}`}>

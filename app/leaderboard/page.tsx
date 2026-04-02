@@ -8,7 +8,7 @@ export const revalidate = 30
 export default async function LeaderboardPage() {
   const [roundsRes, teamsRes, holesRes, scoresRes, hcpsRes] = await Promise.all([
     supabase.from("rounds").select("id, round_number, status, courses(id, name)").order("round_number"),
-    supabase.from("teams").select("id, name, color, players(id, name, role, handicap)").order("name"),
+    supabase.from("teams").select("id, name, color, players(id, name, role, handicap, is_composite)").order("name"),
     supabase.from("holes").select("id, hole_number, par, stroke_index, course_id").order("hole_number"),
     supabase.from("scores").select("player_id, hole_id, gross_score, stableford_points, no_return, round_id"),
     supabase.from("round_handicaps").select("round_id, player_id, playing_handicap"),

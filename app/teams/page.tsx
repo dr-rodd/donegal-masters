@@ -8,7 +8,7 @@ export const dynamic = "force-dynamic"
 export default async function TeamsPage() {
   const [{ data: teams }, { data: players }, { data: rounds }] = await Promise.all([
     supabase.from("teams").select("id, name, color").order("name"),
-    supabase.from("players").select("id, name, role, handicap, team_id, gender").order("name"),
+    supabase.from("players").select("id, name, role, handicap, team_id, gender, is_composite").order("name"),
     supabase.from("rounds").select("status"),
   ])
   const hasActiveRound = rounds?.some((r: any) => r.status === "active") ?? false

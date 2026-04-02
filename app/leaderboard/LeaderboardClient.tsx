@@ -8,7 +8,7 @@ import { features } from "@/lib/features"
 
 type Course   = { id: string; name: string }
 type Round    = { id: string; round_number: number; courses: Course | null }
-type Player   = { id: string; name: string; role: string; handicap: number }
+type Player   = { id: string; name: string; role: string; handicap: number; is_composite?: boolean }
 type Team     = { id: string; name: string; color: string; players: Player[] }
 type Hole     = { id: string; hole_number: number; par: number; stroke_index: number; course_id: string }
 type Score    = { player_id: string; hole_id: string; gross_score: number; stableford_points: number; no_return: boolean; round_id: string }
@@ -206,6 +206,9 @@ function TeamScorecard({ team, holes, scores, roundHandicaps, roundId }: {
                           ? <Link href={`/scorecard/${player.id}?from=leaderboard`} className="text-xs text-[#C9A84C] hover:text-white transition-colors">{player.name.split(" ")[0]}</Link>
                           : <span className="text-xs text-[#C9A84C]">{player.name.split(" ")[0]}</span>
                         }
+                        {player.is_composite && (
+                          <span className="text-[9px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-0.5 rounded-sm leading-tight">C</span>
+                        )}
                         {hcp && <span className="text-white/20 text-[10px]">ph{hcp.playing_handicap}</span>}
                       </div>
                     </td>
@@ -317,9 +320,15 @@ function OverallTab({ rounds, teams, holes, scores }: {
                 <td className="px-4 pb-3 align-middle">
                   <div className="flex flex-col">
                     {sortedPlayers(team.players).map(p => (
-                      features.scorecardViewer()
-                        ? <Link key={p.id} href={`/scorecard/${p.id}?from=leaderboard`} className="text-xs text-[#C9A84C]/70 hover:text-[#C9A84C] transition-colors leading-relaxed">{p.name.split(" ")[0]}</Link>
-                        : <span key={p.id} className="text-xs text-[#C9A84C]/70 leading-relaxed">{p.name.split(" ")[0]}</span>
+                      <div key={p.id} className="flex items-center gap-1 leading-relaxed">
+                        {features.scorecardViewer()
+                          ? <Link href={`/scorecard/${p.id}?from=leaderboard`} className="text-xs text-[#C9A84C]/70 hover:text-[#C9A84C] transition-colors">{p.name.split(" ")[0]}</Link>
+                          : <span className="text-xs text-[#C9A84C]/70">{p.name.split(" ")[0]}</span>
+                        }
+                        {p.is_composite && (
+                          <span className="text-[9px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-0.5 rounded-sm leading-tight">C</span>
+                        )}
+                      </div>
                     ))}
                   </div>
                 </td>

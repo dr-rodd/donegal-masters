@@ -11,7 +11,7 @@ type ViewMode = "stableford" | "stroke"
 type Course  = { id: string; name: string }
 type Round   = { id: string; round_number: number; courses: Course | null }
 type Team    = { name: string; color: string }
-type Player  = { id: string; name: string; role: string; handicap: number; team_id: string | null; teams: Team | null }
+type Player  = { id: string; name: string; role: string; handicap: number; team_id: string | null; is_composite?: boolean; teams: Team | null }
 type Hole    = { id: string; hole_number: number; par: number; stroke_index: number; course_id: string }
 type RoundHcp = { round_id: string; player_id: string; playing_handicap: number }
 type Score   = { player_id: string; hole_id: string; round_id: string; stableford_points: number; gross_score: number; no_return: boolean }
@@ -464,6 +464,9 @@ export default function IndividualClient({ rounds, players, holes, scores, round
                               {nameEl("truncate min-w-0")}
                               {emojiStr && <span className="text-[0.55em] leading-none flex-shrink-0">{emojiStr}</span>}
                             </div>
+                          )}
+                          {player.is_composite && (
+                            <span className="text-[9px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-0.5 rounded-sm leading-tight flex-shrink-0">C</span>
                           )}
                         </div>
                       )

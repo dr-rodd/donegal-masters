@@ -8,7 +8,7 @@ export const revalidate = 30
 export default async function IndividualPage() {
   const [roundsRes, playersRes, holesRes, scoresRes, hcpsRes] = await Promise.all([
     supabase.from("rounds").select("id, round_number, status, courses(id, name)").order("round_number"),
-    supabase.from("players").select("id, name, role, handicap, team_id, teams(name, color)").order("name"),
+    supabase.from("players").select("id, name, role, handicap, team_id, is_composite, teams(name, color)").order("name"),
     supabase.from("holes").select("id, hole_number, par, stroke_index, course_id").order("hole_number"),
     supabase.from("scores").select("player_id, hole_id, round_id, stableford_points, gross_score, no_return"),
     supabase.from("round_handicaps").select("round_id, player_id, playing_handicap"),
