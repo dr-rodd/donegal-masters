@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import { supabase } from "@/lib/supabase"
 
@@ -576,6 +576,16 @@ export default function ScoreEntryForm({ players, courses }: { players: Player[]
   const [error, setError]           = useState<string | null>(null)
   const [snapshot, setSnapshot]     = useState<SubmittedSnapshot | null>(null)
   const [a11y, setA11y]             = useState(false)
+  const isFirstRender = useRef(true)
+
+  // Scroll to top on mount
+  useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" }) }, [])
+
+  // Scroll to top when transitioning into the hole-entry phase
+  useEffect(() => {
+    if (isFirstRender.current) { isFirstRender.current = false; return }
+    if (phase === "entering") window.scrollTo({ top: 0, behavior: "instant" })
+  }, [phase])
 
   const nonCompositePlayers = players.filter(p => !p.is_composite)
   const player      = players.find(p => p.id === playerId)
