@@ -48,6 +48,7 @@ const ROLE_ORDER: Record<string, number> = { dad: 0, mum: 1, son: 2 }
 function sortedPlayers(players: Player[]) {
   return [...players].sort((a, b) => (ROLE_ORDER[a.role] ?? 3) - (ROLE_ORDER[b.role] ?? 3))
 }
+const displayName = (p: Player) => (p.is_composite ? p.name.replace(/^Composite\s+/i, "") : p.name).split(" ")[0]
 
 // ─── Best-ball helpers ─────────────────────────────────────────
 
@@ -203,8 +204,8 @@ function TeamScorecard({ team, holes, scores, roundHandicaps, roundId }: {
                       <div className="flex items-center gap-1.5">
                         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ROLE_DOT[player.role] ?? "bg-white/30"}`} />
                         {features.scorecardViewer()
-                          ? <Link href={`/scorecard/${player.id}?from=leaderboard`} className="text-xs text-[#C9A84C] hover:text-white transition-colors">{player.name.split(" ")[0]}</Link>
-                          : <span className="text-xs text-[#C9A84C]">{player.name.split(" ")[0]}</span>
+                          ? <Link href={`/scorecard/${player.id}?from=leaderboard`} className="text-xs text-[#C9A84C] hover:text-white transition-colors">{displayName(player)}</Link>
+                          : <span className="text-xs text-[#C9A84C]">{displayName(player)}</span>
                         }
                         {player.is_composite && (
                           <span className="text-[9px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-0.5 rounded-sm leading-tight">C</span>
@@ -322,8 +323,8 @@ function OverallTab({ rounds, teams, holes, scores }: {
                     {sortedPlayers(team.players).map(p => (
                       <div key={p.id} className="flex items-center gap-1 leading-relaxed">
                         {features.scorecardViewer()
-                          ? <Link href={`/scorecard/${p.id}?from=leaderboard`} className="text-xs text-[#C9A84C]/70 hover:text-[#C9A84C] transition-colors">{p.name.split(" ")[0]}</Link>
-                          : <span className="text-xs text-[#C9A84C]/70">{p.name.split(" ")[0]}</span>
+                          ? <Link href={`/scorecard/${p.id}?from=leaderboard`} className="text-xs text-[#C9A84C]/70 hover:text-[#C9A84C] transition-colors">{displayName(p)}</Link>
+                          : <span className="text-xs text-[#C9A84C]/70">{displayName(p)}</span>
                         }
                         {p.is_composite && (
                           <span className="text-[9px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-0.5 rounded-sm leading-tight">C</span>

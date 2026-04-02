@@ -33,6 +33,8 @@ const ROLE_FILTERS = [
   { key: "son", label: "Sons" },
 ] as const
 
+const displayName = (p: Player) => p.is_composite ? p.name.replace(/^Composite\s+/i, "") : p.name
+
 const ROLE_DOT: Record<string, string> = {
   dad: "bg-blue-400",
   mum: "bg-rose-400",
@@ -449,8 +451,8 @@ export default function IndividualClient({ rounds, players, holes, scores, round
                         : ""
                       const wrap = showEmojis && badges.eagles + badges.birdies > 5
                       const nameEl = showScorecard
-                        ? (cls: string) => <Link href={`/scorecard/${player.id}?from=individual`} className={`text-white font-medium hover:text-[#C9A84C] transition-colors ${cls}`}>{player.name}</Link>
-                        : (cls: string) => <span className={`text-white font-medium ${cls}`}>{player.name}</span>
+                        ? (cls: string) => <Link href={`/scorecard/${player.id}?from=individual`} className={`text-white font-medium hover:text-[#C9A84C] transition-colors ${cls}`}>{displayName(player)}</Link>
+                        : (cls: string) => <span className={`text-white font-medium ${cls}`}>{displayName(player)}</span>
                       return (
                         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ROLE_DOT[player.role] ?? "bg-white/30"}`} />

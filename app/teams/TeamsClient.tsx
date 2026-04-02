@@ -16,6 +16,7 @@ interface Player { id: string; name: string; role: string; handicap: number; tea
 type PlayerUpdate = { name?: string; handicap?: number; gender?: string; is_composite?: boolean }
 
 const ROLE_ORDER: Record<string, number> = { dad: 0, mum: 1, son: 2 }
+const displayName = (p: Player) => p.is_composite ? p.name.replace(/^Composite\s+/i, "") : p.name
 function sortByRole(p: Player[]) {
   return [...p].sort((a, b) => (ROLE_ORDER[a.role] ?? 3) - (ROLE_ORDER[b.role] ?? 3))
 }
@@ -26,8 +27,11 @@ function PlayerTile({ player, faded = false }: { player: Player; faded?: boolean
   return (
     <div className={`border border-[#1e3d28] rounded-sm px-4 py-3 flex items-center justify-between gap-3 bg-[#152a1e] transition-opacity
       ${faded ? "opacity-25" : "opacity-100"}`}>
-      <span className="text-white font-bold text-base tracking-wide leading-tight flex-1 min-w-0 truncate">
-        {player.name}
+      <span className="text-white font-bold text-base tracking-wide leading-tight flex-1 min-w-0 truncate flex items-center gap-1">
+        {displayName(player)}
+        {player.is_composite && (
+          <span className="text-[9px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-0.5 rounded-sm leading-tight flex-shrink-0">C</span>
+        )}
       </span>
       <div className="border border-[#C9A84C]/50 bg-[#C9A84C]/10 px-2.5 py-1 rounded-sm flex-shrink-0">
         <span className="font-[family-name:var(--font-playfair)] text-[#C9A84C] text-xl font-semibold leading-none">
@@ -98,7 +102,7 @@ function EditPlayerTile({ player, onUpdate }: {
     <div className="border border-[#C9A84C]/20 rounded-sm bg-[#152a1e] px-3 py-2.5 space-y-2">
       {/* Name */}
       <input
-        value={name}
+        value={player.is_composite ? displayName(player) : name}
         onChange={e => !player.is_composite && setName(e.target.value)}
         onBlur={saveName}
         onKeyDown={e => e.key === "Enter" && (e.target as HTMLInputElement).blur()}

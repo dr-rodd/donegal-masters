@@ -40,8 +40,13 @@ export default async function ScorecardPage({
             {(playerRes.data as any).teams && (
               <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: (playerRes.data as any).teams.color }} />
             )}
-            <h1 className="font-[family-name:var(--font-playfair)] text-xl text-white tracking-wide">
-              {playerRes.data.name}
+            <h1 className="font-[family-name:var(--font-playfair)] text-xl text-white tracking-wide flex items-center gap-2">
+              {(playerRes.data as any).is_composite
+                ? playerRes.data.name.replace(/^Composite\s+/i, "")
+                : playerRes.data.name}
+              {(playerRes.data as any).is_composite && (
+                <span className="text-[11px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-1 rounded-sm leading-tight font-[family-name:var(--font-playfair)]">C</span>
+              )}
             </h1>
           </div>
           <div className="w-12" />
