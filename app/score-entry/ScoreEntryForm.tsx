@@ -581,10 +581,10 @@ export default function ScoreEntryForm({ players, courses }: { players: Player[]
   // Scroll to top on mount
   useEffect(() => { window.scrollTo({ top: 0, behavior: "instant" }) }, [])
 
-  // Scroll to top when transitioning into the hole-entry phase
+  // Scroll to top when entering hole-entry or submitted-scorecard view
   useEffect(() => {
     if (isFirstRender.current) { isFirstRender.current = false; return }
-    if (phase === "entering") window.scrollTo({ top: 0, behavior: "instant" })
+    if (phase === "entering" || phase === "done") window.scrollTo({ top: 0, behavior: "instant" })
   }, [phase])
 
   const nonCompositePlayers = players.filter(p => !p.is_composite)

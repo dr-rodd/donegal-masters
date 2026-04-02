@@ -9,7 +9,6 @@ export default function Home() {
         backgroundImage: "url(/rosapenna.jpg)",
         backgroundSize: "cover",
         backgroundPosition: "center",
-        backgroundAttachment: "fixed",
       }}
     >
       {/* Dark overlay */}
