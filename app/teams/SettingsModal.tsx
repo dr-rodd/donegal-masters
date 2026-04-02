@@ -2,6 +2,7 @@
 
 import { useState } from "react"
 import { supabase } from "@/lib/supabase"
+import { revalidateLeaderboards } from "@/app/actions/revalidate"
 
 type Action = "reset-scores" | "reset-teams"
 type PanelStatus = "idle" | "loading" | "success" | "error"
@@ -38,12 +39,14 @@ const PASSWORD = "donegal2026"
 
 async function executeAction(action: Action): Promise<void> {
   if (action === "reset-scores") {
-    const [a, b] = await Promise.all([
+    const [a, b, c] = await Promise.all([
       supabase.from("scores").delete().not("round_id", "is", null),
       supabase.from("round_handicaps").delete().not("round_id", "is", null),
+      supabase.from("composite_holes").delete().not("id", "is", null),
     ])
     if (a.error) throw new Error(a.error.message)
     if (b.error) throw new Error(b.error.message)
+    if (c.error) throw new Error(c.error.message)
   } else {
     const { error } = await supabase.from("players").update({ team_id: null }).not("id", "is", null)
     if (error) throw new Error(error.message)
@@ -68,6 +71,7 @@ function ActionCard({ config, onSuccess }: { config: ActionConfig; onSuccess: (m
     setStatus("loading")
     try {
       await executeAction(config.id)
+      if (config.id === "reset-scores") await revalidateLeaderboards()
       setOpen(false)
       setPassword("")
       setStatus("idle")

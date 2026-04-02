@@ -3,6 +3,7 @@
 import { useState } from "react"
 import { useRouter } from "next/navigation"
 import { supabaseAdmin } from "@/lib/supabase-admin"
+import { revalidateLeaderboards } from "@/app/actions/revalidate"
 
 type Action = "reset-scores" | "reset-teams"
 type Status = "idle" | "confirming" | "loading" | "success" | "error"
@@ -39,12 +40,14 @@ const PASSWORD = "donegal2026"
 
 async function executeAction(action: Action): Promise<void> {
   if (action === "reset-scores") {
-    const [scoresRes, hcpsRes] = await Promise.all([
+    const [scoresRes, hcpsRes, compositeRes] = await Promise.all([
       supabaseAdmin.from("scores").delete().not("round_id", "is", null),
       supabaseAdmin.from("round_handicaps").delete().not("round_id", "is", null),
+      supabaseAdmin.from("composite_holes").delete().not("id", "is", null),
     ])
     if (scoresRes.error) throw new Error(scoresRes.error.message)
     if (hcpsRes.error) throw new Error(hcpsRes.error.message)
+    if (compositeRes.error) throw new Error(compositeRes.error.message)
   } else {
     const { error } = await supabaseAdmin
       .from("players")
@@ -89,10 +92,11 @@ export default function SettingsClient() {
     setStatus("loading")
     try {
       await executeAction(activeAction)
+      if (activeAction === "reset-scores") await revalidateLeaderboards()
       setStatus("success")
       setMessage(config.successMessage)
       setActiveAction(null)
-      router.refresh() // invalidate router cache so leaderboard re-fetches fresh data
+      router.refresh()
     } catch (e: any) {
       setStatus("error")
       setMessage(e.message ?? "An error occurred.")
