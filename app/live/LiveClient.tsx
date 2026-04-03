@@ -201,7 +201,7 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
   const [saving, setSaving] = useState(false)
   const [commitError, setCommitError] = useState<string | null>(null)
 
-  const activeRounds = rounds.filter(r => r.status === "active")
+  const availableRounds = rounds.filter(r => r.status === "upcoming" || r.status === "active")
 
   // Derived
   const selectedTee = tees.find(t => t.id === selectedTeeId) ?? null
@@ -241,7 +241,7 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
 
   function handleModeSelect(m: EntryMode) {
     setMode(m)
-    if (activeRounds.length === 1) setSelectedRound(activeRounds[0])
+    if (availableRounds.length === 1) setSelectedRound(availableRounds[0])
     setStep("setup")
   }
 
@@ -362,8 +362,7 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
       : []
 
     const canStart = selectedRound !== null &&
-      selectedPlayerIds.length >= (mode === "solo" ? 1 : 2) &&
-      selectedPlayerIds.length <= 4 &&
+      selectedPlayerIds.length >= 1 &&
       selectedTeeId !== ""
 
     return (
@@ -378,12 +377,12 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
           </span>
         </div>
 
-        {/* Round selection (if multiple active) */}
-        {activeRounds.length > 1 && (
+        {/* Round selection (if multiple available) */}
+        {availableRounds.length > 1 && (
           <div>
             <label className="block text-white/50 text-xs tracking-[0.15em] uppercase mb-2">Round</label>
             <div className="flex flex-col gap-2">
-              {activeRounds.map(r => (
+              {availableRounds.map(r => (
                 <button
                   key={r.id}
                   onClick={() => { setSelectedRound(r); setSelectedTeeId("") }}
@@ -477,29 +476,6 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
           Start Round →
         </button>
 
-        {/* ── DEBUG PANEL ── remove once issue identified ── */}
-        <div className="border border-yellow-500/40 bg-yellow-900/20 rounded px-3 py-3 text-xs space-y-1">
-          <p className="text-yellow-400 font-bold tracking-widest uppercase mb-2">Debug — canStart breakdown</p>
-          <p className={selectedRound !== null ? "text-green-400" : "text-red-400"}>
-            ✦ Round selected: {selectedRound !== null ? `✓ Round ${selectedRound.round_number} (${selectedRound.courses?.name ?? "no course"})` : "✗ null"}
-          </p>
-          <p className="text-white/50">
-            ✦ Active rounds: {activeRounds.length} {activeRounds.map(r => `[R${r.round_number} ${r.status}]`).join(" ")}
-          </p>
-          <p className={courseTees.length > 0 ? "text-green-400" : "text-red-400"}>
-            ✦ Tees for course: {courseTees.length} {courseTees.map(t => t.name).join(", ") || "(none)"}
-          </p>
-          <p className={selectedTeeId !== "" ? "text-green-400" : "text-red-400"}>
-            ✦ Tee selected: {selectedTeeId !== "" ? `✓ ${tees.find(t => t.id === selectedTeeId)?.name}` : "✗ none"}
-          </p>
-          <p className={selectedPlayerIds.length >= (mode === "solo" ? 1 : 2) ? "text-green-400" : "text-red-400"}>
-            ✦ Players selected: {selectedPlayerIds.length} (need {mode === "solo" ? 1 : 2}+)
-          </p>
-          <p className="text-white/40 mt-2">
-            rounds prop: {rounds.length} total, statuses: {rounds.map(r => r.status).join(", ")}
-          </p>
-        </div>
-        {/* ── END DEBUG PANEL ── */}
       </div>
     )
   }
