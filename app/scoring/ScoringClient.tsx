@@ -4,6 +4,7 @@ import { useState } from "react"
 import Link from "next/link"
 import ScoreEntryForm from "@/app/score-entry/ScoreEntryForm"
 import LiveScoringFlow from "./LiveScoringFlow"
+import LiveLeaderboardPanel from "./LiveLeaderboardPanel"
 
 // ─── Types (mirrors server data shapes) ──────────────────
 
@@ -43,11 +44,12 @@ interface Props {
   activeLiveRound: ActiveLiveRound | null
 }
 
-type View = "landing" | "standard" | "live"
+type View = "landing" | "standard" | "live" | "leaderboard"
 
 export default function ScoringClient({ players, rounds, holes, tees, roundHandicaps, activeLiveRound }: Props) {
   const [view, setView] = useState<View>("landing")
   const [liveRound, setLiveRound] = useState<ActiveLiveRound | null>(activeLiveRound)
+  const [showLiveLeaderboard, setShowLiveLeaderboard] = useState(false)
 
   const nonComposite = players.filter(p => !p.is_composite)
   const courses = rounds
@@ -61,11 +63,24 @@ export default function ScoringClient({ players, rounds, holes, tees, roundHandi
 
   const headerLeft = view === "landing"
     ? <Link href="/" className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">← Home</Link>
-    : <button onClick={() => setView("landing")} className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">← Scoring</button>
+    : <button
+        onClick={() => { setView("landing"); setShowLiveLeaderboard(false) }}
+        className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors"
+      >
+        ← Scoring
+      </button>
 
   const headerRight = view === "landing"
     ? <Link href="/leaderboard" className="text-white/40 text-xs tracking-[0.2em] uppercase hover:text-[#C9A84C] transition-colors">Leaderboard →</Link>
-    : <div className="w-[80px]" />
+    : view === "live" && liveRound
+      ? <button
+          onClick={() => setShowLiveLeaderboard(v => !v)}
+          className={`text-xs tracking-[0.2em] uppercase transition-colors w-[80px] text-right
+            ${showLiveLeaderboard ? "text-[#C9A84C]" : "text-white/40 hover:text-white/60"}`}
+        >
+          {showLiveLeaderboard ? "← Scores" : "Board"}
+        </button>
+      : <div className="w-[80px]" />
 
   // ─── Render ───────────────────────────────────────────────
 
@@ -89,6 +104,7 @@ export default function ScoringClient({ players, rounds, holes, tees, roundHandi
           liveRound={liveRound}
           onStandard={() => setView("standard")}
           onLive={() => setView("live")}
+          onWatchLive={() => setView("leaderboard")}
         />
       )}
 
@@ -104,8 +120,21 @@ export default function ScoringClient({ players, rounds, holes, tees, roundHandi
           tees={tees}
           roundHandicaps={roundHandicaps}
           activeLiveRound={liveRound}
-          onBack={() => setView("landing")}
+          onBack={() => { setView("landing"); setShowLiveLeaderboard(false) }}
           onLiveRoundChange={setLiveRound}
+          showLeaderboard={showLiveLeaderboard}
+          onLeaderboardChange={setShowLiveLeaderboard}
+        />
+      )}
+
+      {view === "leaderboard" && liveRound && (
+        <LiveLeaderboardPanel
+          liveRound={liveRound}
+          players={nonComposite}
+          holes={holes}
+          roundHandicaps={roundHandicaps}
+          onClose={() => setView("landing")}
+          showBackButton={true}
         />
       )}
     </div>
@@ -115,12 +144,13 @@ export default function ScoringClient({ players, rounds, holes, tees, roundHandi
 // ─── Landing ──────────────────────────────────────────────
 
 function Landing({
-  isLiveActive, liveRound, onStandard, onLive
+  isLiveActive, liveRound, onStandard, onLive, onWatchLive
 }: {
   isLiveActive: boolean
   liveRound: ActiveLiveRound | null
   onStandard: () => void
   onLive: () => void
+  onWatchLive: () => void
 }) {
   const liveLabel = isLiveActive
     ? `Join Live Round — ${liveRound!.courses?.name ?? `Round ${liveRound!.rounds?.round_number}`}`
@@ -165,6 +195,16 @@ function Landing({
           {liveSub}
         </div>
       </button>
+
+      {/* Watch Live — shown when a live round is in progress */}
+      {isLiveActive && (
+        <button
+          onClick={onWatchLive}
+          className="text-white/40 text-xs tracking-[0.2em] uppercase hover:text-green-400 transition-colors"
+        >
+          Watch Live →
+        </button>
+      )}
     </div>
   )
 }

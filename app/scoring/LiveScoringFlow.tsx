@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { supabase } from "@/lib/supabase"
 import type { ActiveLiveRound } from "./ScoringClient"
+import LiveLeaderboardPanel from "./LiveLeaderboardPanel"
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -41,6 +42,8 @@ interface Props {
   activeLiveRound: ActiveLiveRound | null
   onBack: () => void
   onLiveRoundChange: (r: ActiveLiveRound | null) => void
+  showLeaderboard: boolean
+  onLeaderboardChange: (v: boolean) => void
 }
 
 type LiveStep = "activate" | "mode" | "setup" | "holes" | "confirm" | "committed"
@@ -90,7 +93,8 @@ function yardageForTee(hole: Hole, teeName: string): number | null {
 
 export default function LiveScoringFlow({
   players, rounds, holes, tees, roundHandicaps,
-  activeLiveRound, onBack, onLiveRoundChange
+  activeLiveRound, onBack, onLiveRoundChange,
+  showLeaderboard, onLeaderboardChange,
 }: Props) {
   const [liveRound, setLiveRound] = useState<ActiveLiveRound | null>(activeLiveRound)
   const [step, setStep] = useState<LiveStep>(activeLiveRound ? "mode" : "activate")
@@ -106,6 +110,12 @@ export default function LiveScoringFlow({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [closeConfirm, setCloseConfirm] = useState(false)
+
+  // Player locking
+  const [lockedPlayerIds, setLockedPlayerIds] = useState<string[]>([])
+
+  // Swipe gesture tracking
+  const touchStartX = useRef<number | null>(null)
 
   // Activate step state
   const [activatingRoundId, setActivatingRoundId] = useState("")
@@ -133,6 +143,35 @@ export default function LiveScoringFlow({
 
   const canStart = selectedPlayerIds.length >= 1 &&
     selectedPlayerIds.every(id => !!playerTeeIds[id])
+
+  // Fetch locked players whenever setup step is shown
+  useEffect(() => {
+    if (step !== "setup" || !liveRound) return
+    supabase
+      .from("live_player_locks")
+      .select("player_id")
+      .eq("live_round_id", liveRound.id)
+      .then(({ data }) => setLockedPlayerIds(data?.map(r => r.player_id) ?? []))
+  }, [step, liveRound?.id])
+
+  async function lockPlayers() {
+    if (!liveRound || playerSetups.length === 0) return
+    await supabase
+      .from("live_player_locks")
+      .upsert(
+        playerSetups.map(({ player }) => ({ live_round_id: liveRound.id, player_id: player.id })),
+        { onConflict: "live_round_id,player_id" }
+      )
+  }
+
+  async function unlockPlayers() {
+    if (!liveRound || playerSetups.length === 0) return
+    await supabase
+      .from("live_player_locks")
+      .delete()
+      .eq("live_round_id", liveRound.id)
+      .in("player_id", playerSetups.map(({ player }) => player.id))
+  }
 
   function syncLiveRound(r: ActiveLiveRound | null) {
     setLiveRound(r)
@@ -237,6 +276,9 @@ export default function LiveScoringFlow({
         .in("player_id", playerSetups.map(p => p.player.id))
         .eq("round_id", roundId)
 
+      // 5. Release player locks
+      await unlockPlayers()
+
       setStep("committed")
     } catch (e: any) {
       setError(e?.message ?? "Failed to commit scores")
@@ -263,6 +305,21 @@ export default function LiveScoringFlow({
           </button>
         </div>
       </div>
+    )
+  }
+
+  // ─── Leaderboard panel (non-holes steps) ─────────────────
+
+  if (showLeaderboard && liveRound && step !== "holes") {
+    return (
+      <LiveLeaderboardPanel
+        liveRound={liveRound}
+        players={players}
+        holes={holes}
+        roundHandicaps={roundHandicaps}
+        onClose={() => onLeaderboardChange(false)}
+        showBackButton={true}
+      />
     )
   }
 
@@ -400,6 +457,7 @@ export default function LiveScoringFlow({
 
           {players.map(player => {
             const isSelected = selectedPlayerIds.includes(player.id)
+            const isLocked = lockedPlayerIds.includes(player.id)
             const playerCourseTees = courseTees.filter(t => t.gender === player.gender)
             const selectedTeeId = playerTeeIds[player.id] ?? ""
             const selectedTee = tees.find(t => t.id === selectedTeeId)
@@ -411,17 +469,23 @@ export default function LiveScoringFlow({
               <div key={player.id}>
                 {/* Player toggle */}
                 <button
-                  onClick={() => togglePlayer(player.id)}
+                  onClick={() => !isLocked && togglePlayer(player.id)}
+                  disabled={isLocked && !isSelected}
                   className={`w-full flex items-center justify-between px-4 py-3 border text-sm transition-colors
-                    ${isSelected
-                      ? "border-[#C9A84C] text-[#C9A84C] bg-[#C9A84C]/10"
-                      : "border-white/20 text-white/60 hover:border-white/40"}`}
+                    ${isLocked && !isSelected
+                      ? "border-white/10 text-white/25 cursor-not-allowed bg-white/[0.02]"
+                      : isSelected
+                        ? "border-[#C9A84C] text-[#C9A84C] bg-[#C9A84C]/10"
+                        : "border-white/20 text-white/60 hover:border-white/40"}`}
                 >
                   <div className="flex items-center gap-2">
                     {player.teams && (
                       <span className="w-2 h-2 rounded-full" style={{ backgroundColor: player.teams.color }} />
                     )}
                     <span>{player.name}</span>
+                    {isLocked && !isSelected && (
+                      <span className="text-[10px] text-white/20 tracking-wider uppercase">In session</span>
+                    )}
                   </div>
                   <span className="text-xs opacity-50">HCP {player.handicap}</span>
                 </button>
@@ -466,7 +530,12 @@ export default function LiveScoringFlow({
         </div>
 
         <button
-          onClick={() => { setScores({}); setHoleIdx(0); setStep("holes"); window.scrollTo({ top: 0, behavior: "instant" }) }}
+          onClick={async () => {
+            setScores({}); setHoleIdx(0)
+            await lockPlayers()
+            setStep("holes")
+            window.scrollTo({ top: 0, behavior: "instant" })
+          }}
           disabled={!canStart}
           className={`w-full py-4 text-sm tracking-[0.2em] uppercase transition-colors
             ${canStart ? "bg-[#C9A84C] text-black hover:bg-[#d4b05a]" : "bg-white/10 text-white/30 cursor-not-allowed"}`}
@@ -535,16 +604,47 @@ export default function LiveScoringFlow({
     }
 
     return (
-      <HoleCard
-        hole={hole}
-        holeIdx={holeIdx}
-        totalHoles={courseHoles.length}
-        playerSetups={playerSetups}
-        courseId={courseId}
-        existingScores={existingHoleScores}
-        onSubmit={handleHoleSubmit}
-        onBack={handleHoleBack}
-      />
+      <div
+        className="overflow-hidden"
+        onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX }}
+        onTouchEnd={(e) => {
+          if (touchStartX.current === null) return
+          const delta = e.changedTouches[0].clientX - touchStartX.current
+          touchStartX.current = null
+          if (delta > 60 && !showLeaderboard) { onLeaderboardChange(true); return }
+          if (delta < -60 && showLeaderboard) { onLeaderboardChange(false); return }
+        }}
+      >
+        <div
+          className="flex transition-transform duration-300 ease-out"
+          style={{ width: "200%", transform: showLeaderboard ? "translateX(0)" : "translateX(-50%)" }}
+        >
+          {/* Left panel: live leaderboard */}
+          <div style={{ width: "50%" }}>
+            {liveRound && (
+              <LiveLeaderboardPanel
+                liveRound={liveRound}
+                players={players}
+                holes={holes}
+                roundHandicaps={roundHandicaps}
+              />
+            )}
+          </div>
+          {/* Right panel: hole score entry */}
+          <div style={{ width: "50%" }}>
+            <HoleCard
+              hole={hole}
+              holeIdx={holeIdx}
+              totalHoles={courseHoles.length}
+              playerSetups={playerSetups}
+              courseId={courseId}
+              existingScores={existingHoleScores}
+              onSubmit={handleHoleSubmit}
+              onBack={handleHoleBack}
+            />
+          </div>
+        </div>
+      </div>
     )
   }
 
