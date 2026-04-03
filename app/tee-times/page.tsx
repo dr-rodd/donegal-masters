@@ -8,7 +8,7 @@ export default async function TeeTimesPage() {
   const [playersRes, teeTimesRes] = await Promise.all([
     supabase
       .from("players")
-      .select("id, name, role, team_id, teams(id, name, color)")
+      .select("id, name, role, team_id, is_composite, teams(id, name, color)")
       .order("name"),
     supabase
       .from("tee_times")

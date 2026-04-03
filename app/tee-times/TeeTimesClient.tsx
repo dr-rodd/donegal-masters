@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase"
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Team { id: string; name: string; color: string }
-interface Player { id: string; name: string; role: "dad" | "mum" | "son"; team_id: string; teams: Team }
+interface Player { id: string; name: string; role: "dad" | "mum" | "son"; team_id: string; is_composite?: boolean; teams: Team }
 interface TeeTimeRow { day_number: number; group_number: number; player_id: string }
 
 // ─── Day config ───────────────────────────────────────────────────────────────
@@ -37,9 +37,13 @@ function shuffle<T>(arr: T[]): T[] {
  * Returns array of 3 groups, each group is array of player IDs, or null on failure.
  */
 function generateThursday(players: Player[]): string[][] | null {
-  const dads = players.filter(p => p.role === "dad").map(p => p.id)
-  const mums = players.filter(p => p.role === "mum").map(p => p.id)
-  const sons = players.filter(p => p.role === "son").map(p => p.id)
+  // Exclude composite players — they don't physically tee off
+  const dads = players.filter(p => p.role === "dad" && !p.is_composite).map(p => p.id)
+  const mums = players.filter(p => p.role === "mum" && !p.is_composite).map(p => p.id)
+  const sons = players.filter(p => p.role === "son" && !p.is_composite).map(p => p.id)
+
+  // Need at least 3 of each role to fill the 3 groups
+  if (dads.length < 3 || mums.length < 3 || sons.length < 3) return null
 
   const playerById = new Map(players.map(p => [p.id, p]))
 
@@ -48,19 +52,19 @@ function generateThursday(players: Player[]): string[][] | null {
     const sMums = shuffle(mums)
     const sSons = shuffle(sons)
 
-    // Assign 1 of each role to each of the 3 groups
+    // Assign 1 of each role to each of the 3 groups (base threeball)
     const groups: string[][] = [
       [sDads[0], sMums[0], sSons[0]],
       [sDads[1], sMums[1], sSons[1]],
       [sDads[2], sMums[2], sSons[2]],
     ]
 
-    // Remaining extras: one of each role (indices 3)
-    const extras = shuffle([sDads[3], sMums[3], sSons[3]])
+    // Extras: any players beyond the first 3 of each role (0–3 extras depending on composites)
+    const extras = shuffle([...sDads.slice(3), ...sMums.slice(3), ...sSons.slice(3)])
 
-    // Distribute one extra to each group
-    for (let gi = 0; gi < 3; gi++) {
-      groups[gi].push(extras[gi])
+    // Distribute extras across groups (at most 1 extra per group)
+    for (let i = 0; i < extras.length; i++) {
+      groups[i].push(extras[i])
     }
 
     // Check constraint: max 2 from same team per group
@@ -91,9 +95,10 @@ function generateThursday(players: Player[]): string[][] | null {
  * Group 2 (11:30): all 4 sons (shuffled)
  */
 function generateFriday(players: Player[]): string[][] {
-  const mums = shuffle(players.filter(p => p.role === "mum").map(p => p.id))
-  const dads = shuffle(players.filter(p => p.role === "dad").map(p => p.id))
-  const sons = shuffle(players.filter(p => p.role === "son").map(p => p.id))
+  // Exclude composite players — threeball where a role has only 3 non-composites
+  const mums = shuffle(players.filter(p => p.role === "mum" && !p.is_composite).map(p => p.id))
+  const dads = shuffle(players.filter(p => p.role === "dad" && !p.is_composite).map(p => p.id))
+  const sons = shuffle(players.filter(p => p.role === "son" && !p.is_composite).map(p => p.id))
   return [mums, dads, sons]
 }
 
@@ -118,10 +123,11 @@ async function generateSaturday(players: Player[]): Promise<string[][] | null> {
     teamPoints.set(row.team_id, (teamPoints.get(row.team_id) ?? 0) + (row.total_team_points ?? 0))
   }
 
-  // Get all unique team IDs from players
-  const teamIds = Array.from(new Set(players.map(p => p.team_id)))
+  // Use only non-composite players; derive team IDs from them
+  const realPlayers = players.filter(p => !p.is_composite)
+  const teamIds = Array.from(new Set(realPlayers.map(p => p.team_id)))
 
-  // Sort by points desc, random tiebreak
+  // Sort teams by points desc, random tiebreak
   const ranked = [...teamIds].sort((a, b) => {
     const diff = (teamPoints.get(b) ?? 0) - (teamPoints.get(a) ?? 0)
     return diff !== 0 ? diff : Math.random() - 0.5
@@ -129,12 +135,10 @@ async function generateSaturday(players: Player[]): Promise<string[][] | null> {
 
   if (ranked.length < 4) return null
 
+  // Build per-team lists of non-composite player IDs
   const playersByTeam = new Map<string, string[]>()
   for (const tid of ranked) {
-    playersByTeam.set(
-      tid,
-      players.filter(p => p.team_id === tid).map(p => p.id)
-    )
+    playersByTeam.set(tid, realPlayers.filter(p => p.team_id === tid).map(p => p.id))
   }
 
   const firstTeamPlayers  = playersByTeam.get(ranked[0]) ?? []
@@ -142,19 +146,16 @@ async function generateSaturday(players: Player[]): Promise<string[][] | null> {
   const thirdTeamPlayers  = playersByTeam.get(ranked[2]) ?? []
   const fourthPlayers     = shuffle(playersByTeam.get(ranked[3]) ?? [])
 
-  if (
-    firstTeamPlayers.length < 3 ||
-    secondTeamPlayers.length < 3 ||
-    thirdTeamPlayers.length < 3 ||
-    fourthPlayers.length < 3
-  ) {
+  // Each of the top-3 teams needs at least 1 non-composite player
+  if (!firstTeamPlayers.length || !secondTeamPlayers.length || !thirdTeamPlayers.length) {
     return null
   }
 
+  // Distribute 4th-team players 1 per group where available (fewer = threeball for that group)
   return [
-    [...thirdTeamPlayers,  fourthPlayers[0]],
-    [...secondTeamPlayers, fourthPlayers[1]],
-    [...firstTeamPlayers,  fourthPlayers[2]],
+    [...thirdTeamPlayers,  ...(fourthPlayers[0] ? [fourthPlayers[0]] : [])],
+    [...secondTeamPlayers, ...(fourthPlayers[1] ? [fourthPlayers[1]] : [])],
+    [...firstTeamPlayers,  ...(fourthPlayers[2] ? [fourthPlayers[2]] : [])],
   ]
 }
 
