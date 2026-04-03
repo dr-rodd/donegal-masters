@@ -25,7 +25,7 @@ export default async function ScoreEntryPage() {
           <h1 className="font-[family-name:var(--font-playfair)] text-lg text-white tracking-wide">
             Score Entry
           </h1>
-          <Link href="/live" className="text-white/40 text-xs tracking-[0.2em] uppercase hover:text-[#C9A84C] transition-colors">
+          <Link href="/live" className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">
             Go Live →
           </Link>
         </div>

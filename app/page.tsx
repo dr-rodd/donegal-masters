@@ -64,6 +64,12 @@ export default function Home() {
             >
               Tee Times
             </Link>
+            <Link
+              href="/live"
+              className="w-[312px] text-center py-[18px] border border-white/30 text-white/70 text-sm tracking-[0.25em] uppercase hover:border-gold hover:text-gold transition-colors duration-300"
+            >
+              Live Scoring
+            </Link>
           </nav>
         </Countdown>
 
