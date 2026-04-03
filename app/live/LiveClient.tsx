@@ -476,6 +476,30 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
         >
           Start Round →
         </button>
+
+        {/* ── DEBUG PANEL ── remove once issue identified ── */}
+        <div className="border border-yellow-500/40 bg-yellow-900/20 rounded px-3 py-3 text-xs space-y-1">
+          <p className="text-yellow-400 font-bold tracking-widest uppercase mb-2">Debug — canStart breakdown</p>
+          <p className={selectedRound !== null ? "text-green-400" : "text-red-400"}>
+            ✦ Round selected: {selectedRound !== null ? `✓ Round ${selectedRound.round_number} (${selectedRound.courses?.name ?? "no course"})` : "✗ null"}
+          </p>
+          <p className="text-white/50">
+            ✦ Active rounds: {activeRounds.length} {activeRounds.map(r => `[R${r.round_number} ${r.status}]`).join(" ")}
+          </p>
+          <p className={courseTees.length > 0 ? "text-green-400" : "text-red-400"}>
+            ✦ Tees for course: {courseTees.length} {courseTees.map(t => t.name).join(", ") || "(none)"}
+          </p>
+          <p className={selectedTeeId !== "" ? "text-green-400" : "text-red-400"}>
+            ✦ Tee selected: {selectedTeeId !== "" ? `✓ ${tees.find(t => t.id === selectedTeeId)?.name}` : "✗ none"}
+          </p>
+          <p className={selectedPlayerIds.length >= (mode === "solo" ? 1 : 2) ? "text-green-400" : "text-red-400"}>
+            ✦ Players selected: {selectedPlayerIds.length} (need {mode === "solo" ? 1 : 2}+)
+          </p>
+          <p className="text-white/40 mt-2">
+            rounds prop: {rounds.length} total, statuses: {rounds.map(r => r.status).join(", ")}
+          </p>
+        </div>
+        {/* ── END DEBUG PANEL ── */}
       </div>
     )
   }
