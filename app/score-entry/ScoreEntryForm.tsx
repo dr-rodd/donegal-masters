@@ -771,6 +771,8 @@ export default function ScoreEntryForm({ players, courses }: { players: Player[]
       { onConflict: "round_id,player_id" }
     )
 
+    await supabase.from("scores").delete().eq("player_id", playerId).eq("round_id", roundId)
+
     const rows = holes.map((hole, i) => ({
       round_id:    roundId,
       player_id:   playerId,
