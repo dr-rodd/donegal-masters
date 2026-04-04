@@ -66,6 +66,7 @@ export default function CourseDashboardClient({
   const [showLiveLeaderboard, setShowLiveLeaderboard] = useState(false)
   const [scorecards, setScorecards]           = useState<ScorecardInfo[]>([])
   const [loading, setLoading]                 = useState(true)
+  const [confirmVoidId, setConfirmVoidId]     = useState<string | null>(null)
 
   const nonComposite = players.filter(p => !p.is_composite)
 
@@ -145,6 +146,7 @@ export default function CourseDashboardClient({
     setShowLiveLeaderboard(false)
     setScoringLiveRound(null)
     setIsResuming(false)
+    fetchScorecards()
   }
 
   function openScoring(liveRound: ActiveLiveRound) {
@@ -159,6 +161,18 @@ export default function CourseDashboardClient({
     if (!courseRound) return
     setStarting(true)
     setStartError(null)
+
+    // Reuse an existing playerless active round rather than creating a duplicate
+    const emptyExisting = scorecards.find(s => !s.finalised && s.playerNames.length === 0)
+    if (emptyExisting) {
+      setScoringLiveRound(emptyExisting.liveRound as unknown as ActiveLiveRound)
+      setIsResuming(false)
+      setShowLiveLeaderboard(false)
+      setView("scoring")
+      setStarting(false)
+      return
+    }
+
     const { data, error } = await supabase
       .from("live_rounds")
       .insert({ course_id: courseId, round_id: courseRound.id, status: "active" })
@@ -173,6 +187,15 @@ export default function CourseDashboardClient({
     setIsResuming(false)
     setShowLiveLeaderboard(false)
     setView("scoring")
+    fetchScorecards()
+  }
+
+  async function voidScorecard(liveRoundId: string) {
+    await Promise.all([
+      supabase.from("live_rounds").update({ status: "closed" }).eq("id", liveRoundId),
+      supabase.from("live_player_locks").delete().eq("live_round_id", liveRoundId),
+    ])
+    setConfirmVoidId(null)
     fetchScorecards()
   }
 
@@ -247,53 +270,77 @@ export default function CourseDashboardClient({
                         ? "Through 18"
                         : `Through ${holesThrough}`
 
+                  const isConfirmingVoid = confirmVoidId === liveRound.id
+
                   return (
-                    <div
-                      key={liveRound.id}
-                      onClick={() => !finalised && openScoring(liveRound)}
-                      className={`w-full text-left border rounded-sm px-4 py-4 transition-colors
-                        ${finalised
-                          ? "border-[#C9A84C]/30 bg-[#C9A84C]/5 cursor-default"
-                          : "border-[#1e3d28] hover:border-green-600/50 bg-[#0f2418] hover:bg-[#0d2015] cursor-pointer"
-                        }`}
-                    >
-                      <div className="flex items-start justify-between gap-3">
-                        <div className="min-w-0">
-                          <p className="text-white text-sm font-semibold leading-snug">
-                            {playerNames.length > 0 ? playerNames.join(", ") : "No players locked in yet"}
-                          </p>
-                          <p className={`text-xs mt-1 ${finalised ? "text-[#C9A84C]/60" : "text-white/35"}`}>
-                            {holeLabel} · Started {startedAt}
-                          </p>
+                    <div key={liveRound.id}>
+                      <div
+                        onClick={() => finalised ? setConfirmVoidId(liveRound.id) : openScoring(liveRound)}
+                        className={`w-full text-left border rounded-sm px-4 py-4 transition-colors cursor-pointer
+                          ${finalised
+                            ? "border-[#C9A84C]/30 bg-[#C9A84C]/5 hover:border-[#C9A84C]/50"
+                            : "border-[#1e3d28] hover:border-green-600/50 bg-[#0f2418] hover:bg-[#0d2015]"
+                          }`}
+                      >
+                        <div className="flex items-start justify-between gap-3">
+                          <div className="min-w-0">
+                            <p className="text-white text-sm font-semibold leading-snug">
+                              {playerNames.length > 0 ? playerNames.join(", ") : "No players locked in yet"}
+                            </p>
+                            <p className={`text-xs mt-1 ${finalised ? "text-[#C9A84C]/60" : "text-white/35"}`}>
+                              {holeLabel} · Started {startedAt}
+                            </p>
+                          </div>
+                          {playerNames.length > 0 && (finalised ? (
+                            <span className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-sm border border-[#C9A84C]/40 bg-[#C9A84C]/10 text-[#C9A84C] text-xs font-semibold tracking-wide">
+                              ✓ Done
+                            </span>
+                          ) : (
+                            <span className="flex-shrink-0 text-[#C9A84C] text-xs tracking-wider uppercase pt-0.5">
+                              Score →
+                            </span>
+                          ))}
                         </div>
-                        {playerNames.length > 0 && (finalised ? (
-                          <span className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-sm border border-[#C9A84C]/40 bg-[#C9A84C]/10 text-[#C9A84C] text-xs font-semibold tracking-wide">
-                            ✓ Done
-                          </span>
-                        ) : (
-                          <span className="flex-shrink-0 text-[#C9A84C] text-xs tracking-wider uppercase pt-0.5">
-                            Score →
-                          </span>
-                        ))}
+
+                        {/* Hole progress bar — only for active in-progress scorecards */}
+                        {!finalised && holesThrough > 0 && holesThrough < 18 && (
+                          <div className="mt-3 flex gap-[2px]">
+                            {Array.from({ length: 18 }).map((_, i) => (
+                              <div
+                                key={i}
+                                className={`flex-1 h-1 rounded-full ${i < holesThrough ? "bg-green-500/60" : "bg-white/10"}`}
+                              />
+                            ))}
+                          </div>
+                        )}
+                        {/* Full gold bar for finalised */}
+                        {finalised && (
+                          <div className="mt-3 flex gap-[2px]">
+                            {Array.from({ length: 18 }).map((_, i) => (
+                              <div key={i} className="flex-1 h-1 rounded-full bg-[#C9A84C]/40" />
+                            ))}
+                          </div>
+                        )}
                       </div>
 
-                      {/* Hole progress bar — only for active in-progress scorecards */}
-                      {!finalised && holesThrough > 0 && holesThrough < 18 && (
-                        <div className="mt-3 flex gap-[2px]">
-                          {Array.from({ length: 18 }).map((_, i) => (
-                            <div
-                              key={i}
-                              className={`flex-1 h-1 rounded-full ${i < holesThrough ? "bg-green-500/60" : "bg-white/10"}`}
-                            />
-                          ))}
-                        </div>
-                      )}
-                      {/* Full gold bar for finalised */}
-                      {finalised && (
-                        <div className="mt-3 flex gap-[2px]">
-                          {Array.from({ length: 18 }).map((_, i) => (
-                            <div key={i} className="flex-1 h-1 rounded-full bg-[#C9A84C]/40" />
-                          ))}
+                      {/* Inline void confirmation for finalised scorecards */}
+                      {isConfirmingVoid && (
+                        <div className="border border-t-0 border-[#C9A84C]/30 bg-[#1a0a00] px-4 py-3 rounded-b-sm flex items-center justify-between gap-3">
+                          <p className="text-white/50 text-xs">Void this scorecard?</p>
+                          <div className="flex gap-2">
+                            <button
+                              onClick={() => setConfirmVoidId(null)}
+                              className="px-3 py-1.5 text-xs text-white/40 border border-white/15 hover:border-white/30 hover:text-white/60 transition-colors rounded-sm"
+                            >
+                              Cancel
+                            </button>
+                            <button
+                              onClick={() => voidScorecard(liveRound.id)}
+                              className="px-3 py-1.5 text-xs text-red-400 border border-red-800/50 hover:border-red-600/60 hover:text-red-300 transition-colors rounded-sm"
+                            >
+                              Void
+                            </button>
+                          </div>
                         </div>
                       )}
                     </div>
