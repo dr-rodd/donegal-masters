@@ -266,7 +266,7 @@ export default function CourseDashboardClient({
                             {holeLabel} · Started {startedAt}
                           </p>
                         </div>
-                        {finalised ? (
+                        {playerNames.length > 0 && (finalised ? (
                           <span className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-sm border border-[#C9A84C]/40 bg-[#C9A84C]/10 text-[#C9A84C] text-xs font-semibold tracking-wide">
                             ✓ Done
                           </span>
@@ -274,7 +274,7 @@ export default function CourseDashboardClient({
                           <span className="flex-shrink-0 text-[#C9A84C] text-xs tracking-wider uppercase pt-0.5">
                             Score →
                           </span>
-                        )}
+                        ))}
                       </div>
 
                       {/* Hole progress bar — only for active in-progress scorecards */}
