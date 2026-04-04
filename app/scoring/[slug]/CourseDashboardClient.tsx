@@ -233,7 +233,9 @@ export default function CourseDashboardClient({
               </div>
             ) : (
               <div className="space-y-2">
-                {scorecards.map(({ liveRound, playerNames, holesThrough, finalised }) => {
+                {scorecards
+                  .filter(s => s.playerNames.length > 0 || !scorecards.some(o => o.playerNames.length > 0))
+                  .map(({ liveRound, playerNames, holesThrough, finalised }) => {
                   const startedAt = new Date(liveRound.activated_at).toLocaleTimeString("en-IE", {
                     hour: "2-digit", minute: "2-digit",
                   })
