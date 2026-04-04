@@ -62,10 +62,61 @@ function effectivePar(hole: Hole, gender: string, courseId: string) {
     : hole.par
 }
 
-// ─── Types ────────────────────────────────────────────────
+function fmtRelative(rel: number): string {
+  if (rel > 0) return `+${rel}`
+  if (rel === 0) return "E"
+  return `${rel}`
+}
+
+// ─── Row type ─────────────────────────────────────────────
+
+interface PlayerRow {
+  player: Player
+  holesCompleted: number
+  isFinalised: boolean           // true once all 18 holes scored
+  totalStableford: number
+  stablefordRelative: number     // totalStableford − holesCompleted×2
+  totalGross: number
+  grossRelative: number          // totalGross − sum(par for holes played)
+  totalNett: number              // nett strokes, capped per hole at par+2
+  nettRelative: number           // totalNett − sum(par for holes played)
+  perHoleStableford: { hole_number: number; pts: number }[]
+}
+
+// ─── Sort ─────────────────────────────────────────────────
 
 type Mode = "stableford" | "strokes"
 type StrokesView = "gross" | "nett"
+
+function compareRows(a: PlayerRow, b: PlayerRow, mode: Mode, sv: StrokesView): number {
+  if (mode === "stableford") {
+    const diff = b.stablefordRelative - a.stablefordRelative
+    if (diff !== 0) return diff
+    // Both finalised: break by back 9, back 6, back 3, back 2
+    if (a.isFinalised && b.isFinalised) {
+      for (const from of [10, 13, 16, 17]) {
+        const aBack = a.perHoleStableford.filter(s => s.hole_number >= from).reduce((sum, s) => sum + s.pts, 0)
+        const bBack = b.perHoleStableford.filter(s => s.hole_number >= from).reduce((sum, s) => sum + s.pts, 0)
+        if (bBack !== aBack) return bBack - aBack
+      }
+      return 0 // true tie
+    }
+    // At least one active: more holes played = higher rank
+    return b.holesCompleted - a.holesCompleted
+  }
+
+  // Strokes (gross or nett)
+  const aScore = sv === "gross" ? a.grossRelative : a.nettRelative
+  const bScore = sv === "gross" ? b.grossRelative : b.nettRelative
+  const diff = aScore - bScore
+  if (diff !== 0) return diff
+  // Tied score: active players rank above finalised
+  if (a.isFinalised !== b.isFinalised) return a.isFinalised ? 1 : -1
+  // Both same status: most holes remaining first (fewest completed first)
+  return a.holesCompleted - b.holesCompleted
+}
+
+// ─── Props ────────────────────────────────────────────────
 
 interface Props {
   liveRound: LiveRoundRef
@@ -81,19 +132,17 @@ interface Props {
 export default function LiveLeaderboardPanel({
   liveRound, players, holes, roundHandicaps, onClose, showBackButton = false,
 }: Props) {
-  const [liveScores, setLiveScores] = useState<LiveScoreRow[]>([])
+  const [liveScores, setLiveScores]     = useState<LiveScoreRow[]>([])
   const [validPlayerIds, setValidPlayerIds] = useState<Set<string>>(new Set())
-  const [mode, setMode] = useState<Mode>("stableford")
-  const [strokesView, setStrokesView] = useState<StrokesView>("nett")
-  const [lastFetch, setLastFetch] = useState<Date | null>(null)
+  const [mode, setMode]                 = useState<Mode>("stableford")
+  const [strokesView, setStrokesView]   = useState<StrokesView>("nett")
+  const [lastFetch, setLastFetch]       = useState<Date | null>(null)
 
   const courseHoles = holes
     .filter(h => h.course_id === liveRound.course_id)
     .sort((a, b) => a.hole_number - b.hole_number)
 
   const fetchScores = useCallback(async () => {
-    // Fetch scores (committed and uncommitted) and the set of locked players
-    // from live_rounds that are active or finalised for this round.
     const [scoresRes, liveRoundsRes] = await Promise.all([
       supabase
         .from("live_scores")
@@ -142,46 +191,65 @@ export default function LiveLeaderboardPanel({
     }
   }, [fetchScores, liveRound.round_id])
 
-  // ─── Build ranked rows ────────────────────────────────────
+  // ─── Build rows ───────────────────────────────────────────
 
-  const playerRows = players
+  const unsortedRows: PlayerRow[] = players
     .filter(player => validPlayerIds.has(player.id))
-    .map(player => {
+    .flatMap(player => {
       const playerScores = liveScores.filter(
         ls => ls.player_id === player.id && ls.gross_score !== null
       )
-      const holesCompleted = playerScores.length
-      if (holesCompleted === 0) return null
-
-      const totalStableford = playerScores.reduce((s, ls) => s + (ls.stableford_points ?? 0), 0)
-      const stablefordRelative = totalStableford - holesCompleted * 2
-      const totalGross = playerScores.reduce((s, ls) => s + (ls.gross_score ?? 0), 0)
+      if (playerScores.length === 0) return []
 
       const hcp = roundHandicaps.find(
         rh => rh.round_id === liveRound.round_id && rh.player_id === player.id
       )?.playing_handicap ?? 0
 
-      let totalNett = 0
+      const totalStableford = playerScores.reduce((s, ls) => s + (ls.stableford_points ?? 0), 0)
+      const totalGross      = playerScores.reduce((s, ls) => s + (ls.gross_score ?? 0), 0)
+
+      let totalNett      = 0
+      let totalParPlayed = 0
       for (const ls of playerScores) {
         const hole = courseHoles.find(h => h.hole_number === ls.hole_number)
         if (!hole || ls.gross_score === null) continue
         const par   = effectivePar(hole, player.gender, liveRound.course_id)
         const shots = shotsReceived(effectiveSI(hole, player.gender, liveRound.course_id), hcp)
-        // Cap per-hole nett at par + 2 (net double bogey = 0 stableford points)
-        totalNett += Math.min(ls.gross_score - shots, par + 2)
+        totalNett      += Math.min(ls.gross_score - shots, par + 2)
+        totalParPlayed += par
       }
 
-      return { player, holesCompleted, stablefordRelative, gross: totalGross, nett: totalNett }
+      const holesCompleted = playerScores.length
+
+      return [{
+        player,
+        holesCompleted,
+        isFinalised: holesCompleted === courseHoles.length,
+        totalStableford,
+        stablefordRelative: totalStableford - holesCompleted * 2,
+        totalGross,
+        grossRelative: totalGross - totalParPlayed,
+        totalNett,
+        nettRelative: totalNett - totalParPlayed,
+        perHoleStableford: playerScores.map(ls => ({
+          hole_number: ls.hole_number,
+          pts: ls.stableford_points ?? 0,
+        })),
+      }]
     })
-    .filter((r): r is NonNullable<typeof r> => r !== null)
-    .sort((a, b) => {
-      if (mode === "stableford") {
-        return b.stablefordRelative - a.stablefordRelative || b.holesCompleted - a.holesCompleted
-      }
-      const aScore = strokesView === "gross" ? a.gross : a.nett
-      const bScore = strokesView === "gross" ? b.gross : b.nett
-      return aScore - bScore || b.holesCompleted - a.holesCompleted
-    })
+
+  const sortedRows = [...unsortedRows].sort((a, b) => compareRows(a, b, mode, strokesView))
+
+  // Assign positions — shared rank only on a true tie (compareRows === 0)
+  const positions: number[] = []
+  for (let i = 0; i < sortedRows.length; i++) {
+    if (i === 0) {
+      positions.push(1)
+    } else {
+      const tied = compareRows(sortedRows[i - 1], sortedRows[i], mode, strokesView) === 0
+      positions.push(tied ? positions[i - 1] : i + 1)
+    }
+  }
 
   const roundLabel = `Round ${liveRound.rounds?.round_number ?? "?"} — ${liveRound.courses?.name ?? ""}`
 
@@ -237,30 +305,63 @@ export default function LiveLeaderboardPanel({
       )}
 
       {/* Leaderboard table */}
-      {playerRows.length === 0 ? (
+      {sortedRows.length === 0 ? (
         <div className="border border-[#1e3d28] px-4 py-10 text-center">
           <div className="text-white/20 text-sm">No scores yet</div>
           <div className="text-white/10 text-xs mt-1">Scores appear as holes are completed</div>
         </div>
       ) : (
         <div className="border border-[#1e3d28] divide-y divide-[#1e3d28]">
-          {playerRows.map(({ player, holesCompleted, stablefordRelative, gross, nett }, idx) => {
-            const isFinished = holesCompleted === courseHoles.length
+          {sortedRows.map((row, idx) => {
+            const { player, holesCompleted, isFinalised,
+                    totalStableford, stablefordRelative,
+                    totalGross, grossRelative,
+                    totalNett, nettRelative } = row
+
+            // ── Col 3: relative score ──────────────────────
+            let relativeValue: number
             let scoreDisplay: string
-            let scoreColor: string
+            let scorePillClass: string
 
             if (mode === "stableford") {
-              const rel = stablefordRelative
-              scoreDisplay = rel > 0 ? `+${rel}` : rel === 0 ? "E" : `${rel}`
-              scoreColor = rel > 0 ? "text-[#C9A84C]" : rel < 0 ? "text-red-400/80" : "text-white/60"
+              relativeValue = stablefordRelative
+              scoreDisplay  = fmtRelative(relativeValue)
+              scorePillClass = relativeValue > 0
+                ? "bg-[#C9A84C]/15 text-[#C9A84C]"
+                : relativeValue < 0
+                  ? "bg-red-900/25 text-red-400/90"
+                  : "bg-white/5 text-white/45"
             } else {
-              scoreDisplay = `${strokesView === "gross" ? gross : nett}`
-              scoreColor = "text-white/80"
+              relativeValue  = strokesView === "gross" ? grossRelative : nettRelative
+              scoreDisplay   = fmtRelative(relativeValue)
+              scorePillClass = relativeValue < 0
+                ? "bg-green-900/25 text-green-400"
+                : relativeValue > 0
+                  ? "bg-red-900/25 text-red-400/90"
+                  : "bg-white/5 text-white/45"
+            }
+
+            // ── Col 4: holes or finalised total ───────────
+            let col4: string
+            if (!isFinalised) {
+              col4 = `${holesCompleted}`
+            } else if (mode === "stableford") {
+              col4 = `${totalStableford}`
+            } else if (strokesView === "gross") {
+              col4 = `${totalGross}`
+            } else {
+              col4 = `${totalNett}`
             }
 
             return (
-              <div key={player.id} className="flex items-center gap-3 px-4 py-3.5">
-                <span className="text-white/30 text-sm w-5 text-right flex-shrink-0">{idx + 1}</span>
+              <div key={player.id} className="flex items-center gap-3 px-4 py-3">
+
+                {/* Col 1: position */}
+                <span className="text-white/35 text-sm w-5 flex-shrink-0 tabular-nums">
+                  {positions[idx]}
+                </span>
+
+                {/* Col 2: team dot + name */}
                 <div className="flex items-center gap-2 flex-1 min-w-0">
                   {player.teams && (
                     <span
@@ -270,12 +371,19 @@ export default function LiveLeaderboardPanel({
                   )}
                   <span className="text-sm text-white/80 truncate">{player.name}</span>
                 </div>
-                <div className="flex items-center gap-3 flex-shrink-0">
-                  <span className="text-white/25 text-xs">{isFinished ? "F" : `${holesCompleted}`}</span>
-                  <span className={`text-base font-bold w-10 text-right tabular-nums ${scoreColor}`}>
-                    {scoreDisplay}
-                  </span>
-                </div>
+
+                {/* Col 3: relative score pill */}
+                <span className={`flex-shrink-0 inline-flex items-center justify-center
+                  px-2 py-0.5 rounded-sm text-sm font-bold tabular-nums min-w-[3rem] ${scorePillClass}`}>
+                  {scoreDisplay}
+                </span>
+
+                {/* Col 4: holes or finalised total */}
+                <span className={`flex-shrink-0 w-8 text-right tabular-nums text-xs
+                  ${isFinalised ? "text-white/55 font-medium" : "text-white/25"}`}>
+                  {col4}
+                </span>
+
               </div>
             )
           })}
