@@ -174,7 +174,7 @@ function LiveSessionsPanel({ onSuccess }: { onSuccess: (msg: string) => void }) 
       .select("id, round_id, activated_at, rounds(round_number, courses(name)), live_player_locks(player_id, players(name))")
       .eq("status", "active")
       .then(({ data }) => {
-        setSessions((data as LiveSession[]) ?? [])
+        setSessions((data as unknown as LiveSession[]) ?? [])
         setLoading(false)
       })
       .catch(() => setLoading(false))
