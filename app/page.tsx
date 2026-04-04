@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Countdown from "./components/Countdown";
+import SettingsButton from "./components/SettingsButton";
 
 export default function Home() {
   return (
@@ -13,6 +14,11 @@ export default function Home() {
     >
       {/* Dark overlay */}
       <div className="absolute inset-0 bg-black/55 pointer-events-none" />
+
+      {/* Settings button — top right */}
+      <div className="absolute top-4 right-4 z-20">
+        <SettingsButton />
+      </div>
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center text-center w-full">
