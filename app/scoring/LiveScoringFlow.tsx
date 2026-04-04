@@ -120,6 +120,7 @@ export default function LiveScoringFlow({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [closeConfirm, setCloseConfirm] = useState(false)
+  const [showFinalisePrompt, setShowFinalisePrompt] = useState(false)
 
   // Player locking
   const [lockedPlayerIds, setLockedPlayerIds] = useState<string[]>([])
@@ -324,7 +325,7 @@ export default function LiveScoringFlow({
 
   // ─── Commit ───────────────────────────────────────────────
 
-  async function handleCommit() {
+  async function handleCommit(finalise = false) {
     if (!roundId || courseHoles.length === 0) return
     setSaving(true)
     setError(null)
@@ -380,7 +381,15 @@ export default function LiveScoringFlow({
       // 5. Release player locks
       await unlockPlayers()
 
-      setStep("committed")
+      if (finalise && liveRound) {
+        await supabase
+          .from("live_rounds")
+          .update({ status: "finalised", closed_at: new Date().toISOString() })
+          .eq("id", liveRound.id)
+        onBack()
+      } else {
+        setStep("committed")
+      }
     } catch (e: any) {
       setError(e?.message ?? "Failed to commit scores")
     } finally {
@@ -404,6 +413,43 @@ export default function LiveScoringFlow({
           <button onClick={handleCloseRound} disabled={saving} className="flex-1 py-3 bg-red-900/60 border border-red-700/50 text-red-300 text-sm uppercase tracking-wider hover:bg-red-900/80 disabled:opacity-50 transition-colors">
             {saving ? "Closing…" : "Close Round"}
           </button>
+        </div>
+      </div>
+    )
+  }
+
+  // ─── Finalise prompt ──────────────────────────────────────
+
+  if (showFinalisePrompt) {
+    return (
+      <div className="flex flex-col items-center justify-end sm:justify-center min-h-[calc(100dvh-57px)] px-4 pb-8 sm:pb-0">
+        <div className="w-full max-w-sm space-y-5">
+          <div className="text-center space-y-2.5">
+            <div className="w-14 h-14 rounded-full bg-[#C9A84C]/20 flex items-center justify-center mx-auto">
+              <span className="text-[#C9A84C] text-3xl leading-none">✓</span>
+            </div>
+            <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white">Hole 18 Complete</h2>
+            <p className="text-white/40 text-sm">Finalise the scorecard and commit scores to the leaderboard?</p>
+          </div>
+
+          {error && <p className="text-red-400 text-xs text-center">{error}</p>}
+
+          <div className="space-y-2.5">
+            <button
+              onClick={() => handleCommit(true)}
+              disabled={saving}
+              className="w-full py-4 bg-[#C9A84C] text-black text-sm tracking-[0.2em] uppercase font-bold hover:bg-[#d4b05a] disabled:opacity-50 transition-colors rounded-sm"
+            >
+              {saving ? "Saving…" : "Finalise Scorecard"}
+            </button>
+            <button
+              onClick={() => { setShowFinalisePrompt(false); setStep("confirm") }}
+              disabled={saving}
+              className="w-full py-3 border border-white/20 text-white/40 text-sm tracking-[0.15em] uppercase hover:border-white/40 hover:text-white/60 disabled:opacity-50 transition-colors rounded-sm"
+            >
+              Review Scores First
+            </button>
+          </div>
         </div>
       </div>
     )
@@ -710,7 +756,7 @@ export default function LiveScoringFlow({
         setHoleIdx(holeIdx + 1)
         window.scrollTo({ top: 0, behavior: "instant" })
       } else {
-        setStep("confirm")
+        setShowFinalisePrompt(true)
         window.scrollTo({ top: 0, behavior: "instant" })
       }
     }
@@ -807,7 +853,7 @@ export default function LiveScoringFlow({
             className="flex-1 py-4 border border-white/20 text-white/60 text-sm tracking-[0.15em] uppercase hover:border-white/40 transition-colors">
             ← Review
           </button>
-          <button onClick={handleCommit} disabled={saving}
+          <button onClick={() => handleCommit()} disabled={saving}
             className="flex-[2] py-4 bg-[#C9A84C] text-black text-sm tracking-[0.2em] uppercase font-bold hover:bg-[#d4b05a] disabled:opacity-50 transition-colors">
             {saving ? "Saving…" : "Commit Scores"}
           </button>

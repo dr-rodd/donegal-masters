@@ -17,6 +17,7 @@ interface ScorecardInfo {
   liveRound: LiveRoundFull
   playerNames: string[]
   holesThrough: number   // max hole_number any group player has scored
+  finalised: boolean
 }
 
 interface Player {
@@ -72,9 +73,9 @@ export default function CourseDashboardClient({
   const fetchScorecards = useCallback(async () => {
     const { data: liveRoundsData } = await supabase
       .from("live_rounds")
-      .select("id, course_id, round_id, activated_at, activated_by, rounds(round_number), courses(name)")
+      .select("id, course_id, round_id, status, activated_at, activated_by, rounds(round_number), courses(name)")
       .eq("course_id", courseId)
-      .eq("status", "active")
+      .in("status", ["active", "finalised"])
 
     if (!liveRoundsData || liveRoundsData.length === 0) {
       setScorecards([])
@@ -116,7 +117,7 @@ export default function CourseDashboardClient({
         ? Math.max(...groupScores.map((s: any) => s.hole_number as number))
         : 0
 
-      return { liveRound: lr as LiveRoundFull, playerNames, holesThrough }
+      return { liveRound: lr as LiveRoundFull, playerNames, holesThrough, finalised: lr.status === "finalised" }
     })
 
     setScorecards(cards)
@@ -129,8 +130,10 @@ export default function CourseDashboardClient({
     return () => clearInterval(interval)
   }, [fetchScorecards])
 
-  // Reference live round for the leaderboard panel (all groups share the same round_id)
-  const firstLiveRound = (scorecards[0]?.liveRound ?? null) as ActiveLiveRound | null
+  // Reference live round for the leaderboard panel — prefer active, fall back to any
+  const firstLiveRound = (
+    (scorecards.find(s => !s.finalised) ?? scorecards[0])?.liveRound ?? null
+  ) as ActiveLiveRound | null
 
   // ─── Navigation helpers ───────────────────────────────────
 
@@ -203,38 +206,50 @@ export default function CourseDashboardClient({
               </div>
             ) : (
               <div className="space-y-2">
-                {scorecards.map(({ liveRound, playerNames, holesThrough }) => {
+                {scorecards.map(({ liveRound, playerNames, holesThrough, finalised }) => {
                   const startedAt = new Date(liveRound.activated_at).toLocaleTimeString("en-IE", {
                     hour: "2-digit", minute: "2-digit",
                   })
-                  const holeLabel = holesThrough === 0
-                    ? "Starting"
-                    : holesThrough >= 18
-                      ? "Finished (18)"
-                      : `Through ${holesThrough}`
+                  const holeLabel = finalised
+                    ? "18 holes · Finalised"
+                    : holesThrough === 0
+                      ? "Starting"
+                      : holesThrough >= 18
+                        ? "Through 18"
+                        : `Through ${holesThrough}`
 
                   return (
-                    <button
+                    <div
                       key={liveRound.id}
-                      onClick={() => openScoring(liveRound)}
-                      className="w-full text-left border border-[#1e3d28] hover:border-green-600/50 bg-[#0f2418] hover:bg-[#0d2015] transition-colors rounded-sm px-4 py-4"
+                      onClick={() => !finalised && openScoring(liveRound)}
+                      className={`w-full text-left border rounded-sm px-4 py-4 transition-colors
+                        ${finalised
+                          ? "border-[#C9A84C]/30 bg-[#C9A84C]/5 cursor-default"
+                          : "border-[#1e3d28] hover:border-green-600/50 bg-[#0f2418] hover:bg-[#0d2015] cursor-pointer"
+                        }`}
                     >
                       <div className="flex items-start justify-between gap-3">
                         <div className="min-w-0">
                           <p className="text-white text-sm font-semibold leading-snug">
                             {playerNames.length > 0 ? playerNames.join(", ") : "No players locked in yet"}
                           </p>
-                          <p className="text-white/35 text-xs mt-1">
+                          <p className={`text-xs mt-1 ${finalised ? "text-[#C9A84C]/60" : "text-white/35"}`}>
                             {holeLabel} · Started {startedAt}
                           </p>
                         </div>
-                        <span className="flex-shrink-0 text-[#C9A84C] text-xs tracking-wider uppercase pt-0.5">
-                          Score →
-                        </span>
+                        {finalised ? (
+                          <span className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-sm border border-[#C9A84C]/40 bg-[#C9A84C]/10 text-[#C9A84C] text-xs font-semibold tracking-wide">
+                            ✓ Done
+                          </span>
+                        ) : (
+                          <span className="flex-shrink-0 text-[#C9A84C] text-xs tracking-wider uppercase pt-0.5">
+                            Score →
+                          </span>
+                        )}
                       </div>
 
-                      {/* Hole progress bar */}
-                      {holesThrough > 0 && holesThrough < 18 && (
+                      {/* Hole progress bar — only for active in-progress scorecards */}
+                      {!finalised && holesThrough > 0 && holesThrough < 18 && (
                         <div className="mt-3 flex gap-[2px]">
                           {Array.from({ length: 18 }).map((_, i) => (
                             <div
@@ -244,7 +259,15 @@ export default function CourseDashboardClient({
                           ))}
                         </div>
                       )}
-                    </button>
+                      {/* Full gold bar for finalised */}
+                      {finalised && (
+                        <div className="mt-3 flex gap-[2px]">
+                          {Array.from({ length: 18 }).map((_, i) => (
+                            <div key={i} className="flex-1 h-1 rounded-full bg-[#C9A84C]/40" />
+                          ))}
+                        </div>
+                      )}
+                    </div>
                   )
                 })}
               </div>

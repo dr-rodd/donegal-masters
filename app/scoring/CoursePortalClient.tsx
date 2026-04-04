@@ -14,18 +14,9 @@ interface LiveRound {
   id: string
   course_id: string
   round_id: string
+  status: string
 }
 
-interface LivePlayerLock {
-  live_round_id: string
-  player_id: string
-}
-
-interface LiveScore {
-  player_id: string
-  round_id: string
-  hole_number: number
-}
 
 const COURSES: Course[] = [
   { id: "", name: "Old Tom Morris",   slug: "old-tom-morris" },
@@ -46,44 +37,20 @@ export default function CoursePortalClient({ courseIds }: { courseIds: Record<st
   )
 
   async function fetchState() {
-    const [liveRoundsRes, locksRes, scoresRes] = await Promise.all([
-      supabase
-        .from("live_rounds")
-        .select("id, course_id, round_id")
-        .eq("status", "active"),
-      supabase
-        .from("live_player_locks")
-        .select("live_round_id, player_id"),
-      supabase
-        .from("live_scores")
-        .select("player_id, round_id, hole_number")
-        .not("gross_score", "is", null),
-    ])
+    const { data } = await supabase
+      .from("live_rounds")
+      .select("id, course_id, round_id, status")
+      .in("status", ["active", "finalised"])
 
-    const liveRounds: LiveRound[] = liveRoundsRes.data ?? []
-    const locks: LivePlayerLock[] = locksRes.data ?? []
-    const scores: LiveScore[] = scoresRes.data ?? []
+    const liveRounds: LiveRound[] = data ?? []
 
     setCards(COURSES.map(c => {
       const cid = courseIds[c.name] ?? ""
       const courseRounds = liveRounds.filter(lr => lr.course_id === cid)
-      const isActive = courseRounds.length > 0
-
-      let isCompleted = false
-      if (isActive) {
-        isCompleted = courseRounds.every(lr => {
-          const playerIds = locks
-            .filter(l => l.live_round_id === lr.id)
-            .map(l => l.player_id)
-          if (playerIds.length === 0) return false
-          return playerIds.every(pid => {
-            const playerScores = scores.filter(
-              s => s.player_id === pid && s.round_id === lr.round_id
-            )
-            return playerScores.length >= 18
-          })
-        })
-      }
+      const isActive    = courseRounds.some(lr => lr.status === "active")
+      const isFinalised = courseRounds.some(lr => lr.status === "finalised")
+      // Completed = at least one group has finalised and none remain active
+      const isCompleted = isFinalised && !isActive
 
       return { course: { ...c, id: cid }, isActive, isCompleted }
     }))
