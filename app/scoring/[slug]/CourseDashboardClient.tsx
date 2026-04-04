@@ -62,6 +62,7 @@ export default function CourseDashboardClient({
   const [scoringLiveRound, setScoringLiveRound] = useState<ActiveLiveRound | null>(null)
   const [isResuming, setIsResuming]           = useState(false)
   const [starting, setStarting]               = useState(false)
+  const [startError, setStartError]           = useState<string | null>(null)
   const [showLiveLeaderboard, setShowLiveLeaderboard] = useState(false)
   const [scorecards, setScorecards]           = useState<ScorecardInfo[]>([])
   const [loading, setLoading]                 = useState(true)
@@ -157,13 +158,17 @@ export default function CourseDashboardClient({
     const courseRound = rounds.find(r => r.courses?.id === courseId)
     if (!courseRound) return
     setStarting(true)
-    const { data } = await supabase
+    setStartError(null)
+    const { data, error } = await supabase
       .from("live_rounds")
       .insert({ course_id: courseId, round_id: courseRound.id, status: "active" })
       .select("id, course_id, round_id, activated_by, rounds(round_number), courses(name)")
       .single()
     setStarting(false)
-    if (!data) return
+    if (error || !data) {
+      setStartError(error?.message ?? "Failed to start scorecard")
+      return
+    }
     setScoringLiveRound(data as unknown as ActiveLiveRound)
     setIsResuming(false)
     setShowLiveLeaderboard(false)
@@ -305,6 +310,9 @@ export default function CourseDashboardClient({
             >
               {starting ? "Starting…" : "+ Start New Scorecard"}
             </button>
+            {startError && (
+              <p className="text-red-400/80 text-xs text-center">{startError}</p>
+            )}
 
             {firstLiveRound && (
               <button
