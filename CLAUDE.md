@@ -9,10 +9,19 @@ A golf tournament scoring app for a 3-round family competition at Rosapenna Reso
 - Hole-by-hole stableford scoring
 - Team leaderboard based on best stableford score per hole per round
 
+## Design Philosophy
+
+This is a **mobile-first app**. All UI code must be designed and optimised for mobile by default.
+
+- Write styles for mobile first; use `sm:` / `md:` / `lg:` breakpoints only to enhance for larger screens where it adds value
+- Touch targets must be large enough for fingers (minimum 44px)
+- Layouts, spacing, and typography should feel native on a phone screen
+- The only time desktop-specific logic is needed is for interactions that are inherently mobile-only (e.g. swipe gestures) — in those cases, provide a desktop fallback
+
 ## Tech Stack
 
 - **Framework:** Next.js 16 (App Router, TypeScript)
-- **Styling:** Tailwind CSS
+- **Styling:** Tailwind CSS (mobile-first utility classes)
 - **Database:** Supabase (PostgreSQL)
 - **Supabase client:** `lib/supabase.ts` — import as `import { supabase } from '@/lib/supabase'`
 - **Package manager:** npm
