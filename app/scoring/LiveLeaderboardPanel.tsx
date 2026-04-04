@@ -74,6 +74,7 @@ export default function LiveLeaderboardPanel({
   liveRound, players, holes, roundHandicaps, onClose, showBackButton = false,
 }: Props) {
   const [liveScores, setLiveScores] = useState<LiveScoreRow[]>([])
+  const [validPlayerIds, setValidPlayerIds] = useState<Set<string>>(new Set())
   const [mode, setMode] = useState<Mode>("stableford")
   const [strokesView, setStrokesView] = useState<StrokesView>("nett")
   const [lastFetch, setLastFetch] = useState<Date | null>(null)
@@ -83,15 +84,34 @@ export default function LiveLeaderboardPanel({
     .sort((a, b) => a.hole_number - b.hole_number)
 
   const fetchScores = useCallback(async () => {
-    const { data } = await supabase
-      .from("live_scores")
-      .select("player_id, hole_number, gross_score, stableford_points")
-      .eq("round_id", liveRound.round_id)
-      .eq("committed", false)
-    if (data) {
-      setLiveScores(data as LiveScoreRow[])
-      setLastFetch(new Date())
+    // Fetch scores (committed and uncommitted) and the set of locked players
+    // from live_rounds that are active or finalised for this round.
+    const [scoresRes, liveRoundsRes] = await Promise.all([
+      supabase
+        .from("live_scores")
+        .select("player_id, hole_number, gross_score, stableford_points")
+        .eq("round_id", liveRound.round_id),
+      supabase
+        .from("live_rounds")
+        .select("id")
+        .eq("round_id", liveRound.round_id)
+        .in("status", ["active", "finalised"]),
+    ])
+
+    if (scoresRes.data) setLiveScores(scoresRes.data as LiveScoreRow[])
+
+    const liveRoundIds = (liveRoundsRes.data ?? []).map((lr: any) => lr.id as string)
+    if (liveRoundIds.length > 0) {
+      const { data: locks } = await supabase
+        .from("live_player_locks")
+        .select("player_id")
+        .in("live_round_id", liveRoundIds)
+      setValidPlayerIds(new Set(locks?.map(l => l.player_id as string) ?? []))
+    } else {
+      setValidPlayerIds(new Set())
     }
+
+    setLastFetch(new Date())
   }, [liveRound.round_id])
 
   useEffect(() => {
@@ -117,6 +137,7 @@ export default function LiveLeaderboardPanel({
   // ─── Build ranked rows ────────────────────────────────────
 
   const playerRows = players
+    .filter(player => validPlayerIds.has(player.id))
     .map(player => {
       const playerScores = liveScores.filter(
         ls => ls.player_id === player.id && ls.gross_score !== null
