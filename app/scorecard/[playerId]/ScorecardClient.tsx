@@ -196,8 +196,8 @@ export default function ScorecardClient({ player, rounds, holes, scores, roundHa
 
   function nrGross(hole: Hole): number {
     const ph = playingHcp ?? 0
-    const shots = hole.stroke_index <= (ph - 18) ? 2 : hole.stroke_index <= ph ? 1 : 0
-    return hole.par + shots + 1
+    const shots = Math.floor(ph / 18) + (hole.stroke_index <= ph % 18 ? 1 : 0)
+    return hole.par + 2 + shots
   }
 
   function sumGross(hs: Hole[]): number {

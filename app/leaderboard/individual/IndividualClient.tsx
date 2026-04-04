@@ -57,10 +57,14 @@ function playerRoundStableford(playerId: string, roundId: string, scores: Score[
     .reduce((sum, s) => sum + s.stableford_points, 0)
 }
 
-// Minimum gross that yields 0 stableford points on a given hole
+function shotsReceived(si: number, hcp: number) {
+  return Math.floor(hcp / 18) + (si <= hcp % 18 ? 1 : 0)
+}
+
+// Minimum gross that yields 0 stableford points on a given hole:
+// net double bogey = par + 2 after shots received
 function nrGross(hole: Hole, playingHandicap: number): number {
-  const shots = hole.stroke_index <= playingHandicap ? 1 : 0
-  return hole.par + shots + 1
+  return hole.par + 2 + shotsReceived(hole.stroke_index, playingHandicap)
 }
 
 function playerRoundGross(playerId: string, roundId: string, scores: Score[], holes: Hole[], roundHandicaps: RoundHcp[]) {

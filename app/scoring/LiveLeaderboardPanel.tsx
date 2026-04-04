@@ -23,6 +23,8 @@ interface Player {
 interface Hole {
   course_id: string
   hole_number: number
+  par: number
+  par_ladies?: number
   stroke_index: number
   stroke_index_ladies?: number
 }
@@ -52,6 +54,12 @@ function effectiveSI(hole: Hole, gender: string, courseId: string) {
   return gender === "F" && courseId === ST_PATRICKS_COURSE_ID && hole.stroke_index_ladies
     ? hole.stroke_index_ladies
     : hole.stroke_index
+}
+
+function effectivePar(hole: Hole, gender: string, courseId: string) {
+  return gender === "F" && courseId === ST_PATRICKS_COURSE_ID && hole.par_ladies
+    ? hole.par_ladies
+    : hole.par
 }
 
 // ─── Types ────────────────────────────────────────────────
@@ -157,7 +165,10 @@ export default function LiveLeaderboardPanel({
       for (const ls of playerScores) {
         const hole = courseHoles.find(h => h.hole_number === ls.hole_number)
         if (!hole || ls.gross_score === null) continue
-        totalNett += ls.gross_score - shotsReceived(effectiveSI(hole, player.gender, liveRound.course_id), hcp)
+        const par   = effectivePar(hole, player.gender, liveRound.course_id)
+        const shots = shotsReceived(effectiveSI(hole, player.gender, liveRound.course_id), hcp)
+        // Cap per-hole nett at par + 2 (net double bogey = 0 stableford points)
+        totalNett += Math.min(ls.gross_score - shots, par + 2)
       }
 
       return { player, holesCompleted, stablefordRelative, gross: totalGross, nett: totalNett }
