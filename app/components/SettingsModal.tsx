@@ -5,7 +5,7 @@ import { supabase } from "@/lib/supabase"
 import { revalidateLeaderboards } from "@/app/actions/revalidate"
 
 type Action = "reset-scores" | "reset-teams"
-type PanelStatus = "idle" | "loading" | "success" | "error"
+type PanelStatus = "idle" | "loading" | "error"
 
 interface ActionConfig {
   id: Action
@@ -293,14 +293,11 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
 
   return (
     <>
-      {/* Backdrop */}
       <div className="fixed inset-0 bg-black/70 z-40" onClick={onClose} />
 
-      {/* Modal */}
       <div className="fixed inset-x-0 bottom-0 sm:inset-0 sm:flex sm:items-center sm:justify-center z-50 p-4">
         <div className="bg-[#0a1a0e] border border-[#1e3d28] rounded-sm w-full sm:max-w-md shadow-2xl max-h-[90dvh] flex flex-col">
 
-          {/* Header */}
           <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e3d28] flex-shrink-0">
             <h2 className="font-[family-name:var(--font-playfair)] text-white text-lg">Settings</h2>
             <button
@@ -311,7 +308,6 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
             </button>
           </div>
 
-          {/* Body — scrollable */}
           <div className="p-4 space-y-3 overflow-y-auto">
             {successMsg && (
               <div className="border border-emerald-700/50 bg-emerald-900/20 rounded-sm px-4 py-2.5 flex items-center justify-between">
