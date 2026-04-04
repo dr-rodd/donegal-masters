@@ -45,9 +45,12 @@ interface Props {
   onLiveRoundChange: (r: ActiveLiveRound | null) => void
   showLeaderboard: boolean
   onLeaderboardChange: (v: boolean) => void
+  /** When true and activeLiveRound is set, skip mode/setup and resume at the
+   *  first unsubmitted hole using the players already locked in the round. */
+  autoResume?: boolean
 }
 
-type LiveStep = "activate" | "mode" | "setup" | "holes" | "confirm" | "committed"
+type LiveStep = "activate" | "mode" | "setup" | "holes" | "confirm" | "committed" | "resuming"
 type Mode = "solo" | "group"
 
 // ─── Constants ────────────────────────────────────────────
@@ -99,9 +102,12 @@ export default function LiveScoringFlow({
   players, rounds, holes, tees, roundHandicaps,
   activeLiveRound, onBack, onLiveRoundChange,
   showLeaderboard, onLeaderboardChange,
+  autoResume = false,
 }: Props) {
   const [liveRound, setLiveRound] = useState<ActiveLiveRound | null>(activeLiveRound)
-  const [step, setStep] = useState<LiveStep>(activeLiveRound ? "mode" : "activate")
+  const [step, setStep] = useState<LiveStep>(
+    activeLiveRound ? (autoResume ? "resuming" : "mode") : "activate"
+  )
   const [mode, setMode] = useState<Mode>("solo")
 
   // Setup state
@@ -156,6 +162,89 @@ export default function LiveScoringFlow({
       .select("player_id")
       .eq("live_round_id", liveRound.id)
       .then(({ data }) => setLockedPlayerIds(data?.map(r => r.player_id) ?? []))
+  }, [step, liveRound?.id])
+
+  // Auto-resume: fetch locked players + existing scores and jump to the right hole
+  useEffect(() => {
+    if (step !== "resuming" || !liveRound) return
+
+    const cId  = liveRound.course_id
+    const rId  = liveRound.round_id
+    const cHoles = holes
+      .filter(h => h.course_id === cId)
+      .sort((a, b) => a.hole_number - b.hole_number)
+
+    async function doResume() {
+      const { data: locks } = await supabase
+        .from("live_player_locks")
+        .select("player_id")
+        .eq("live_round_id", liveRound!.id)
+
+      const lockedIds = locks?.map(l => l.player_id as string) ?? []
+
+      if (lockedIds.length === 0) {
+        // No players locked yet — fall back to normal flow
+        setStep("mode")
+        return
+      }
+
+      const { data: existingScores } = await supabase
+        .from("live_scores")
+        .select("player_id, hole_number, gross_score, stableford_points")
+        .in("player_id", lockedIds)
+        .eq("round_id", rId)
+
+      // Pick tees: first gender-matching tee for the course (playing_handicap
+      // already stored in round_handicaps so tee choice only affects yardage display)
+      const courseTees = tees.filter(t => t.course_id === cId)
+      const teeMap: Record<string, string> = {}
+      for (const pid of lockedIds) {
+        const player = players.find(p => p.id === pid)
+        if (!player) continue
+        const tee = courseTees.find(t => t.gender === player.gender) ?? courseTees[0]
+        if (tee) teeMap[pid] = tee.id
+      }
+
+      // Rebuild scores state from live_scores
+      const scoreState: Record<number, Record<string, HoleScore>> = {}
+      for (const row of (existingScores ?? [])) {
+        if (row.gross_score === null) continue
+        const idx = cHoles.findIndex(h => h.hole_number === row.hole_number)
+        if (idx === -1) continue
+        if (!scoreState[idx]) scoreState[idx] = {}
+        scoreState[idx][row.player_id] = {
+          gross: row.gross_score,
+          isNR: false,
+          stableford: row.stableford_points,
+        }
+      }
+
+      // Find first hole where not all players have a score yet
+      let resumeIdx = 0
+      for (let i = 0; i < cHoles.length; i++) {
+        const hScores = scoreState[i] ?? {}
+        const allDone = lockedIds.every(pid => hScores[pid]?.gross !== null && hScores[pid] !== undefined)
+        if (!allDone) { resumeIdx = i; break }
+        resumeIdx = i + 1
+      }
+
+      setLockedPlayerIds(lockedIds)
+      setSelectedPlayerIds(lockedIds)
+      setPlayerTeeIds(teeMap)
+      setScores(scoreState)
+
+      if (resumeIdx >= cHoles.length) {
+        setHoleIdx(cHoles.length - 1)
+        setStep("confirm")
+      } else {
+        setHoleIdx(resumeIdx)
+        setStep("holes")
+        window.scrollTo({ top: 0, behavior: "instant" })
+      }
+    }
+
+    doResume()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, liveRound?.id])
 
   async function lockPlayers() {
@@ -332,6 +421,16 @@ export default function LiveScoringFlow({
         onClose={() => onLeaderboardChange(false)}
         showBackButton={true}
       />
+    )
+  }
+
+  // ─── Resuming step ────────────────────────────────────────
+
+  if (step === "resuming") {
+    return (
+      <div className="flex items-center justify-center min-h-[calc(100dvh-57px)]">
+        <p className="text-white/30 text-sm tracking-wide">Loading scorecard…</p>
+      </div>
     )
   }
 

@@ -282,6 +282,7 @@ export default function CourseDashboardClient({
           tees={tees}
           roundHandicaps={roundHandicaps}
           activeLiveRound={scoringLiveRound}
+          autoResume={scoringLiveRound !== null}
           onBack={goBack}
           onLiveRoundChange={r => {
             setScoringLiveRound(r)
