@@ -50,8 +50,7 @@ interface Props {
   autoResume?: boolean
 }
 
-type LiveStep = "activate" | "mode" | "setup" | "holes" | "confirm" | "committed" | "resuming"
-type Mode = "solo" | "group"
+type LiveStep = "activate" | "setup" | "holes" | "confirm" | "committed" | "resuming"
 
 // ─── Constants ────────────────────────────────────────────
 
@@ -106,9 +105,8 @@ export default function LiveScoringFlow({
 }: Props) {
   const [liveRound, setLiveRound] = useState<ActiveLiveRound | null>(activeLiveRound)
   const [step, setStep] = useState<LiveStep>(
-    activeLiveRound ? (autoResume ? "resuming" : "mode") : "activate"
+    activeLiveRound ? (autoResume ? "resuming" : "setup") : "activate"
   )
-  const [mode, setMode] = useState<Mode>("solo")
 
   // Setup state
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([])
@@ -185,7 +183,7 @@ export default function LiveScoringFlow({
 
       if (lockedIds.length === 0) {
         // No players locked yet — fall back to normal flow
-        setStep("mode")
+        setStep("setup")
         return
       }
 
@@ -305,7 +303,7 @@ export default function LiveScoringFlow({
 
     syncLiveRound(data as unknown as ActiveLiveRound)
     setSaving(false)
-    setStep("mode")
+    setStep("setup")
   }
 
   // ─── Close round ─────────────────────────────────────────
@@ -526,46 +524,6 @@ export default function LiveScoringFlow({
     )
   }
 
-  // ─── Mode step ────────────────────────────────────────────
-
-  if (step === "mode") {
-    const roundDisplay = liveRound
-      ? `Round ${liveRound.rounds?.round_number} — ${liveRound.courses?.name}`
-      : ""
-
-    return (
-      <div className="flex flex-col items-center justify-center gap-6 px-6 py-12 min-h-[calc(100dvh-113px)]">
-        <div className="text-center">
-          <div className="flex items-center justify-center gap-1.5 mb-3">
-            <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-            <span className="text-green-400 text-xs tracking-[0.2em] uppercase">Live — {roundDisplay}</span>
-          </div>
-          <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white">How are you playing?</h2>
-        </div>
-
-        <button
-          onClick={() => { setMode("solo"); setStep("setup") }}
-          className="w-full max-w-xs py-5 border border-[#C9A84C]/50 text-[#C9A84C] tracking-[0.2em] uppercase text-sm hover:bg-[#C9A84C]/10 transition-colors"
-        >
-          Solo
-          <div className="text-[10px] text-white/40 normal-case tracking-normal mt-1 font-normal">One player</div>
-        </button>
-
-        <button
-          onClick={() => { setMode("group"); setStep("setup") }}
-          className="w-full max-w-xs py-5 border border-white/20 text-white/60 tracking-[0.2em] uppercase text-sm hover:border-white/40 hover:text-white/80 transition-colors"
-        >
-          Group
-          <div className="text-[10px] text-white/40 normal-case tracking-normal mt-1 font-normal">2–4 players</div>
-        </button>
-
-        <button onClick={() => setCloseConfirm(true)} className="text-white/20 text-xs tracking-widest uppercase hover:text-red-400/60 transition-colors mt-4">
-          Close Live Round
-        </button>
-      </div>
-    )
-  }
-
   // ─── Setup step ───────────────────────────────────────────
 
   if (step === "setup") {
@@ -573,18 +531,13 @@ export default function LiveScoringFlow({
 
     function togglePlayer(pid: string) {
       const isSelected = selectedPlayerIds.includes(pid)
-      if (mode === "solo") {
-        setSelectedPlayerIds([pid])
-        setPlayerTeeIds({})
-      } else {
-        if (isSelected) {
-          if (selectedPlayerIds.length > 1) {
-            setSelectedPlayerIds(prev => prev.filter(id => id !== pid))
-            setPlayerTeeIds(prev => { const n = { ...prev }; delete n[pid]; return n })
-          }
-        } else if (selectedPlayerIds.length < 4) {
-          setSelectedPlayerIds(prev => [...prev, pid])
+      if (isSelected) {
+        if (selectedPlayerIds.length > 1) {
+          setSelectedPlayerIds(prev => prev.filter(id => id !== pid))
+          setPlayerTeeIds(prev => { const n = { ...prev }; delete n[pid]; return n })
         }
+      } else if (selectedPlayerIds.length < 4) {
+        setSelectedPlayerIds(prev => [...prev, pid])
       }
     }
 
@@ -594,19 +547,9 @@ export default function LiveScoringFlow({
 
     return (
       <div className="max-w-lg mx-auto w-full px-4 py-6 flex flex-col gap-5">
-        <div className="flex items-center gap-3">
-          <button onClick={() => setStep("mode")} className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase">
-            ← Back
-          </button>
-          <span className="text-white/20 text-xs">|</span>
-          <span className="text-white/40 text-xs tracking-[0.2em] uppercase">
-            {mode === "solo" ? "Solo" : "Group"}
-          </span>
-        </div>
-
         <div className="flex flex-col gap-3">
           <label className="text-white/50 text-xs tracking-[0.15em] uppercase">
-            {mode === "solo" ? "Select Player" : "Select Players (2–4)"}
+            Select Players (1–4)
           </label>
 
           {players.map(player => {
@@ -870,7 +813,7 @@ export default function LiveScoringFlow({
           <p className="text-white/40 text-sm">Saved to the official leaderboard.</p>
         </div>
         <button
-          onClick={() => { setSelectedPlayerIds([]); setPlayerTeeIds({}); setScores({}); setHoleIdx(0); setStep("mode") }}
+          onClick={() => { setSelectedPlayerIds([]); setPlayerTeeIds({}); setScores({}); setHoleIdx(0); setStep("setup") }}
           className="mt-4 px-8 py-3 border border-[#C9A84C]/50 text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:bg-[#C9A84C]/10 transition-colors"
         >
           Score Another Player
