@@ -28,8 +28,9 @@ interface Tee {
 }
 interface RoundHandicap { round_id: string; player_id: string; playing_handicap: number }
 interface HoleScore {
-  gross: number | null; fairway: "left" | "fairway" | "right" | null
-  putts: number | null; stableford: number | null
+  gross: number | null
+  isNR: boolean
+  stableford: number | null
 }
 interface PlayerSetup { player: Player; tee: Tee; playingHcp: number }
 
@@ -75,6 +76,9 @@ function shotsReceived(si: number, hcp: number) {
 }
 function calcStableford(gross: number, par: number, si: number, hcp: number) {
   return Math.max(0, par + 2 - (gross - shotsReceived(si, hcp)))
+}
+function nrGross(par: number, si: number, hcp: number) {
+  return par + 2 + shotsReceived(si, hcp)
 }
 function effectivePar(hole: Hole, gender: string, courseId: string) {
   return gender === "F" && courseId === ST_PATRICKS_COURSE_ID && hole.par_ladies
@@ -260,8 +264,16 @@ export default function LiveScoringFlow({
         const hole = courseHoles[Number(hIdxStr)]
         if (!hole) continue
         for (const [playerId, hs] of Object.entries(holeScores)) {
-          if (hs.gross === null) continue
-          scoreRows.push({ player_id: playerId, hole_id: hole.id, round_id: roundId, gross_score: hs.gross })
+          if (hs.gross === null && !hs.isNR) continue
+          const setup = playerSetups.find(ps => ps.player.id === playerId)
+          if (!setup) continue
+          const p = effectivePar(hole, setup.player.gender, courseId)
+          const si = effectiveSI(hole, setup.player.gender, courseId)
+          const gross = hs.isNR ? nrGross(p, si, setup.playingHcp) : hs.gross!
+          scoreRows.push({
+            player_id: playerId, hole_id: hole.id, round_id: roundId,
+            gross_score: gross, no_return: hs.isNR ?? false,
+          })
         }
       }
       if (scoreRows.length > 0) {
@@ -567,14 +579,15 @@ export default function LiveScoringFlow({
       const rows = playerSetups
         .map(({ player, playingHcp }) => {
           const hs = holeScores[player.id]
-          if (!hs?.gross) return null
+          if (!hs?.gross && !hs?.isNR) return null
           const p = effectivePar(hole, player.gender, courseId)
           const si = effectiveSI(hole, player.gender, courseId)
+          const gross = hs.isNR ? nrGross(p, si, playingHcp) : hs.gross!
           return {
             player_id: player.id, round_id: roundId, hole_number: hole.hole_number,
-            gross_score: hs.gross,
-            stableford_points: calcStableford(hs.gross, p, si, playingHcp),
-            fairway_hit: hs.fairway ?? null, putts: hs.putts ?? null, committed: false,
+            gross_score: gross,
+            stableford_points: hs.isNR ? 0 : calcStableford(gross, p, si, playingHcp),
+            committed: false,
           }
         }).filter(Boolean)
       if (rows.length > 0) {
@@ -611,26 +624,15 @@ export default function LiveScoringFlow({
           if (touchStartX.current === null) return
           const delta = e.changedTouches[0].clientX - touchStartX.current
           touchStartX.current = null
-          if (delta > 60 && !showLeaderboard) { onLeaderboardChange(true); return }
-          if (delta < -60 && showLeaderboard) { onLeaderboardChange(false); return }
+          if (delta < -60 && !showLeaderboard) { onLeaderboardChange(true); return }
+          if (delta > 60 && showLeaderboard) { onLeaderboardChange(false); return }
         }}
       >
         <div
           className="flex transition-transform duration-300 ease-out"
-          style={{ width: "200%", transform: showLeaderboard ? "translateX(0)" : "translateX(-50%)" }}
+          style={{ width: "200%", transform: showLeaderboard ? "translateX(-50%)" : "translateX(0)" }}
         >
-          {/* Left panel: live leaderboard */}
-          <div style={{ width: "50%" }}>
-            {liveRound && (
-              <LiveLeaderboardPanel
-                liveRound={liveRound}
-                players={players}
-                holes={holes}
-                roundHandicaps={roundHandicaps}
-              />
-            )}
-          </div>
-          {/* Right panel: hole score entry */}
+          {/* Left panel: hole score entry */}
           <div style={{ width: "50%" }}>
             <HoleCard
               hole={hole}
@@ -642,6 +644,17 @@ export default function LiveScoringFlow({
               onSubmit={handleHoleSubmit}
               onBack={handleHoleBack}
             />
+          </div>
+          {/* Right panel: live leaderboard */}
+          <div style={{ width: "50%" }}>
+            {liveRound && (
+              <LiveLeaderboardPanel
+                liveRound={liveRound}
+                players={players}
+                holes={holes}
+                roundHandicaps={roundHandicaps}
+              />
+            )}
           </div>
         </div>
       </div>
@@ -745,7 +758,7 @@ function HoleCard({
   const [holeScores, setHoleScores] = useState<Record<string, HoleScore>>(() => {
     const init: Record<string, HoleScore> = {}
     for (const { player } of playerSetups) {
-      init[player.id] = existingScores[player.id] ?? { gross: null, fairway: null, putts: null, stableford: null }
+      init[player.id] = existingScores[player.id] ?? { gross: null, isNR: false, stableford: null }
     }
     return init
   })
@@ -753,13 +766,16 @@ function HoleCard({
   useEffect(() => {
     const init: Record<string, HoleScore> = {}
     for (const { player } of playerSetups) {
-      init[player.id] = existingScores[player.id] ?? { gross: null, fairway: null, putts: null, stableford: null }
+      init[player.id] = existingScores[player.id] ?? { gross: null, isNR: false, stableford: null }
     }
     setHoleScores(init)
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [holeIdx])
 
-  const allHaveGross = playerSetups.every(({ player }) => holeScores[player.id]?.gross !== null)
+  const allHaveGross = playerSetups.every(({ player }) => {
+    const hs = holeScores[player.id]
+    return hs?.gross !== null || hs?.isNR === true
+  })
 
   function set(pid: string, update: Partial<HoleScore>) {
     setHoleScores(prev => ({ ...prev, [pid]: { ...prev[pid], ...update } }))
@@ -797,17 +813,17 @@ function HoleCard({
       {/* Per-player scoring sections */}
       <div className="flex flex-col gap-4">
         {playerSetups.map(({ player, playingHcp, tee }) => {
-          const hs = holeScores[player.id] ?? { gross: null, fairway: null, putts: null, stableford: null }
+          const hs = holeScores[player.id] ?? { gross: null, isNR: false, stableford: null }
           const par = effectivePar(hole, player.gender, courseId)
           const si = effectiveSI(hole, player.gender, courseId)
           const shots = shotsReceived(si, playingHcp)
-          const stableford = hs.gross !== null ? calcStableford(hs.gross, par, si, playingHcp) : null
-          const showFairway = par === 4 || par === 5
+          const netParGross = par + shots
+          const stableford = hs.isNR ? 0 : hs.gross !== null ? calcStableford(hs.gross, par, si, playingHcp) : null
           const yardage = yardageForTee(hole, tee.name)
 
           return (
             <div key={player.id} className="border border-[#1e3d28] bg-[#0d2015] px-4 py-4">
-              {/* Name + stats */}
+              {/* Name + handicap info */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
                   {player.teams && <span className="w-2 h-2 rounded-full" style={{ backgroundColor: player.teams.color }} />}
@@ -824,49 +840,38 @@ function HoleCard({
                 </div>
               </div>
 
-              {/* Gross */}
-              <div className="flex items-center justify-center gap-6 mb-4">
-                <button onClick={() => set(player.id, { gross: Math.max(1, (hs.gross ?? par) - 1) })}
-                  className="w-12 h-12 rounded-full border border-white/20 text-white/60 text-xl hover:border-white/50 hover:text-white transition-colors active:bg-white/10">−</button>
-                <div className="text-center min-w-[3rem]">
-                  <div className="text-5xl font-bold text-white leading-none">{hs.gross ?? "—"}</div>
-                  {hs.gross !== null && (
-                    <div className={`text-xs mt-1 ${hs.gross - par <= -2 ? "text-[#C9A84C]" : hs.gross - par === -1 ? "text-emerald-400" : hs.gross - par === 0 ? "text-white/40" : hs.gross - par === 1 ? "text-orange-400/70" : "text-red-400/70"}`}>
-                      {hs.gross - par <= -2 ? "Eagle" : hs.gross - par === -1 ? "Birdie" : hs.gross - par === 0 ? "Par" : hs.gross - par === 1 ? "Bogey" : `+${hs.gross - par}`}
-                    </div>
-                  )}
-                </div>
-                <button onClick={() => set(player.id, { gross: (hs.gross ?? par) + 1 })}
-                  className="w-12 h-12 rounded-full border border-white/20 text-white/60 text-xl hover:border-white/50 hover:text-white transition-colors active:bg-white/10">+</button>
-              </div>
-
-              {/* Fairway */}
-              {showFairway && (
-                <div className="mb-3">
-                  <div className="text-white/30 text-[10px] tracking-[0.15em] uppercase mb-2">Fairway</div>
-                  <div className="flex gap-2">
-                    {(["left", "fairway", "right"] as const).map(fw => (
-                      <button key={fw} onClick={() => set(player.id, { fairway: hs.fairway === fw ? null : fw })}
-                        className={`flex-1 py-2 text-xs tracking-wider uppercase border transition-colors
-                          ${hs.fairway === fw ? "border-[#C9A84C] text-[#C9A84C] bg-[#C9A84C]/10" : "border-white/15 text-white/40 hover:border-white/30"}`}>
-                        {fw === "fairway" ? "FW" : fw === "left" ? "← L" : "R →"}
-                      </button>
-                    ))}
+              {/* Gross score */}
+              {!hs.isNR && (
+                <div className="flex items-center gap-3 mb-3">
+                  <button
+                    onClick={() => set(player.id, { gross: Math.max(1, (hs.gross ?? netParGross) - 1), isNR: false })}
+                    className="flex-1 h-16 rounded-sm border border-white/20 text-white/70 text-3xl hover:border-white/50 hover:text-white transition-colors active:bg-white/10"
+                  >−</button>
+                  <div className="text-center min-w-[3.5rem]">
+                    <div className="text-5xl font-bold text-white leading-none">{hs.gross ?? "—"}</div>
+                    {hs.gross !== null && (
+                      <div className={`text-xs mt-1 ${hs.gross - par <= -2 ? "text-[#C9A84C]" : hs.gross - par === -1 ? "text-emerald-400" : hs.gross - par === 0 ? "text-white/40" : hs.gross - par === 1 ? "text-orange-400/70" : "text-red-400/70"}`}>
+                        {hs.gross - par <= -2 ? "Eagle" : hs.gross - par === -1 ? "Birdie" : hs.gross - par === 0 ? "Par" : hs.gross - par === 1 ? "Bogey" : `+${hs.gross - par}`}
+                      </div>
+                    )}
                   </div>
+                  <button
+                    onClick={() => set(player.id, { gross: (hs.gross ?? netParGross) + 1, isNR: false })}
+                    className="flex-1 h-16 rounded-sm border border-white/20 text-white/70 text-3xl hover:border-white/50 hover:text-white transition-colors active:bg-white/10"
+                  >+</button>
                 </div>
               )}
 
-              {/* Putts */}
-              <div>
-                <div className="text-white/30 text-[10px] tracking-[0.15em] uppercase mb-2">Putts</div>
-                <div className="flex items-center gap-3">
-                  <button onClick={() => set(player.id, { putts: Math.max(0, (hs.putts ?? 2) - 1) })}
-                    className="w-8 h-8 rounded-full border border-white/15 text-white/50 hover:border-white/30 transition-colors">−</button>
-                  <span className="text-lg font-semibold text-white/70 min-w-[1.5rem] text-center">{hs.putts ?? "—"}</span>
-                  <button onClick={() => set(player.id, { putts: (hs.putts ?? 1) + 1 })}
-                    className="w-8 h-8 rounded-full border border-white/15 text-white/50 hover:border-white/30 transition-colors">+</button>
-                </div>
-              </div>
+              {/* NR button */}
+              <button
+                onClick={() => set(player.id, hs.isNR ? { isNR: false, gross: null } : { isNR: true, gross: null })}
+                className={`w-full py-2.5 rounded-sm text-xs tracking-[0.15em] uppercase border transition-colors
+                  ${hs.isNR
+                    ? "border-red-500/60 text-red-400 bg-red-900/20"
+                    : "border-white/15 text-white/35 hover:border-white/30 hover:text-white/50"}`}
+              >
+                {hs.isNR ? "NR — tap to clear" : "NR"}
+              </button>
             </div>
           )
         })}

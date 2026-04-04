@@ -18,9 +18,10 @@ interface ActionConfig {
 
 interface LiveSession {
   id: string
+  round_id: string
   activated_at: string
   rounds: { round_number: number; courses: { name: string } } | null
-  live_player_locks: Array<{ players: { name: string } | null }>
+  live_player_locks: Array<{ player_id: string; players: { name: string } | null }>
 }
 
 const ACTIONS: ActionConfig[] = [
@@ -89,11 +90,22 @@ function LiveSessionCard({ session, onVoided }: { session: LiveSession; onVoided
     if (password !== PASSWORD) { setWrongPw(true); return }
     setStatus("loading")
     try {
+      const playerIds = session.live_player_locks.map(l => l.player_id).filter(Boolean)
+
       const { error: err } = await supabase
         .from("live_rounds")
         .update({ status: "closed", closed_at: new Date().toISOString() })
         .eq("id", session.id)
       if (err) throw new Error(err.message)
+
+      // Also clear committed and in-progress scores for these players in this round
+      if (playerIds.length > 0) {
+        await Promise.all([
+          supabase.from("scores").delete().eq("round_id", session.round_id).in("player_id", playerIds),
+          supabase.from("live_scores").delete().eq("round_id", session.round_id).in("player_id", playerIds),
+        ])
+      }
+
       await revalidateLeaderboards()
       onVoided()
     } catch {
@@ -159,7 +171,7 @@ function LiveSessionsPanel({ onSuccess }: { onSuccess: (msg: string) => void }) 
   useEffect(() => {
     supabase
       .from("live_rounds")
-      .select("id, activated_at, rounds(round_number, courses(name)), live_player_locks(players(name))")
+      .select("id, round_id, activated_at, rounds(round_number, courses(name)), live_player_locks(player_id, players(name))")
       .eq("status", "active")
       .then(({ data }) => {
         setSessions((data as LiveSession[]) ?? [])
