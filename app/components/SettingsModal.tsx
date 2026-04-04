@@ -1,10 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { supabase } from "@/lib/supabase"
 import { revalidateLeaderboards } from "@/app/actions/revalidate"
 
-type Action = "cancel-live-sessions" | "reset-scores" | "reset-teams"
+type Action = "reset-scores" | "reset-teams"
 type PanelStatus = "idle" | "loading" | "success" | "error"
 
 interface ActionConfig {
@@ -16,15 +16,14 @@ interface ActionConfig {
   danger: boolean
 }
 
+interface LiveSession {
+  id: string
+  activated_at: string
+  rounds: { round_number: number; courses: { name: string } } | null
+  live_player_locks: Array<{ players: { id: string; name: string; role: string } | null }>
+}
+
 const ACTIONS: ActionConfig[] = [
-  {
-    id: "cancel-live-sessions",
-    label: "Cancel Live Sessions",
-    description: "Closes any stuck active live scoring sessions. Use when scoring is glitching or a session is frozen from a previous day.",
-    confirmText: "This will close all active live scoring sessions. Any uncommitted in-progress scores will be discarded.",
-    successMessage: "All active live sessions closed.",
-    danger: false,
-  },
   {
     id: "reset-scores",
     label: "Reset All Scores",
@@ -46,15 +45,7 @@ const ACTIONS: ActionConfig[] = [
 const PASSWORD = "donegal2026"
 
 async function executeAction(action: Action): Promise<void> {
-  if (action === "cancel-live-sessions") {
-    const { error } = await supabase
-      .from("live_rounds")
-      .update({ status: "closed", closed_at: new Date().toISOString() })
-      .eq("status", "active")
-    if (error) throw new Error(error.message)
-    // live_player_locks cascade-deletes automatically
-    await revalidateLeaderboards()
-  } else if (action === "reset-scores") {
+  if (action === "reset-scores") {
     const [a, b, c] = await Promise.all([
       supabase.from("scores").delete().not("round_id", "is", null),
       supabase.from("round_handicaps").delete().not("round_id", "is", null),
@@ -70,11 +61,155 @@ async function executeAction(action: Action): Promise<void> {
   }
 }
 
+// ── Live session card ─────────────────────────────────────────
+
+function LiveSessionCard({ session, onVoided }: { session: LiveSession; onVoided: () => void }) {
+  const [confirming, setConfirming] = useState(false)
+  const [password, setPassword]     = useState("")
+  const [wrongPw, setWrongPw]       = useState(false)
+  const [loading, setLoading]       = useState(false)
+  const [error, setError]           = useState(false)
+
+  const courseName  = session.rounds?.courses?.name ?? "Unknown course"
+  const roundNumber = session.rounds?.round_number ?? "?"
+  const players     = session.live_player_locks
+    .map(l => l.players?.name)
+    .filter(Boolean)
+    .join(", ") || "No players locked"
+
+  const startedAt = new Date(session.activated_at).toLocaleTimeString("en-IE", {
+    hour: "2-digit", minute: "2-digit",
+  })
+
+  function toggle() {
+    setConfirming(c => !c)
+    setPassword("")
+    setWrongPw(false)
+    setError(false)
+  }
+
+  async function handleVoid() {
+    if (password !== PASSWORD) { setWrongPw(true); return }
+    setLoading(true)
+    try {
+      const { error: err } = await supabase
+        .from("live_rounds")
+        .update({ status: "closed", closed_at: new Date().toISOString() })
+        .eq("id", session.id)
+      if (err) throw new Error(err.message)
+      await revalidateLeaderboards()
+      onVoided()
+    } catch {
+      setError(true)
+      setLoading(false)
+    }
+  }
+
+  return (
+    <div className="border-b border-[#1e3d28] last:border-b-0">
+      <div className="px-4 py-3 flex items-start justify-between gap-3">
+        <div className="min-w-0">
+          <p className="text-white text-sm font-semibold leading-tight">
+            Round {roundNumber} · {courseName}
+          </p>
+          <p className="text-white/50 text-xs mt-0.5 truncate">{players}</p>
+          <p className="text-white/25 text-[10px] mt-0.5">Started {startedAt}</p>
+        </div>
+        <button
+          onClick={toggle}
+          className={`flex-shrink-0 px-3 py-1.5 border rounded-sm text-xs tracking-wide transition-colors
+            ${confirming
+              ? "border-white/20 text-white/40"
+              : "border-red-700/50 text-red-400 hover:border-red-500 hover:bg-red-900/20"}`}
+        >
+          {confirming ? "Back" : "Void"}
+        </button>
+      </div>
+
+      {confirming && (
+        <div className="border-t border-[#1e3d28] px-4 py-3 space-y-3 bg-red-900/5">
+          <p className="text-red-300/80 text-xs">
+            Voids this scorecard and removes these players from the live leaderboard.
+          </p>
+          <input
+            type="password"
+            value={password}
+            onChange={e => { setPassword(e.target.value); setWrongPw(false) }}
+            onKeyDown={e => e.key === "Enter" && handleVoid()}
+            placeholder="••••••••••••"
+            autoFocus
+            className={`w-full bg-[#0a1a0e] border rounded-sm px-3 py-2 text-white text-sm outline-none transition-colors
+              ${wrongPw ? "border-red-500/70" : "border-[#1e3d28] focus:border-[#C9A84C]/50"}`}
+          />
+          {wrongPw && <p className="text-red-400 text-xs">Incorrect password.</p>}
+          {error  && <p className="text-red-400 text-xs">Failed to void. Try again.</p>}
+          <button
+            onClick={handleVoid}
+            disabled={loading}
+            className="w-full py-2.5 rounded-sm text-sm font-semibold border border-red-600 bg-red-900/30 text-red-300 hover:bg-red-900/50 transition-colors disabled:opacity-50"
+          >
+            {loading ? "Voiding…" : "Confirm Void"}
+          </button>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── Live sessions panel ───────────────────────────────────────
+
+function LiveSessionsPanel({ onSuccess }: { onSuccess: (msg: string) => void }) {
+  const [sessions, setSessions] = useState<LiveSession[]>([])
+  const [loading, setLoading]   = useState(true)
+
+  useEffect(() => {
+    supabase
+      .from("live_rounds")
+      .select("id, activated_at, rounds(round_number, courses(name)), live_player_locks(players(id, name, role))")
+      .eq("status", "active")
+      .then(({ data }) => {
+        setSessions((data as any) ?? [])
+        setLoading(false)
+      })
+  }, [])
+
+  function handleVoided(id: string) {
+    setSessions(prev => prev.filter(s => s.id !== id))
+    onSuccess("Scorecard voided.")
+  }
+
+  return (
+    <div className="border border-[#1e3d28] rounded-sm overflow-hidden">
+      <div className="px-4 py-3 bg-[#0a1a10] border-b border-[#1e3d28]">
+        <p className="text-white font-semibold text-sm">Live Scorecards</p>
+        <p className="text-white/35 text-xs mt-0.5">Active scoring sessions — void to remove from leaderboard</p>
+      </div>
+      <div className="bg-[#0f2418]">
+        {loading ? (
+          <p className="px-4 py-4 text-white/30 text-xs">Loading…</p>
+        ) : sessions.length === 0 ? (
+          <p className="px-4 py-4 text-white/30 text-xs">No active live sessions</p>
+        ) : (
+          sessions.map(session => (
+            <LiveSessionCard
+              key={session.id}
+              session={session}
+              onVoided={() => handleVoided(session.id)}
+            />
+          ))
+        )}
+      </div>
+    </div>
+  )
+}
+
+// ── Action card ───────────────────────────────────────────────
+
 function ActionCard({ config, onSuccess }: { config: ActionConfig; onSuccess: (msg: string) => void }) {
-  const [open, setOpen]               = useState(false)
-  const [password, setPassword]       = useState("")
-  const [wrongPw, setWrongPw]         = useState(false)
-  const [status, setStatus]           = useState<PanelStatus>("idle")
+  const [open, setOpen]         = useState(false)
+  const [password, setPassword] = useState("")
+  const [wrongPw, setWrongPw]   = useState(false)
+  const [status, setStatus]     = useState<PanelStatus>("idle")
 
   function toggle() {
     setOpen(o => !o)
@@ -92,7 +227,7 @@ function ActionCard({ config, onSuccess }: { config: ActionConfig; onSuccess: (m
       setPassword("")
       setStatus("idle")
       onSuccess(config.successMessage)
-    } catch (e: any) {
+    } catch {
       setStatus("error")
     }
   }
@@ -161,23 +296,22 @@ function ActionCard({ config, onSuccess }: { config: ActionConfig; onSuccess: (m
   )
 }
 
+// ── Modal ─────────────────────────────────────────────────────
+
 export default function SettingsModal({ onClose }: { onClose: () => void }) {
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
   return (
     <>
       {/* Backdrop */}
-      <div
-        className="fixed inset-0 bg-black/70 z-40"
-        onClick={onClose}
-      />
+      <div className="fixed inset-0 bg-black/70 z-40" onClick={onClose} />
 
       {/* Modal */}
       <div className="fixed inset-x-0 bottom-0 sm:inset-0 sm:flex sm:items-center sm:justify-center z-50 p-4">
-        <div className="bg-[#0a1a0e] border border-[#1e3d28] rounded-sm w-full sm:max-w-md shadow-2xl">
+        <div className="bg-[#0a1a0e] border border-[#1e3d28] rounded-sm w-full sm:max-w-md shadow-2xl max-h-[90dvh] flex flex-col">
 
           {/* Header */}
-          <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e3d28]">
+          <div className="flex items-center justify-between px-5 py-4 border-b border-[#1e3d28] flex-shrink-0">
             <h2 className="font-[family-name:var(--font-playfair)] text-white text-lg">Settings</h2>
             <button
               onClick={onClose}
@@ -187,17 +321,22 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
             </button>
           </div>
 
-          {/* Body */}
-          <div className="p-4 space-y-3">
+          {/* Body — scrollable */}
+          <div className="p-4 space-y-3 overflow-y-auto">
             {successMsg && (
               <div className="border border-emerald-700/50 bg-emerald-900/20 rounded-sm px-4 py-2.5 flex items-center justify-between">
                 <span className="text-emerald-300 text-sm">{successMsg}</span>
                 <button onClick={() => setSuccessMsg(null)} className="text-emerald-400/50 hover:text-emerald-300 text-lg leading-none ml-3">×</button>
               </div>
             )}
-            {ACTIONS.map(config => (
-              <ActionCard key={config.id} config={config} onSuccess={setSuccessMsg} />
-            ))}
+
+            <LiveSessionsPanel onSuccess={setSuccessMsg} />
+
+            <div className="pt-1 space-y-3">
+              {ACTIONS.map(config => (
+                <ActionCard key={config.id} config={config} onSuccess={setSuccessMsg} />
+              ))}
+            </div>
           </div>
 
         </div>
