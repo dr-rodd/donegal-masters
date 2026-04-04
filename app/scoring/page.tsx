@@ -1,3 +1,4 @@
+import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import CoursePortalClient from "./CoursePortalClient"
 
@@ -14,14 +15,25 @@ export default async function ScoringPage() {
   }
 
   return (
-    <div className="min-h-screen bg-[#071210]">
-      <div className="max-w-lg mx-auto">
-        <div className="px-5 pt-8 pb-2">
-          <h1 className="font-[family-name:var(--font-playfair)] text-white text-2xl">
-            Courses
+    <div className="min-h-dvh bg-[#0a1a0e] text-white">
+      <div className="border-b border-[#1e3d28] sticky top-0 z-20 bg-[#0a1a0e]">
+        <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
+          <Link
+            href="/"
+            className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors"
+          >
+            ← Home
+          </Link>
+          <h1 className="font-[family-name:var(--font-playfair)] text-lg text-white tracking-wide">
+            Scoring
           </h1>
-          <p className="text-white/35 text-sm mt-1">Select a course to score or view live</p>
+          <div className="w-[60px]" />
         </div>
+      </div>
+      <div className="max-w-lg mx-auto">
+        <p className="text-white/35 text-xs tracking-[0.2em] uppercase px-4 pt-5 pb-1">
+          Select a course
+        </p>
         <CoursePortalClient courseIds={courseIds} />
       </div>
     </div>
