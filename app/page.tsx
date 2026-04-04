@@ -15,8 +15,8 @@ export default function Home() {
       {/* Dark overlay */}
       <div className="absolute inset-0 bg-black/55 pointer-events-none" />
 
-      {/* Settings button — top right */}
-      <div className="absolute top-4 right-4 z-20">
+      {/* Settings button — fixed top right */}
+      <div className="fixed top-4 right-4 z-50">
         <SettingsButton />
       </div>
 
