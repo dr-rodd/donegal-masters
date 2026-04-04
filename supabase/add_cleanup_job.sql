@@ -1,18 +1,17 @@
 -- ============================================================
--- STALE LIVE DATA CLEANUP JOB
--- Runs hourly via pg_cron (enabled by default in Supabase).
+-- STALE LIVE DATA CLEANUP FUNCTION
+-- Called by the Next.js API route /api/cleanup (see app/api/cleanup/route.ts).
+-- If pg_cron is ever enabled, uncomment the cron.schedule block below
+-- to run it directly from the database instead.
 --
 -- live_scores: deletes uncommitted rows for sessions where the
 --   most recent hole submission is older than 2 hours. Groups by
 --   (player_id, round_id) so all holes in an abandoned session are
 --   removed together rather than partially.
 --
--- live_rounds: closes active sessions where no live_scores have
---   been submitted in the past 2 hours AND the session started at
---   least 2 hours ago. The live_scores activity check ensures a
---   legitimate in-progress round (last hole entered <2h ago) is
---   never accidentally closed even if the session has been running
---   for longer than 2 hours.
+-- live_rounds: closes active sessions with no live_scores activity
+--   in the past 2h AND activated >2h ago, so legitimate long rounds
+--   are never accidentally closed mid-play.
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION public.cleanup_stale_live_data()
@@ -47,11 +46,9 @@ BEGIN
 END;
 $$;
 
--- Schedule: run at the top of every hour
--- To verify: SELECT * FROM cron.job;
--- To remove: SELECT cron.unschedule('cleanup-stale-live-data');
-SELECT cron.schedule(
-  'cleanup-stale-live-data',
-  '0 * * * *',
-  'SELECT public.cleanup_stale_live_data()'
-);
+-- Uncomment if pg_cron is enabled (Database > Extensions in Supabase dashboard):
+-- SELECT cron.schedule(
+--   'cleanup-stale-live-data',
+--   '0 * * * *',
+--   'SELECT public.cleanup_stale_live_data()'
+-- );
