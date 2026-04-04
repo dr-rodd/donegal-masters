@@ -20,7 +20,7 @@ interface LiveSession {
   id: string
   activated_at: string
   rounds: { round_number: number; courses: { name: string } } | null
-  live_player_locks: Array<{ players: { id: string; name: string; role: string } | null }>
+  live_player_locks: Array<{ players: { name: string } | null }>
 }
 
 const ACTIONS: ActionConfig[] = [
@@ -61,14 +61,11 @@ async function executeAction(action: Action): Promise<void> {
   }
 }
 
-// ── Live session card ─────────────────────────────────────────
-
 function LiveSessionCard({ session, onVoided }: { session: LiveSession; onVoided: () => void }) {
   const [confirming, setConfirming] = useState(false)
   const [password, setPassword]     = useState("")
   const [wrongPw, setWrongPw]       = useState(false)
-  const [loading, setLoading]       = useState(false)
-  const [error, setError]           = useState(false)
+  const [status, setStatus]         = useState<"idle" | "loading" | "error">("idle")
 
   const courseName  = session.rounds?.courses?.name ?? "Unknown course"
   const roundNumber = session.rounds?.round_number ?? "?"
@@ -85,12 +82,12 @@ function LiveSessionCard({ session, onVoided }: { session: LiveSession; onVoided
     setConfirming(c => !c)
     setPassword("")
     setWrongPw(false)
-    setError(false)
+    setStatus("idle")
   }
 
   async function handleVoid() {
     if (password !== PASSWORD) { setWrongPw(true); return }
-    setLoading(true)
+    setStatus("loading")
     try {
       const { error: err } = await supabase
         .from("live_rounds")
@@ -100,8 +97,7 @@ function LiveSessionCard({ session, onVoided }: { session: LiveSession; onVoided
       await revalidateLeaderboards()
       onVoided()
     } catch {
-      setError(true)
-      setLoading(false)
+      setStatus("error")
     }
   }
 
@@ -141,22 +137,20 @@ function LiveSessionCard({ session, onVoided }: { session: LiveSession; onVoided
             className={`w-full bg-[#0a1a0e] border rounded-sm px-3 py-2 text-white text-sm outline-none transition-colors
               ${wrongPw ? "border-red-500/70" : "border-[#1e3d28] focus:border-[#C9A84C]/50"}`}
           />
-          {wrongPw && <p className="text-red-400 text-xs">Incorrect password.</p>}
-          {error  && <p className="text-red-400 text-xs">Failed to void. Try again.</p>}
+          {wrongPw              && <p className="text-red-400 text-xs">Incorrect password.</p>}
+          {status === "error"   && <p className="text-red-400 text-xs">Failed to void. Try again.</p>}
           <button
             onClick={handleVoid}
-            disabled={loading}
+            disabled={status === "loading"}
             className="w-full py-2.5 rounded-sm text-sm font-semibold border border-red-600 bg-red-900/30 text-red-300 hover:bg-red-900/50 transition-colors disabled:opacity-50"
           >
-            {loading ? "Voiding…" : "Confirm Void"}
+            {status === "loading" ? "Voiding…" : "Confirm Void"}
           </button>
         </div>
       )}
     </div>
   )
 }
-
-// ── Live sessions panel ───────────────────────────────────────
 
 function LiveSessionsPanel({ onSuccess }: { onSuccess: (msg: string) => void }) {
   const [sessions, setSessions] = useState<LiveSession[]>([])
@@ -165,10 +159,10 @@ function LiveSessionsPanel({ onSuccess }: { onSuccess: (msg: string) => void }) 
   useEffect(() => {
     supabase
       .from("live_rounds")
-      .select("id, activated_at, rounds(round_number, courses(name)), live_player_locks(players(id, name, role))")
+      .select("id, activated_at, rounds(round_number, courses(name)), live_player_locks(players(name))")
       .eq("status", "active")
       .then(({ data }) => {
-        setSessions((data as any) ?? [])
+        setSessions((data as LiveSession[]) ?? [])
         setLoading(false)
       })
   }, [])
@@ -202,8 +196,6 @@ function LiveSessionsPanel({ onSuccess }: { onSuccess: (msg: string) => void }) 
     </div>
   )
 }
-
-// ── Action card ───────────────────────────────────────────────
 
 function ActionCard({ config, onSuccess }: { config: ActionConfig; onSuccess: (msg: string) => void }) {
   const [open, setOpen]         = useState(false)
@@ -295,8 +287,6 @@ function ActionCard({ config, onSuccess }: { config: ActionConfig; onSuccess: (m
     </div>
   )
 }
-
-// ── Modal ─────────────────────────────────────────────────────
 
 export default function SettingsModal({ onClose }: { onClose: () => void }) {
   const [successMsg, setSuccessMsg] = useState<string | null>(null)

@@ -15,10 +15,7 @@ export default function Home() {
       {/* Dark overlay */}
       <div className="absolute inset-0 bg-black/55 pointer-events-none" />
 
-      {/* Settings button — fixed top right */}
-      <div className="fixed top-4 right-4 z-50">
-        <SettingsButton />
-      </div>
+      <SettingsButton />
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center text-center w-full">
