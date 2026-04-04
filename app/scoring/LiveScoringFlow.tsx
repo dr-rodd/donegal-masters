@@ -325,8 +325,8 @@ export default function LiveScoringFlow({
 
   // ─── Commit ───────────────────────────────────────────────
 
-  async function handleCommit(finalise = false) {
-    if (!roundId || courseHoles.length === 0) return
+  async function handleCommit() {
+    if (!roundId || courseHoles.length === 0 || !liveRound) return
     setSaving(true)
     setError(null)
     try {
@@ -381,15 +381,12 @@ export default function LiveScoringFlow({
       // 5. Release player locks
       await unlockPlayers()
 
-      if (finalise && liveRound) {
-        await supabase
-          .from("live_rounds")
-          .update({ status: "finalised", closed_at: new Date().toISOString() })
-          .eq("id", liveRound.id)
-        onBack()
-      } else {
-        setStep("committed")
-      }
+      // 6. Finalise the live round and return to the course portal
+      await supabase
+        .from("live_rounds")
+        .update({ status: "finalised", closed_at: new Date().toISOString() })
+        .eq("id", liveRound.id)
+      onBack()
     } catch (e: any) {
       setError(e?.message ?? "Failed to commit scores")
     } finally {
@@ -436,7 +433,7 @@ export default function LiveScoringFlow({
 
           <div className="space-y-2.5">
             <button
-              onClick={() => handleCommit(true)}
+              onClick={handleCommit}
               disabled={saving}
               className="w-full py-4 bg-[#C9A84C] text-black text-sm tracking-[0.2em] uppercase font-bold hover:bg-[#d4b05a] disabled:opacity-50 transition-colors rounded-sm"
             >
@@ -853,7 +850,7 @@ export default function LiveScoringFlow({
             className="flex-1 py-4 border border-white/20 text-white/60 text-sm tracking-[0.15em] uppercase hover:border-white/40 transition-colors">
             ← Review
           </button>
-          <button onClick={() => handleCommit()} disabled={saving}
+          <button onClick={handleCommit} disabled={saving}
             className="flex-[2] py-4 bg-[#C9A84C] text-black text-sm tracking-[0.2em] uppercase font-bold hover:bg-[#d4b05a] disabled:opacity-50 transition-colors">
             {saving ? "Saving…" : "Commit Scores"}
           </button>
