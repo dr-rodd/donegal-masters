@@ -165,6 +165,7 @@ function LiveSessionsPanel({ onSuccess }: { onSuccess: (msg: string) => void }) 
         setSessions((data as LiveSession[]) ?? [])
         setLoading(false)
       })
+      .catch(() => setLoading(false))
   }, [])
 
   function handleVoided(id: string) {
