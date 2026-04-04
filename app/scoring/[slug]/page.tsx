@@ -1,33 +1,34 @@
-import Link from "next/link"
+import { notFound } from "next/navigation"
 import { supabase } from "@/lib/supabase"
-import ScoringClient from "../ScoringClient"
+import CourseDashboardClient from "./CourseDashboardClient"
 
 export const dynamic = "force-dynamic"
 
-const SLUG_TO_COURSE: Record<string, string> = {
-  "old-tom-morris":   "Old Tom Morris",
-  "st-patricks-links": "St Patrick Links",
-  "sandy-hills":      "Sandy Hills",
+// Slug → candidate DB course names (handles minor name variations)
+const SLUG_NAMES: Record<string, string[]> = {
+  "old-tom-morris":    ["Old Tom Morris"],
+  "st-patricks-links": ["St Patrick Links", "St Patricks Links"],
+  "sandy-hills":       ["Sandy Hills"],
 }
 
-export default async function CourseDashboardPage({ params }: { params: Promise<{ slug: string }> }) {
+export default async function CourseDashboardPage({
+  params,
+}: {
+  params: Promise<{ slug: string }>
+}) {
   const { slug } = await params
-  const courseName = SLUG_TO_COURSE[slug]
+  const candidates = SLUG_NAMES[slug]
+  if (!candidates) notFound()
 
-  if (!courseName) {
-    return (
-      <div className="min-h-screen bg-[#071210] flex items-center justify-center p-6">
-        <div className="text-center space-y-3">
-          <p className="text-white/50 text-sm">Course not found</p>
-          <Link href="/scoring" className="text-[#C9A84C] text-sm underline">
-            Back to courses
-          </Link>
-        </div>
-      </div>
-    )
-  }
-
-  const [playersRes, roundsRes, holesRes, teesRes, hcpsRes, liveRoundsRes] = await Promise.all([
+  const [
+    coursesRes,
+    playersRes,
+    roundsRes,
+    holesRes,
+    teesRes,
+    hcpsRes,
+  ] = await Promise.all([
+    supabase.from("courses").select("id, name"),
     supabase
       .from("players")
       .select("id, name, role, handicap, gender, is_composite, teams(name, color)")
@@ -38,7 +39,11 @@ export default async function CourseDashboardPage({ params }: { params: Promise<
       .order("round_number"),
     supabase
       .from("holes")
-      .select("id, hole_number, par, stroke_index, course_id, par_ladies, stroke_index_ladies, yardage_black, yardage_blue, yardage_white, yardage_red, yardage_sandstone, yardage_slate, yardage_granite, yardage_claret")
+      .select(
+        "id, hole_number, par, stroke_index, course_id, par_ladies, stroke_index_ladies, " +
+        "yardage_black, yardage_blue, yardage_white, yardage_red, " +
+        "yardage_sandstone, yardage_slate, yardage_granite, yardage_claret"
+      )
       .order("hole_number"),
     supabase
       .from("tees")
@@ -46,36 +51,22 @@ export default async function CourseDashboardPage({ params }: { params: Promise<
     supabase
       .from("round_handicaps")
       .select("round_id, player_id, playing_handicap"),
-    supabase
-      .from("live_rounds")
-      .select("id, course_id, round_id, activated_by, rounds(round_number), courses(name)")
-      .eq("status", "active"),
   ])
 
-  // Find active live round for this course
-  const courseRounds = (liveRoundsRes.data ?? []).filter(
-    (lr: any) => lr.courses?.name === courseName
+  const course = (coursesRes.data ?? []).find(c =>
+    candidates.some(name => c.name.toLowerCase() === name.toLowerCase())
   )
-  const activeLiveRound = courseRounds[0] ?? null
+  if (!course) notFound()
 
   return (
-    <div>
-      <div className="px-4 pt-4 pb-1">
-        <Link
-          href="/scoring"
-          className="inline-flex items-center gap-1.5 text-white/40 hover:text-white/70 text-sm transition-colors"
-        >
-          ← Courses
-        </Link>
-      </div>
-      <ScoringClient
-        players={(playersRes.data ?? []) as any}
-        rounds={(roundsRes.data ?? []) as any}
-        holes={(holesRes.data ?? []) as any}
-        tees={(teesRes.data ?? []) as any}
-        roundHandicaps={hcpsRes.data ?? []}
-        activeLiveRound={activeLiveRound as any}
-      />
-    </div>
+    <CourseDashboardClient
+      courseName={course.name}
+      courseId={course.id}
+      players={(playersRes.data ?? []) as any}
+      rounds={(roundsRes.data ?? []) as any}
+      holes={(holesRes.data ?? []) as any}
+      tees={(teesRes.data ?? []) as any}
+      roundHandicaps={hcpsRes.data ?? []}
+    />
   )
 }
