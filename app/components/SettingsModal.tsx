@@ -4,7 +4,7 @@ import { useState } from "react"
 import { supabase } from "@/lib/supabase"
 import { revalidateLeaderboards } from "@/app/actions/revalidate"
 
-type Action = "reset-scores" | "reset-teams"
+type Action = "cancel-live-sessions" | "reset-scores" | "reset-teams"
 type PanelStatus = "idle" | "loading" | "success" | "error"
 
 interface ActionConfig {
@@ -17,6 +17,14 @@ interface ActionConfig {
 }
 
 const ACTIONS: ActionConfig[] = [
+  {
+    id: "cancel-live-sessions",
+    label: "Cancel Live Sessions",
+    description: "Closes any stuck active live scoring sessions. Use when scoring is glitching or a session is frozen from a previous day.",
+    confirmText: "This will close all active live scoring sessions. Any uncommitted in-progress scores will be discarded.",
+    successMessage: "All active live sessions closed.",
+    danger: false,
+  },
   {
     id: "reset-scores",
     label: "Reset All Scores",
@@ -38,7 +46,15 @@ const ACTIONS: ActionConfig[] = [
 const PASSWORD = "donegal2026"
 
 async function executeAction(action: Action): Promise<void> {
-  if (action === "reset-scores") {
+  if (action === "cancel-live-sessions") {
+    const { error } = await supabase
+      .from("live_rounds")
+      .update({ status: "closed", closed_at: new Date().toISOString() })
+      .eq("status", "active")
+    if (error) throw new Error(error.message)
+    // live_player_locks cascade-deletes automatically
+    await revalidateLeaderboards()
+  } else if (action === "reset-scores") {
     const [a, b, c] = await Promise.all([
       supabase.from("scores").delete().not("round_id", "is", null),
       supabase.from("round_handicaps").delete().not("round_id", "is", null),
@@ -47,6 +63,7 @@ async function executeAction(action: Action): Promise<void> {
     if (a.error) throw new Error(a.error.message)
     if (b.error) throw new Error(b.error.message)
     if (c.error) throw new Error(c.error.message)
+    await revalidateLeaderboards()
   } else {
     const { error } = await supabase.from("players").update({ team_id: null }).not("id", "is", null)
     if (error) throw new Error(error.message)
@@ -71,7 +88,6 @@ function ActionCard({ config, onSuccess }: { config: ActionConfig; onSuccess: (m
     setStatus("loading")
     try {
       await executeAction(config.id)
-      if (config.id === "reset-scores") await revalidateLeaderboards()
       setOpen(false)
       setPassword("")
       setStatus("idle")

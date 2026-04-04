@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Countdown from "./components/Countdown";
+import SettingsButton from "./components/SettingsButton";
 
 export default function Home() {
   return (
@@ -12,7 +13,12 @@ export default function Home() {
       }}
     >
       {/* Dark overlay */}
-      <div className="absolute inset-0 bg-black/75 pointer-events-none" />
+      <div className="absolute inset-0 bg-black/55 pointer-events-none" />
+
+      {/* Settings button — fixed top right */}
+      <div className="fixed top-4 right-4 z-50">
+        <SettingsButton />
+      </div>
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center text-center w-full">
@@ -42,25 +48,25 @@ export default function Home() {
           <nav className="flex flex-col gap-3">
             <Link
               href="/teams"
-              className="w-[312px] text-center py-[18px] border border-white/30 text-white/70 text-sm tracking-[0.25em] uppercase hover:border-gold hover:text-gold transition-colors duration-300"
+              className="w-[312px] text-center py-[18px] border-2 border-white/70 text-white text-sm tracking-[0.25em] uppercase rounded-xl hover:border-gold hover:text-gold transition-colors duration-300"
             >
               Team Selection
             </Link>
             <Link
               href="/scoring"
-              className="w-[312px] text-center py-[18px] border border-white/30 text-white/70 text-sm tracking-[0.25em] uppercase hover:border-gold hover:text-gold transition-colors duration-300"
+              className="w-[312px] text-center py-[18px] border-2 border-white/70 text-white text-sm tracking-[0.25em] uppercase rounded-xl hover:border-gold hover:text-gold transition-colors duration-300"
             >
               Scoring
             </Link>
             <Link
               href="/leaderboard"
-              className="w-[312px] text-center py-[18px] border border-white/30 text-white/70 text-sm tracking-[0.25em] uppercase hover:border-gold hover:text-gold transition-colors duration-300"
+              className="w-[312px] text-center py-[18px] border-2 border-white/70 text-white text-sm tracking-[0.25em] uppercase rounded-xl hover:border-gold hover:text-gold transition-colors duration-300"
             >
               Leaderboard
             </Link>
             <Link
               href="/tee-times"
-              className="w-[312px] text-center py-[18px] border border-white/30 text-white/70 text-sm tracking-[0.25em] uppercase hover:border-gold hover:text-gold transition-colors duration-300"
+              className="w-[312px] text-center py-[18px] border-2 border-white/70 text-white text-sm tracking-[0.25em] uppercase rounded-xl hover:border-gold hover:text-gold transition-colors duration-300"
             >
               Tee Times
             </Link>

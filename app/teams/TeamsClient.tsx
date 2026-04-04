@@ -7,7 +7,6 @@ import {
   useDroppable, useDraggable,
 } from "@dnd-kit/core"
 import { supabase } from "@/lib/supabase"
-import SettingsModal from "./SettingsModal"
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -272,7 +271,6 @@ export default function TeamsClient({
   const [editingTeamId, setEditingTeamId] = useState<string | null>(null)
   const [editName, setEditName] = useState("")
   const [editMode, setEditMode]         = useState(false)
-  const [showSettings, setShowSettings] = useState(false)
 
   const sensors = useSensors(
     useSensor(MouseSensor, { activationConstraint: { distance: 5 } }),
@@ -351,19 +349,8 @@ export default function TeamsClient({
     <DndContext sensors={sensors} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
       <div className="space-y-6">
 
-        {/* Edit players toggle + settings gear */}
+        {/* Edit players toggle */}
         <div className="flex items-center justify-end gap-2">
-          {editMode && (
-            <button
-              onClick={() => setShowSettings(true)}
-              title="Settings"
-              className="w-9 h-9 flex items-center justify-center border border-white/15 text-white/30 rounded-sm hover:border-white/30 hover:text-white/60 transition-colors"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4">
-                <path fillRule="evenodd" d="M11.49 3.17c-.38-1.56-2.6-1.56-2.98 0a1.532 1.532 0 01-2.286.948c-1.372-.836-2.942.734-2.106 2.106.54.886.061 2.042-.947 2.287-1.561.379-1.561 2.6 0 2.978a1.532 1.532 0 01.947 2.287c-.836 1.372.734 2.942 2.106 2.106a1.532 1.532 0 012.287.947c.379 1.561 2.6 1.561 2.978 0a1.533 1.533 0 012.287-.947c1.372.836 2.942-.734 2.106-2.106a1.533 1.533 0 01.947-2.287c1.561-.379 1.561-2.6 0-2.978a1.532 1.532 0 01-.947-2.287c.836-1.372-.734-2.942-2.106-2.106a1.532 1.532 0 01-2.287-.947zM10 13a3 3 0 100-6 3 3 0 000 6z" clipRule="evenodd" />
-              </svg>
-            </button>
-          )}
           <button
             onClick={() => setEditMode(e => !e)}
             className={`px-5 py-2 border text-sm tracking-[0.2em] uppercase transition-colors rounded-sm
@@ -421,7 +408,6 @@ export default function TeamsClient({
       )}
     </DndContext>
 
-    {showSettings && <SettingsModal onClose={() => setShowSettings(false)} />}
     </>
   )
 }
