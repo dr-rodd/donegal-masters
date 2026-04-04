@@ -153,14 +153,25 @@ export default function LiveScoringFlow({
   const canStart = selectedPlayerIds.length >= 1 &&
     selectedPlayerIds.every(id => !!playerTeeIds[id])
 
-  // Fetch locked players whenever setup step is shown
+  // Fetch players locked in OTHER active scorecards for this round so they
+  // can be hidden from the player picker entirely.
   useEffect(() => {
     if (step !== "setup" || !liveRound) return
     supabase
-      .from("live_player_locks")
-      .select("player_id")
-      .eq("live_round_id", liveRound.id)
-      .then(({ data }) => setLockedPlayerIds(data?.map(r => r.player_id) ?? []))
+      .from("live_rounds")
+      .select("id")
+      .eq("round_id", liveRound.round_id)
+      .eq("status", "active")
+      .neq("id", liveRound.id)
+      .then(async ({ data: otherRounds }) => {
+        const ids = (otherRounds ?? []).map((r: any) => r.id as string)
+        if (ids.length === 0) { setLockedPlayerIds([]); return }
+        const { data: locks } = await supabase
+          .from("live_player_locks")
+          .select("player_id")
+          .in("live_round_id", ids)
+        setLockedPlayerIds(locks?.map(r => r.player_id as string) ?? [])
+      })
   }, [step, liveRound?.id])
 
   // Auto-resume: fetch locked players + existing scores and jump to the right hole
@@ -311,10 +322,16 @@ export default function LiveScoringFlow({
   async function handleCloseRound() {
     if (!liveRound) return
     setSaving(true)
-    await supabase
-      .from("live_rounds")
-      .update({ status: "closed", closed_at: new Date().toISOString() })
-      .eq("id", liveRound.id)
+    await Promise.all([
+      supabase
+        .from("live_rounds")
+        .update({ status: "closed", closed_at: new Date().toISOString() })
+        .eq("id", liveRound.id),
+      supabase
+        .from("live_player_locks")
+        .delete()
+        .eq("live_round_id", liveRound.id),
+    ])
     setSaving(false)
     setCloseConfirm(false)
     resetFlow()
@@ -398,15 +415,15 @@ export default function LiveScoringFlow({
     return (
       <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 py-12">
         <div className="text-center">
-          <h2 className="font-[family-name:var(--font-playfair)] text-xl text-white mb-2">Close Live Round?</h2>
-          <p className="text-white/40 text-sm">This ends the live session. Scores already entered are kept.</p>
+          <h2 className="font-[family-name:var(--font-playfair)] text-xl text-white mb-2">Discard Scorecard?</h2>
+          <p className="text-white/40 text-sm">This voids the scorecard and releases all players. Scores will not be saved.</p>
         </div>
         <div className="flex gap-3 w-full max-w-xs">
           <button onClick={() => setCloseConfirm(false)} className="flex-1 py-3 border border-white/20 text-white/60 text-sm uppercase tracking-wider hover:border-white/40 transition-colors">
             Cancel
           </button>
           <button onClick={handleCloseRound} disabled={saving} className="flex-1 py-3 bg-red-900/60 border border-red-700/50 text-red-300 text-sm uppercase tracking-wider hover:bg-red-900/80 disabled:opacity-50 transition-colors">
-            {saving ? "Closing…" : "Close Round"}
+            {saving ? "Voiding…" : "Discard"}
           </button>
         </div>
       </div>
@@ -552,9 +569,8 @@ export default function LiveScoringFlow({
             Select Players (1–4)
           </label>
 
-          {players.map(player => {
+          {players.filter(p => !lockedPlayerIds.includes(p.id)).map(player => {
             const isSelected = selectedPlayerIds.includes(player.id)
-            const isLocked = lockedPlayerIds.includes(player.id)
             const playerCourseTees = courseTees.filter(t => t.gender === player.gender)
             const selectedTeeId = playerTeeIds[player.id] ?? ""
             const selectedTee = tees.find(t => t.id === selectedTeeId)
@@ -566,23 +582,17 @@ export default function LiveScoringFlow({
               <div key={player.id}>
                 {/* Player toggle */}
                 <button
-                  onClick={() => !isLocked && togglePlayer(player.id)}
-                  disabled={isLocked && !isSelected}
+                  onClick={() => togglePlayer(player.id)}
                   className={`w-full flex items-center justify-between px-4 py-3 border text-sm transition-colors
-                    ${isLocked && !isSelected
-                      ? "border-white/10 text-white/25 cursor-not-allowed bg-white/[0.02]"
-                      : isSelected
-                        ? "border-[#C9A84C] text-[#C9A84C] bg-[#C9A84C]/10"
-                        : "border-white/20 text-white/60 hover:border-white/40"}`}
+                    ${isSelected
+                      ? "border-[#C9A84C] text-[#C9A84C] bg-[#C9A84C]/10"
+                      : "border-white/20 text-white/60 hover:border-white/40"}`}
                 >
                   <div className="flex items-center gap-2">
                     {player.teams && (
                       <span className="w-2 h-2 rounded-full" style={{ backgroundColor: player.teams.color }} />
                     )}
                     <span>{player.name}</span>
-                    {isLocked && !isSelected && (
-                      <span className="text-[10px] text-white/20 tracking-wider uppercase">In session</span>
-                    )}
                   </div>
                   <span className="text-xs opacity-50">HCP {player.handicap}</span>
                 </button>
@@ -728,6 +738,7 @@ export default function LiveScoringFlow({
               existingScores={existingHoleScores}
               onSubmit={handleHoleSubmit}
               onBack={handleHoleBack}
+              onVoid={() => setCloseConfirm(true)}
             />
           </div>
           {/* Right panel: live leaderboard */}
@@ -832,13 +843,14 @@ export default function LiveScoringFlow({
 
 function HoleCard({
   hole, holeIdx, totalHoles, playerSetups, courseId,
-  existingScores, onSubmit, onBack
+  existingScores, onSubmit, onBack, onVoid
 }: {
   hole: Hole; holeIdx: number; totalHoles: number
   playerSetups: PlayerSetup[]; courseId: string
   existingScores: Record<string, HoleScore>
   onSubmit: (scores: Record<string, HoleScore>) => void
   onBack: () => void
+  onVoid: () => void
 }) {
   const [holeScores, setHoleScores] = useState<Record<string, HoleScore>>(() => {
     const init: Record<string, HoleScore> = {}
@@ -876,7 +888,16 @@ function HoleCard({
             <div key={i} className={`h-1 rounded-full transition-all ${i < holeIdx ? "w-3 bg-[#C9A84C]" : i === holeIdx ? "w-4 bg-[#C9A84C]" : "w-2 bg-white/15"}`} />
           ))}
         </div>
-        <span className="text-white/40 text-xs">{holeIdx + 1}/{totalHoles}</span>
+        <div className="flex items-center gap-2">
+          <span className="text-white/40 text-xs">{holeIdx + 1}/{totalHoles}</span>
+          <button
+            onClick={onVoid}
+            className="w-6 h-6 flex items-center justify-center rounded-full border border-red-800/50 text-red-500/60 hover:border-red-600/70 hover:text-red-400 transition-colors"
+            aria-label="Discard scorecard"
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       {/* Hole info — use men's par for display; per-player effective par shown in their section */}

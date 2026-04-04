@@ -60,6 +60,8 @@ export default function CourseDashboardClient({
 }: Props) {
   const [view, setView]                       = useState<View>("dashboard")
   const [scoringLiveRound, setScoringLiveRound] = useState<ActiveLiveRound | null>(null)
+  const [isResuming, setIsResuming]           = useState(false)
+  const [starting, setStarting]               = useState(false)
   const [showLiveLeaderboard, setShowLiveLeaderboard] = useState(false)
   const [scorecards, setScorecards]           = useState<ScorecardInfo[]>([])
   const [loading, setLoading]                 = useState(true)
@@ -141,12 +143,32 @@ export default function CourseDashboardClient({
     setView("dashboard")
     setShowLiveLeaderboard(false)
     setScoringLiveRound(null)
+    setIsResuming(false)
   }
 
-  function openScoring(liveRound: ActiveLiveRound | null) {
+  function openScoring(liveRound: ActiveLiveRound) {
     setScoringLiveRound(liveRound)
+    setIsResuming(true)
     setShowLiveLeaderboard(false)
     setView("scoring")
+  }
+
+  async function startNewScorecard() {
+    const courseRound = rounds.find(r => r.courses?.id === courseId)
+    if (!courseRound) return
+    setStarting(true)
+    const { data } = await supabase
+      .from("live_rounds")
+      .insert({ course_id: courseId, round_id: courseRound.id, status: "active" })
+      .select("id, course_id, round_id, activated_by, rounds(round_number), courses(name)")
+      .single()
+    setStarting(false)
+    if (!data) return
+    setScoringLiveRound(data as unknown as ActiveLiveRound)
+    setIsResuming(false)
+    setShowLiveLeaderboard(false)
+    setView("scoring")
+    fetchScorecards()
   }
 
   // ─── Header ───────────────────────────────────────────────
@@ -155,13 +177,13 @@ export default function CourseDashboardClient({
     ? <Link href="/scoring" className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">← Courses</Link>
     : <button onClick={goBack} className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">← Back</button>
 
-  const headerRight = view === "scoring" && scoringLiveRound
+  const headerRight = view === "scoring" && scoringLiveRound && isResuming
     ? <button
         onClick={() => setShowLiveLeaderboard(v => !v)}
         className={`text-xs tracking-[0.2em] uppercase transition-colors w-[80px] text-right
           ${showLiveLeaderboard ? "text-[#C9A84C]" : "text-white/40 hover:text-white/60"}`}
       >
-        {showLiveLeaderboard ? "← Scores" : "Board"}
+        {showLiveLeaderboard ? "← Scores" : "Leaderboard"}
       </button>
     : view === "dashboard" && firstLiveRound
       ? <button
@@ -277,10 +299,11 @@ export default function CourseDashboardClient({
           {/* Actions */}
           <div className="space-y-3 pt-1">
             <button
-              onClick={() => openScoring(null)}
-              className="w-full py-4 border border-[#C9A84C]/40 text-[#C9A84C] text-sm tracking-[0.2em] uppercase hover:bg-[#C9A84C]/10 transition-colors rounded-sm"
+              onClick={startNewScorecard}
+              disabled={starting}
+              className="w-full py-4 border border-[#C9A84C]/40 text-[#C9A84C] text-sm tracking-[0.2em] uppercase hover:bg-[#C9A84C]/10 disabled:opacity-50 transition-colors rounded-sm"
             >
-              + Start New Scorecard
+              {starting ? "Starting…" : "+ Start New Scorecard"}
             </button>
 
             {firstLiveRound && (
@@ -305,7 +328,7 @@ export default function CourseDashboardClient({
           tees={tees}
           roundHandicaps={roundHandicaps}
           activeLiveRound={scoringLiveRound}
-          autoResume={scoringLiveRound !== null}
+          autoResume={isResuming}
           onBack={goBack}
           onLiveRoundChange={r => {
             setScoringLiveRound(r)
