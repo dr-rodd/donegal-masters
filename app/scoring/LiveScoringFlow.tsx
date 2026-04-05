@@ -962,7 +962,7 @@ export default function LiveScoringFlow({
               className="w-full py-4 bg-[#C9A84C] text-black text-sm tracking-[0.2em] uppercase font-bold
                 hover:bg-[#d4b05a] disabled:opacity-50 transition-colors rounded-sm"
             >
-              {editSaving ? "Saving…" : "Save Changes"}
+              {editSaving ? "Saving…" : "Confirm"}
             </button>
           </div>
 
@@ -1097,7 +1097,7 @@ export default function LiveScoringFlow({
             disabled={saving}
             className="flex-[2] py-4 bg-[#C9A84C] text-black text-sm tracking-[0.2em] uppercase font-bold hover:bg-[#d4b05a] disabled:opacity-50 transition-colors rounded-sm"
           >
-            {saving ? "Saving…" : "Finalise Scorecard"}
+            {saving ? "Saving…" : "Commit All"}
           </button>
         </div>
 
