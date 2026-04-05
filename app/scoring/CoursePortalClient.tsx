@@ -30,7 +30,7 @@ interface CourseCardState {
   isCompleted: boolean
 }
 
-export default function CoursePortalClient({ courseIds }: { courseIds: Record<string, string> }) {
+export default function CoursePortalClient({ courseIds, totalPlayers }: { courseIds: Record<string, string>; totalPlayers: number }) {
   const router = useRouter()
   const [cards, setCards] = useState<CourseCardState[]>(
     COURSES.map(c => ({ course: { ...c, id: courseIds[c.name] ?? "" }, isActive: false, isCompleted: false }))
@@ -44,27 +44,34 @@ export default function CoursePortalClient({ courseIds }: { courseIds: Record<st
 
     const liveRounds: LiveRound[] = data ?? []
 
-    // Determine which live_rounds have at least one player locked in
+    // Fetch all player locks for these rounds (need player_id to count per state)
     const allIds = liveRounds.map(lr => lr.id)
-    let roundsWithPlayers = new Set<string>()
+    let lockRows: { live_round_id: string; player_id: string }[] = []
     if (allIds.length > 0) {
-      const { data: locks } = await supabase
+      const { data } = await supabase
         .from("live_player_locks")
-        .select("live_round_id")
+        .select("live_round_id, player_id")
         .in("live_round_id", allIds)
-      for (const lock of locks ?? []) {
-        roundsWithPlayers.add(lock.live_round_id as string)
-      }
+      lockRows = (data ?? []) as { live_round_id: string; player_id: string }[]
     }
 
     setCards(COURSES.map(c => {
       const cid = courseIds[c.name] ?? ""
       const courseRounds = liveRounds.filter(lr => lr.course_id === cid)
 
-      // Only count rounds that have at least one player assigned
-      const staffedRounds = courseRounds.filter(lr => roundsWithPlayers.has(lr.id))
-      const isActive    = staffedRounds.some(lr => lr.status === "active")
-      const isCompleted = staffedRounds.length > 0 && staffedRounds.every(lr => lr.status === "finalised")
+      const activeIds    = new Set(courseRounds.filter(lr => lr.status === "active").map(lr => lr.id))
+      const finalisedIds = new Set(courseRounds.filter(lr => lr.status === "finalised").map(lr => lr.id))
+
+      // Unique players in each state for this course
+      const activePlayers    = new Set(lockRows.filter(l => activeIds.has(l.live_round_id)).map(l => l.player_id))
+      const finalisedPlayers = new Set(lockRows.filter(l => finalisedIds.has(l.live_round_id)).map(l => l.player_id))
+
+      const isActive = activePlayers.size > 0
+      // Complete only when every player in the pool has a finalised scorecard
+      // and none remain in an active (in-progress) scorecard
+      const isCompleted = totalPlayers > 0
+        && finalisedPlayers.size === totalPlayers
+        && activePlayers.size === 0
 
       return { course: { ...c, id: cid }, isActive, isCompleted }
     }))

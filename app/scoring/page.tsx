@@ -5,9 +5,10 @@ import CoursePortalClient from "./CoursePortalClient"
 export const dynamic = "force-dynamic"
 
 export default async function ScoringPage() {
-  const { data: courses } = await supabase
-    .from("courses")
-    .select("id, name")
+  const [{ data: courses }, { count: totalPlayers }] = await Promise.all([
+    supabase.from("courses").select("id, name"),
+    supabase.from("players").select("id", { count: "exact", head: true }).eq("is_composite", false),
+  ])
 
   const courseIds: Record<string, string> = {}
   for (const c of courses ?? []) {
@@ -34,7 +35,7 @@ export default async function ScoringPage() {
         <p className="text-white/35 text-xs tracking-[0.2em] uppercase px-4 pt-5 pb-1">
           Select a course
         </p>
-        <CoursePortalClient courseIds={courseIds} />
+        <CoursePortalClient courseIds={courseIds} totalPlayers={totalPlayers ?? 0} />
       </div>
     </div>
   )
