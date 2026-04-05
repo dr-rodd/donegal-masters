@@ -337,8 +337,8 @@ export default function CourseDashboardClient({
         {view === "scoring" && liveHole && (
           <div className="max-w-lg mx-auto px-4 pb-3">
             <div className="flex items-center gap-3">
-              <span className="text-white/40 text-xs tabular-nums w-16">
-                Hole {liveHole.idx + 1} / {liveHole.total}
+              <span className="font-[family-name:var(--font-playfair)] text-white text-2xl leading-none w-8 tabular-nums">
+                {liveHole.idx + 1}
               </span>
               <div className="flex-1 flex gap-[2px]">
                 {Array.from({ length: liveHole.total }).map((_, i) => (
