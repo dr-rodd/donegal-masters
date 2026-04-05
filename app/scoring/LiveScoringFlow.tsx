@@ -799,6 +799,7 @@ export default function LiveScoringFlow({
           {/* Left panel: hole score entry */}
           <div style={{ width: "50%" }}>
             <HoleCard
+              key={hole.id}
               hole={hole}
               playerSetups={playerSetups}
               courseId={courseId}
@@ -1151,15 +1152,6 @@ function HoleCard({
     }
     return init
   })
-
-  useEffect(() => {
-    const init: Record<string, HoleScore> = {}
-    for (const { player } of playerSetups) {
-      init[player.id] = existingScores[player.id] ?? { gross: null, isNR: false, stableford: null }
-    }
-    setHoleScores(init)
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [existingScores])
 
   const allHaveGross = playerSetups.every(({ player }) => {
     const hs = holeScores[player.id]
