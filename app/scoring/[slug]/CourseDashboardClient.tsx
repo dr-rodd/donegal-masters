@@ -52,6 +52,7 @@ interface Props {
 }
 
 type View = "dashboard" | "scoring" | "live-board"
+type DashboardTab = "scorecards" | "settings"
 
 // ─── Component ────────────────────────────────────────────
 
@@ -66,7 +67,11 @@ export default function CourseDashboardClient({
   const [showLiveLeaderboard, setShowLiveLeaderboard] = useState(false)
   const [scorecards, setScorecards]           = useState<ScorecardInfo[]>([])
   const [loading, setLoading]                 = useState(true)
-  const [confirmVoidId, setConfirmVoidId]     = useState<string | null>(null)
+  const [dashTab, setDashTab]                 = useState<DashboardTab>("scorecards")
+  const [settingsVoidId, setSettingsVoidId]   = useState<string | null>(null)
+  const [settingsUnfinaliseId, setSettingsUnfinaliseId] = useState<string | null>(null)
+  const [settingsVoidSession, setSettingsVoidSession]   = useState(false)
+  const [settingsWorking, setSettingsWorking] = useState(false)
 
   const nonComposite = players.filter(p => !p.is_composite)
 
@@ -191,11 +196,44 @@ export default function CourseDashboardClient({
   }
 
   async function voidScorecard(liveRoundId: string) {
+    setSettingsWorking(true)
     await Promise.all([
       supabase.from("live_rounds").update({ status: "closed" }).eq("id", liveRoundId),
       supabase.from("live_player_locks").delete().eq("live_round_id", liveRoundId),
     ])
-    setConfirmVoidId(null)
+    setSettingsVoidId(null)
+    setSettingsWorking(false)
+    fetchScorecards()
+  }
+
+  async function unfinaliseRound(liveRoundId: string) {
+    setSettingsWorking(true)
+    await supabase
+      .from("live_rounds")
+      .update({ status: "active", closed_at: null })
+      .eq("id", liveRoundId)
+    setSettingsUnfinaliseId(null)
+    setSettingsWorking(false)
+    fetchScorecards()
+  }
+
+  async function voidLiveSession() {
+    setSettingsWorking(true)
+    const { data: allRounds } = await supabase
+      .from("live_rounds")
+      .select("id, round_id")
+      .eq("course_id", courseId)
+    const lrIds = (allRounds ?? []).map(r => r.id as string)
+    const rIds  = [...new Set((allRounds ?? []).map(r => r.round_id as string))]
+    await Promise.all([
+      lrIds.length > 0 ? supabase.from("live_player_locks").delete().in("live_round_id", lrIds) : Promise.resolve(),
+      rIds.length  > 0 ? supabase.from("live_scores").delete().in("round_id", rIds)            : Promise.resolve(),
+    ])
+    if (lrIds.length > 0) {
+      await supabase.from("live_rounds").delete().in("id", lrIds)
+    }
+    setSettingsVoidSession(false)
+    setSettingsWorking(false)
     fetchScorecards()
   }
 
@@ -240,7 +278,25 @@ export default function CourseDashboardClient({
 
       {/* ── Dashboard ── */}
       {view === "dashboard" && (
-        <div className="max-w-lg mx-auto px-4 py-6 space-y-5">
+        <div className="max-w-lg mx-auto">
+
+          {/* Tab bar */}
+          <div className="flex border-b border-[#1e3d28]">
+            {(["scorecards", "settings"] as DashboardTab[]).map(tab => (
+              <button
+                key={tab}
+                onClick={() => setDashTab(tab)}
+                className={`flex-1 py-3 text-xs tracking-[0.15em] uppercase transition-colors
+                  ${dashTab === tab ? "text-[#C9A84C] border-b-2 border-[#C9A84C] -mb-px" : "text-white/30 hover:text-white/50"}`}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {/* ── Scorecards tab ── */}
+          {dashTab === "scorecards" && (
+          <div className="px-4 py-6 space-y-5">
 
           {/* Active scorecards */}
           <section>
@@ -270,16 +326,14 @@ export default function CourseDashboardClient({
                         ? "Through 18"
                         : `Through ${holesThrough}`
 
-                  const isConfirmingVoid = confirmVoidId === liveRound.id
-
                   return (
                     <div key={liveRound.id}>
                       <div
-                        onClick={() => finalised ? setConfirmVoidId(liveRound.id) : openScoring(liveRound)}
-                        className={`w-full text-left border rounded-sm px-4 py-4 transition-colors cursor-pointer
+                        onClick={() => !finalised ? openScoring(liveRound) : undefined}
+                        className={`w-full text-left border rounded-sm px-4 py-4 transition-colors
                           ${finalised
-                            ? "border-[#C9A84C]/30 bg-[#C9A84C]/5 hover:border-[#C9A84C]/50"
-                            : "border-[#1e3d28] hover:border-green-600/50 bg-[#0f2418] hover:bg-[#0d2015]"
+                            ? "border-[#C9A84C]/30 bg-[#C9A84C]/5"
+                            : "border-[#1e3d28] hover:border-green-600/50 bg-[#0f2418] hover:bg-[#0d2015] cursor-pointer"
                           }`}
                       >
                         <div className="flex items-start justify-between gap-3">
@@ -323,26 +377,6 @@ export default function CourseDashboardClient({
                         )}
                       </div>
 
-                      {/* Inline void confirmation for finalised scorecards */}
-                      {isConfirmingVoid && (
-                        <div className="border border-t-0 border-[#C9A84C]/30 bg-[#1a0a00] px-4 py-3 rounded-b-sm flex items-center justify-between gap-3">
-                          <p className="text-white/50 text-xs">Void this scorecard?</p>
-                          <div className="flex gap-2">
-                            <button
-                              onClick={() => setConfirmVoidId(null)}
-                              className="px-3 py-1.5 text-xs text-white/40 border border-white/15 hover:border-white/30 hover:text-white/60 transition-colors rounded-sm"
-                            >
-                              Cancel
-                            </button>
-                            <button
-                              onClick={() => voidScorecard(liveRound.id)}
-                              className="px-3 py-1.5 text-xs text-red-400 border border-red-800/50 hover:border-red-600/60 hover:text-red-300 transition-colors rounded-sm"
-                            >
-                              Void
-                            </button>
-                          </div>
-                        </div>
-                      )}
                     </div>
                   )
                 })}
@@ -372,6 +406,158 @@ export default function CourseDashboardClient({
               </button>
             )}
           </div>
+
+          </div>
+          )} {/* end scorecards tab */}
+
+          {/* ── Settings tab ── */}
+          {dashTab === "settings" && (() => {
+            // Build list of scorecards that have players (active or finalised)
+            const staffedScorecards = scorecards.filter(s => s.playerNames.length > 0)
+
+            // Build flat list of finalised players: { name, liveRoundId }
+            const finalisedPlayers = scorecards
+              .filter(s => s.finalised && s.playerNames.length > 0)
+              .flatMap(s => s.playerNames.map(name => ({ name, liveRoundId: s.liveRound.id })))
+
+            return (
+              <div className="px-4 py-6 space-y-6">
+
+                {/* ── Void Scorecard ── */}
+                <section>
+                  <p className="text-white/30 text-[10px] tracking-[0.2em] uppercase mb-3">Void Scorecard</p>
+                  {staffedScorecards.length === 0 ? (
+                    <p className="text-white/20 text-sm border border-[#1e3d28] px-4 py-4 rounded-sm">No scorecards with players</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {staffedScorecards.map(s => {
+                        const isConfirming = settingsVoidId === s.liveRound.id
+                        return (
+                          <div key={s.liveRound.id}>
+                            <div
+                              className={`border rounded-sm px-4 py-3 flex items-center justify-between gap-3 transition-colors
+                                ${isConfirming ? "border-red-800/50 bg-red-950/20" : "border-[#1e3d28] bg-[#0f2418]"}`}
+                            >
+                              <div className="min-w-0">
+                                <p className="text-white/70 text-sm truncate">{s.playerNames.join(", ")}</p>
+                                <p className="text-white/30 text-xs mt-0.5">
+                                  {s.finalised ? "Finalised" : `Through ${s.holesThrough || "0"}`}
+                                </p>
+                              </div>
+                              {!isConfirming ? (
+                                <button
+                                  onClick={() => setSettingsVoidId(s.liveRound.id)}
+                                  className="flex-shrink-0 px-3 py-1.5 text-xs text-red-400/70 border border-red-800/40 hover:border-red-600/60 hover:text-red-300 transition-colors rounded-sm"
+                                >
+                                  Void
+                                </button>
+                              ) : (
+                                <div className="flex items-center gap-2 flex-shrink-0">
+                                  <button
+                                    onClick={() => setSettingsVoidId(null)}
+                                    className="px-3 py-1.5 text-xs text-white/40 border border-white/15 hover:border-white/30 transition-colors rounded-sm"
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    onClick={() => voidScorecard(s.liveRound.id)}
+                                    disabled={settingsWorking}
+                                    className="px-3 py-1.5 text-xs text-red-300 border border-red-700/60 hover:border-red-500/70 disabled:opacity-50 transition-colors rounded-sm"
+                                  >
+                                    {settingsWorking ? "…" : "Confirm"}
+                                  </button>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </section>
+
+                {/* ── Unfinalise Player ── */}
+                <section>
+                  <p className="text-white/30 text-[10px] tracking-[0.2em] uppercase mb-3">Unfinalise Player</p>
+                  {finalisedPlayers.length === 0 ? (
+                    <p className="text-white/20 text-sm border border-[#1e3d28] px-4 py-4 rounded-sm">No finalised players</p>
+                  ) : (
+                    <div className="space-y-2">
+                      {finalisedPlayers.map(({ name, liveRoundId }) => {
+                        const isConfirming = settingsUnfinaliseId === liveRoundId + name
+                        return (
+                          <div
+                            key={liveRoundId + name}
+                            className={`border rounded-sm px-4 py-3 flex items-center justify-between gap-3 transition-colors
+                              ${isConfirming ? "border-[#C9A84C]/40 bg-[#C9A84C]/5" : "border-[#1e3d28] bg-[#0f2418]"}`}
+                          >
+                            <p className="text-white/70 text-sm truncate">{name}</p>
+                            {!isConfirming ? (
+                              <button
+                                onClick={() => setSettingsUnfinaliseId(liveRoundId + name)}
+                                className="flex-shrink-0 px-3 py-1.5 text-xs text-[#C9A84C]/70 border border-[#C9A84C]/30 hover:border-[#C9A84C]/60 hover:text-[#C9A84C] transition-colors rounded-sm"
+                              >
+                                Unfinalise
+                              </button>
+                            ) : (
+                              <div className="flex items-center gap-2 flex-shrink-0">
+                                <button
+                                  onClick={() => setSettingsUnfinaliseId(null)}
+                                  className="px-3 py-1.5 text-xs text-white/40 border border-white/15 hover:border-white/30 transition-colors rounded-sm"
+                                >
+                                  Cancel
+                                </button>
+                                <button
+                                  onClick={() => unfinaliseRound(liveRoundId)}
+                                  disabled={settingsWorking}
+                                  className="px-3 py-1.5 text-xs text-[#C9A84C] border border-[#C9A84C]/50 hover:border-[#C9A84C]/80 disabled:opacity-50 transition-colors rounded-sm"
+                                >
+                                  {settingsWorking ? "…" : "Confirm"}
+                                </button>
+                              </div>
+                            )}
+                          </div>
+                        )
+                      })}
+                    </div>
+                  )}
+                </section>
+
+                {/* ── Void Live Session ── */}
+                <section>
+                  <p className="text-white/30 text-[10px] tracking-[0.2em] uppercase mb-3">Void Live Session</p>
+                  {!settingsVoidSession ? (
+                    <button
+                      onClick={() => setSettingsVoidSession(true)}
+                      className="w-full py-3 border border-red-900/50 text-red-400/60 text-sm tracking-[0.15em] uppercase hover:border-red-700/60 hover:text-red-400 transition-colors rounded-sm"
+                    >
+                      Clear All Live Data
+                    </button>
+                  ) : (
+                    <div className="border border-red-800/50 bg-red-950/20 rounded-sm px-4 py-4 space-y-3">
+                      <p className="text-white/60 text-sm">This will delete all scorecards, scores, and player locks for {courseName}. This cannot be undone.</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setSettingsVoidSession(false)}
+                          className="flex-1 py-2.5 text-xs text-white/40 border border-white/15 hover:border-white/30 transition-colors rounded-sm uppercase tracking-wider"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={voidLiveSession}
+                          disabled={settingsWorking}
+                          className="flex-1 py-2.5 text-xs text-red-300 border border-red-700/60 hover:border-red-500/70 disabled:opacity-50 transition-colors rounded-sm uppercase tracking-wider"
+                        >
+                          {settingsWorking ? "Clearing…" : "Void Session"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                </section>
+
+              </div>
+            )
+          })()}
 
         </div>
       )}
