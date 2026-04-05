@@ -29,12 +29,15 @@ interface CourseCardState {
   course: Course
   isActive: boolean
   isCompleted: boolean
+  isMixed: boolean
+  finalisedCount: number
+  activeCount: number
 }
 
 export default function CoursePortalClient({ courseIds, totalPlayers }: { courseIds: Record<string, string>; totalPlayers: number }) {
   const router = useRouter()
   const [cards, setCards] = useState<CourseCardState[]>(
-    COURSES.map(c => ({ course: { ...c, id: courseIds[c.name] ?? "" }, isActive: false, isCompleted: false }))
+    COURSES.map(c => ({ course: { ...c, id: courseIds[c.name] ?? "" }, isActive: false, isCompleted: false, isMixed: false, finalisedCount: 0, activeCount: 0 }))
   )
 
   async function fetchState() {
@@ -75,8 +78,9 @@ export default function CoursePortalClient({ courseIds, totalPlayers }: { course
         && finalisedPlayers.size === totalPlayers
         && activePlayers.size === 0
       const isCompleted = allFinalised || sessionFinalised
+      const isMixed = activePlayers.size > 0 && finalisedPlayers.size > 0 && !isCompleted
 
-      return { course: { ...c, id: cid }, isActive, isCompleted }
+      return { course: { ...c, id: cid }, isActive, isCompleted, isMixed, finalisedCount: finalisedPlayers.size, activeCount: activePlayers.size }
     }))
   }
 
@@ -88,14 +92,18 @@ export default function CoursePortalClient({ courseIds, totalPlayers }: { course
 
   return (
     <div className="p-4 space-y-3">
-      {cards.map(({ course, isActive, isCompleted }) => (
+      {cards.map(({ course, isActive, isCompleted, isMixed, finalisedCount, activeCount }) => (
         <button
           key={course.slug}
           onClick={() => router.push(`/scoring/${course.slug}`)}
           className={`w-full text-left rounded-sm border transition-all duration-300 overflow-hidden
-            ${isActive
-              ? "border-green-500/70 shadow-[0_0_24px_rgba(34,197,94,0.20)] bg-[#0a2010]"
-              : "border-[#1e3d28] bg-[#0f2418]"
+            ${isCompleted
+              ? "border-[#C9A84C]/30 bg-[#0f2418]"
+              : isMixed
+                ? "border-amber-600/50 shadow-[0_0_24px_rgba(217,119,6,0.15)] bg-[#1a1a0a]"
+                : isActive
+                  ? "border-green-500/70 shadow-[0_0_24px_rgba(34,197,94,0.20)] bg-[#0a2010]"
+                  : "border-[#1e3d28] bg-[#0f2418]"
             }`}
         >
           <div className="px-5 py-5 flex items-center justify-between gap-4">
@@ -103,7 +111,12 @@ export default function CoursePortalClient({ courseIds, totalPlayers }: { course
               <p className="font-[family-name:var(--font-playfair)] text-white text-lg leading-tight">
                 {course.name}
               </p>
-              {isActive && !isCompleted && (
+              {isMixed && (
+                <p className="text-amber-400/80 text-xs mt-1 font-medium tracking-wide">
+                  {finalisedCount} done · {activeCount} still scoring
+                </p>
+              )}
+              {isActive && !isCompleted && !isMixed && (
                 <p className="text-green-400 text-xs mt-1 font-medium tracking-wide">
                   Live scoring in progress
                 </p>
@@ -124,7 +137,13 @@ export default function CoursePortalClient({ courseIds, totalPlayers }: { course
                   ✓ Completed
                 </span>
               )}
-              {isActive && !isCompleted && (
+              {isMixed && (
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-amber-600/40 bg-amber-600/10 text-amber-400/80 text-xs font-semibold">
+                  <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
+                  Partial
+                </span>
+              )}
+              {isActive && !isCompleted && !isMixed && (
                 <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-green-500/40 bg-green-500/10 text-green-400 text-xs font-semibold">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                   Active

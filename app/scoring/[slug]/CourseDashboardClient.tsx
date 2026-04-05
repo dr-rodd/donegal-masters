@@ -16,6 +16,7 @@ interface LiveRoundFull extends ActiveLiveRound {
 interface ScorecardInfo {
   liveRound: LiveRoundFull
   playerNames: string[]
+  playerIds: string[]
   holesThrough: number   // max hole_number any group player has scored
   finalised: boolean
 }
@@ -70,7 +71,7 @@ export default function CourseDashboardClient({
   const [dashTab, setDashTab]                 = useState<DashboardTab>("scorecards")
   const [liveHole, setLiveHole]                           = useState<{ idx: number; total: number } | null>(null)
   const [settingsVoidId, setSettingsVoidId]               = useState<string | null>(null)
-  const [settingsUnfinaliseId, setSettingsUnfinaliseId]   = useState<string | null>(null)
+  const [playerConfirm, setPlayerConfirm]                 = useState<{ type: "remove" | "unfinalise"; playerId: string; liveRoundId: string; roundId: string; playerName: string } | null>(null)
   const [settingsFinaliseSession, setSettingsFinaliseSession] = useState(false)
   const [settingsVoidSession, setSettingsVoidSession]     = useState(false)
   const [settingsWorking, setSettingsWorking]             = useState(false)
@@ -128,7 +129,7 @@ export default function CourseDashboardClient({
         ? Math.max(...groupScores.map((s: any) => s.hole_number as number))
         : 0
 
-      return { liveRound: lr as LiveRoundFull, playerNames, holesThrough, finalised: lr.status === "finalised" }
+      return { liveRound: lr as LiveRoundFull, playerNames, playerIds, holesThrough, finalised: lr.status === "finalised" }
     })
 
     setScorecards(cards)
@@ -209,13 +210,39 @@ export default function CourseDashboardClient({
     fetchScorecards()
   }
 
-  async function unfinaliseRound(liveRoundId: string) {
+  async function removePlayerFromScorecard(playerId: string, liveRoundId: string) {
     setSettingsWorking(true)
-    await supabase
+    await supabase.from("live_player_locks").delete()
+      .eq("live_round_id", liveRoundId).eq("player_id", playerId)
+    // Close round if now empty
+    const { count } = await supabase
+      .from("live_player_locks").select("*", { count: "exact", head: true })
+      .eq("live_round_id", liveRoundId)
+    if (!count || count === 0) {
+      await supabase.from("live_rounds").update({ status: "closed" }).eq("id", liveRoundId)
+    }
+    setPlayerConfirm(null)
+    setSettingsWorking(false)
+    fetchScorecards()
+  }
+
+  async function unfinalisePlayer(playerId: string, liveRoundId: string, roundId: string) {
+    setSettingsWorking(true)
+    // Remove from finalised round
+    await supabase.from("live_player_locks").delete()
+      .eq("live_round_id", liveRoundId).eq("player_id", playerId)
+    // Clear hole 18 so resume positions there
+    await supabase.from("live_scores").delete()
+      .eq("player_id", playerId).eq("round_id", roundId).eq("hole_number", 18)
+    // Create a new active round for just this player
+    const { data: newRound } = await supabase
       .from("live_rounds")
-      .update({ status: "active", closed_at: null })
-      .eq("id", liveRoundId)
-    setSettingsUnfinaliseId(null)
+      .insert({ course_id: courseId, round_id: roundId, status: "active" })
+      .select("id").single()
+    if (newRound) {
+      await supabase.from("live_player_locks").insert({ live_round_id: newRound.id, player_id: playerId })
+    }
+    setPlayerConfirm(null)
     setSettingsWorking(false)
     fetchScorecards()
   }
@@ -350,9 +377,16 @@ export default function CourseDashboardClient({
 
           {/* Active scorecards */}
           <section>
-            <p className="text-white/30 text-[10px] tracking-[0.2em] uppercase mb-3">
-              Active Scorecards
-            </p>
+            <div className="flex items-center gap-3 mb-3">
+              <p className="text-white/30 text-[10px] tracking-[0.2em] uppercase">
+                Scorecards
+              </p>
+              {scorecards.some(s => !s.finalised && s.playerNames.length > 0) && scorecards.some(s => s.finalised) && (
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm border border-amber-600/40 bg-amber-600/10 text-amber-400/80 text-[10px] tracking-wide font-semibold">
+                  Mixed
+                </span>
+              )}
+            </div>
 
             {loading ? (
               <p className="text-white/20 text-sm py-4">Loading…</p>
@@ -465,10 +499,25 @@ export default function CourseDashboardClient({
             // Build list of scorecards that have players (active or finalised)
             const staffedScorecards = scorecards.filter(s => s.playerNames.length > 0)
 
-            // Build flat list of finalised players: { name, liveRoundId }
-            const finalisedPlayers = scorecards
-              .filter(s => s.finalised && s.playerNames.length > 0)
-              .flatMap(s => s.playerNames.map(name => ({ name, liveRoundId: s.liveRound.id })))
+            // Per-player lists for the Players section
+            const activePlayersList = scorecards
+              .filter(s => !s.finalised)
+              .flatMap(s => s.playerIds.map((id, i) => ({
+                id, name: s.playerNames[i] ?? id,
+                liveRoundId: s.liveRound.id,
+                roundId: s.liveRound.round_id,
+              })))
+            const finalisedPlayersList = scorecards
+              .filter(s => s.finalised)
+              .flatMap(s => s.playerIds.map((id, i) => ({
+                id, name: s.playerNames[i] ?? id,
+                liveRoundId: s.liveRound.id,
+                roundId: s.liveRound.round_id,
+              })))
+            const allPlayersList = [...activePlayersList, ...finalisedPlayersList]
+
+            // Legacy alias for Finalise Session visibility check
+            const finalisedPlayers = finalisedPlayersList
 
             return (
               <div className="px-4 py-6 space-y-6">
@@ -526,49 +575,107 @@ export default function CourseDashboardClient({
                   )}
                 </section>
 
-                {/* ── Unfinalise Player ── */}
+                {/* ── Players ── */}
                 <section>
-                  <p className="text-white/30 text-[10px] tracking-[0.2em] uppercase mb-3">Unfinalise Player</p>
-                  {finalisedPlayers.length === 0 ? (
-                    <p className="text-white/20 text-sm border border-[#1e3d28] px-4 py-4 rounded-sm">No finalised players</p>
+                  <p className="text-white/30 text-[10px] tracking-[0.2em] uppercase mb-3">Players</p>
+                  {allPlayersList.length === 0 ? (
+                    <p className="text-white/20 text-sm border border-[#1e3d28] px-4 py-4 rounded-sm">No active or finalised players</p>
                   ) : (
                     <div className="space-y-2">
-                      {finalisedPlayers.map(({ name, liveRoundId }) => {
-                        const isConfirming = settingsUnfinaliseId === liveRoundId + name
-                        return (
-                          <div
-                            key={liveRoundId + name}
-                            className={`border rounded-sm px-4 py-3 flex items-center justify-between gap-3 transition-colors
-                              ${isConfirming ? "border-[#C9A84C]/40 bg-[#C9A84C]/5" : "border-[#1e3d28] bg-[#0f2418]"}`}
-                          >
-                            <p className="text-white/70 text-sm truncate">{name}</p>
-                            {!isConfirming ? (
-                              <button
-                                onClick={() => setSettingsUnfinaliseId(liveRoundId + name)}
-                                className="flex-shrink-0 px-3 py-1.5 text-xs text-[#C9A84C]/70 border border-[#C9A84C]/30 hover:border-[#C9A84C]/60 hover:text-[#C9A84C] transition-colors rounded-sm"
+                      {/* Active players */}
+                      {activePlayersList.length > 0 && (
+                        <>
+                          <p className="text-white/20 text-[10px] tracking-[0.15em] uppercase pt-1 pb-0.5">Active</p>
+                          {activePlayersList.map(({ id, name, liveRoundId, roundId }) => {
+                            const isConfirming = playerConfirm?.playerId === id && playerConfirm.type === "remove"
+                            return (
+                              <div
+                                key={id + liveRoundId}
+                                className={`border rounded-sm px-4 py-3 flex items-center justify-between gap-3 transition-colors
+                                  ${isConfirming ? "border-red-800/50 bg-red-950/20" : "border-[#1e3d28] bg-[#0f2418]"}`}
                               >
-                                Unfinalise
-                              </button>
-                            ) : (
-                              <div className="flex items-center gap-2 flex-shrink-0">
-                                <button
-                                  onClick={() => setSettingsUnfinaliseId(null)}
-                                  className="px-3 py-1.5 text-xs text-white/40 border border-white/15 hover:border-white/30 transition-colors rounded-sm"
-                                >
-                                  Cancel
-                                </button>
-                                <button
-                                  onClick={() => unfinaliseRound(liveRoundId)}
-                                  disabled={settingsWorking}
-                                  className="px-3 py-1.5 text-xs text-[#C9A84C] border border-[#C9A84C]/50 hover:border-[#C9A84C]/80 disabled:opacity-50 transition-colors rounded-sm"
-                                >
-                                  {settingsWorking ? "…" : "Confirm"}
-                                </button>
+                                <div className="min-w-0">
+                                  <p className="text-white/70 text-sm truncate">{name}</p>
+                                  {isConfirming && (
+                                    <p className="text-red-400/60 text-xs mt-0.5">Remove from scorecard?</p>
+                                  )}
+                                </div>
+                                {!isConfirming ? (
+                                  <button
+                                    onClick={() => setPlayerConfirm({ type: "remove", playerId: id, liveRoundId, roundId, playerName: name })}
+                                    className="flex-shrink-0 px-3 py-1.5 text-xs text-red-400/60 border border-red-800/40 hover:border-red-600/60 hover:text-red-300 transition-colors rounded-sm"
+                                  >
+                                    Remove
+                                  </button>
+                                ) : (
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    <button
+                                      onClick={() => setPlayerConfirm(null)}
+                                      className="px-3 py-1.5 text-xs text-white/40 border border-white/15 hover:border-white/30 transition-colors rounded-sm"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      onClick={() => removePlayerFromScorecard(id, liveRoundId)}
+                                      disabled={settingsWorking}
+                                      className="px-3 py-1.5 text-xs text-red-300 border border-red-700/60 hover:border-red-500/70 disabled:opacity-50 transition-colors rounded-sm"
+                                    >
+                                      {settingsWorking ? "…" : "Confirm"}
+                                    </button>
+                                  </div>
+                                )}
                               </div>
-                            )}
-                          </div>
-                        )
-                      })}
+                            )
+                          })}
+                        </>
+                      )}
+                      {/* Finalised players */}
+                      {finalisedPlayersList.length > 0 && (
+                        <>
+                          <p className="text-white/20 text-[10px] tracking-[0.15em] uppercase pt-2 pb-0.5">Finalised</p>
+                          {finalisedPlayersList.map(({ id, name, liveRoundId, roundId }) => {
+                            const isConfirming = playerConfirm?.playerId === id && playerConfirm.type === "unfinalise"
+                            return (
+                              <div
+                                key={id + liveRoundId}
+                                className={`border rounded-sm px-4 py-3 flex items-center justify-between gap-3 transition-colors
+                                  ${isConfirming ? "border-[#C9A84C]/40 bg-[#C9A84C]/5" : "border-[#1e3d28] bg-[#0f2418]"}`}
+                              >
+                                <div className="min-w-0">
+                                  <p className="text-white/70 text-sm truncate">{name}</p>
+                                  {isConfirming && (
+                                    <p className="text-[#C9A84C]/60 text-xs mt-0.5">Reopens at hole 18. Other players on this card keep finalised state.</p>
+                                  )}
+                                </div>
+                                {!isConfirming ? (
+                                  <button
+                                    onClick={() => setPlayerConfirm({ type: "unfinalise", playerId: id, liveRoundId, roundId, playerName: name })}
+                                    className="flex-shrink-0 px-3 py-1.5 text-xs text-[#C9A84C]/60 border border-[#C9A84C]/25 hover:border-[#C9A84C]/50 hover:text-[#C9A84C] transition-colors rounded-sm"
+                                  >
+                                    Unfinalise
+                                  </button>
+                                ) : (
+                                  <div className="flex items-center gap-2 flex-shrink-0">
+                                    <button
+                                      onClick={() => setPlayerConfirm(null)}
+                                      className="px-3 py-1.5 text-xs text-white/40 border border-white/15 hover:border-white/30 transition-colors rounded-sm"
+                                    >
+                                      Cancel
+                                    </button>
+                                    <button
+                                      onClick={() => unfinalisePlayer(id, liveRoundId, roundId)}
+                                      disabled={settingsWorking}
+                                      className="px-3 py-1.5 text-xs text-[#C9A84C] border border-[#C9A84C]/50 hover:border-[#C9A84C]/80 disabled:opacity-50 transition-colors rounded-sm"
+                                    >
+                                      {settingsWorking ? "…" : "Confirm"}
+                                    </button>
+                                  </div>
+                                )}
+                              </div>
+                            )
+                          })}
+                        </>
+                      )}
                     </div>
                   )}
                 </section>
