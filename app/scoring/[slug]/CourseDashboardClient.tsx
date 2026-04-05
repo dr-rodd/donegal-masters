@@ -52,8 +52,7 @@ interface Props {
   roundHandicaps: RoundHandicap[]
 }
 
-type View = "dashboard" | "scoring" | "live-board"
-type DashboardTab = "scorecards" | "settings"
+type View = "dashboard" | "scoring" | "live-board" | "settings"
 
 // ─── Component ────────────────────────────────────────────
 
@@ -68,7 +67,6 @@ export default function CourseDashboardClient({
   const [showLiveLeaderboard, setShowLiveLeaderboard] = useState(false)
   const [scorecards, setScorecards]           = useState<ScorecardInfo[]>([])
   const [loading, setLoading]                 = useState(true)
-  const [dashTab, setDashTab]                 = useState<DashboardTab>("scorecards")
   const [liveHole, setLiveHole]                           = useState<{ idx: number; total: number } | null>(null)
   const [settingsVoidId, setSettingsVoidId]               = useState<string | null>(null)
   const [playerConfirm, setPlayerConfirm]                 = useState<{ type: "remove" | "unfinalise"; playerId: string; liveRoundId: string; roundId: string; playerName: string } | null>(null)
@@ -303,20 +301,19 @@ export default function CourseDashboardClient({
     ? <Link href="/scoring" className="text-[#C9A84C] text-sm tracking-[0.2em] uppercase hover:text-white transition-colors">← Courses</Link>
     : <button onClick={goBack} className="text-[#C9A84C] text-sm tracking-[0.2em] uppercase hover:text-white transition-colors">← Back</button>
 
-  const headerRight = view === "scoring" && scoringLiveRound && isResuming
+  const headerRight = view === "scoring" && showLiveLeaderboard
     ? <button
-        onClick={() => setShowLiveLeaderboard(v => !v)}
-        className={`text-sm tracking-[0.2em] uppercase transition-colors w-[80px] text-right
-          ${showLiveLeaderboard ? "text-[#C9A84C]" : "text-white/40 hover:text-white/60"}`}
+        onClick={() => setShowLiveLeaderboard(false)}
+        className="text-[#C9A84C] text-sm tracking-[0.2em] uppercase transition-colors w-[80px] text-right hover:text-white"
       >
-        {showLiveLeaderboard ? "← Scores" : "Leaderboard"}
+        ← Scores
       </button>
-    : view === "dashboard" && firstLiveRound
+    : view === "dashboard"
       ? <button
-          onClick={() => setView("live-board")}
-          className="text-white/40 text-sm tracking-[0.2em] uppercase hover:text-[#C9A84C] transition-colors w-[80px] text-right"
+          onClick={() => setView("settings")}
+          className="text-white/25 text-sm tracking-[0.2em] uppercase hover:text-white/50 transition-colors w-[80px] text-right"
         >
-          Board →
+          Settings
         </button>
       : <div className="w-[80px]" />
 
@@ -348,6 +345,15 @@ export default function CourseDashboardClient({
                   />
                 ))}
               </div>
+              {!showLiveLeaderboard && (
+                <button
+                  onClick={() => setShowLiveLeaderboard(true)}
+                  aria-label="Live leaderboard"
+                  className="flex-shrink-0 w-5 h-5 flex items-center justify-center"
+                >
+                  <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_3px_rgba(34,197,94,0.55)]" />
+                </button>
+              )}
             </div>
           </div>
         )}
@@ -356,26 +362,9 @@ export default function CourseDashboardClient({
       {/* ── Dashboard ── */}
       {view === "dashboard" && (
         <div className="max-w-lg mx-auto">
-
-          {/* Tab bar */}
-          <div className="flex border-b border-[#1e3d28]">
-            {(["scorecards", "settings"] as DashboardTab[]).map(tab => (
-              <button
-                key={tab}
-                onClick={() => setDashTab(tab)}
-                className={`flex-1 py-3 text-sm tracking-[0.15em] uppercase transition-colors
-                  ${dashTab === tab ? "text-[#C9A84C] border-b-2 border-[#C9A84C] -mb-px" : "text-white/30 hover:text-white/50"}`}
-              >
-                {tab}
-              </button>
-            ))}
-          </div>
-
-          {/* ── Scorecards tab ── */}
-          {dashTab === "scorecards" && (
           <div className="px-4 py-6 space-y-5">
 
-          {/* Active scorecards */}
+          {/* Scorecards */}
           <section>
             <div className="flex items-center gap-3 mb-3">
               <p className="text-white/30 text-xs tracking-[0.2em] uppercase">
@@ -484,18 +473,20 @@ export default function CourseDashboardClient({
             {firstLiveRound && (
               <button
                 onClick={() => setView("live-board")}
-                className="w-full py-3 border border-white/10 text-white/30 text-sm tracking-[0.2em] uppercase hover:border-white/20 hover:text-white/50 transition-colors rounded-sm"
+                className="w-full py-3 flex items-center justify-center gap-2.5 border border-green-600/25 bg-green-900/10 hover:bg-green-900/20 transition-colors rounded-sm"
               >
-                View Live Leaderboard →
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_3px_rgba(34,197,94,0.5)]" />
+                <span className="text-green-400 text-sm tracking-[0.2em] uppercase">Live Board</span>
               </button>
             )}
           </div>
 
           </div>
-          )} {/* end scorecards tab */}
+        </div>
+      )}
 
-          {/* ── Settings tab ── */}
-          {dashTab === "settings" && (() => {
+      {/* ── Settings ── */}
+      {view === "settings" && (() => {
             // Build list of scorecards that have players (active or finalised)
             const staffedScorecards = scorecards.filter(s => s.playerNames.length > 0)
 
@@ -520,7 +511,7 @@ export default function CourseDashboardClient({
             const finalisedPlayers = finalisedPlayersList
 
             return (
-              <div className="px-4 py-6 space-y-6">
+              <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
 
                 {/* ── Void Scorecard ── */}
                 <section>
@@ -754,9 +745,6 @@ export default function CourseDashboardClient({
               </div>
             )
           })()}
-
-        </div>
-      )}
 
       {/* ── Scoring ── */}
       {view === "scoring" && (
