@@ -44,13 +44,27 @@ export default function CoursePortalClient({ courseIds }: { courseIds: Record<st
 
     const liveRounds: LiveRound[] = data ?? []
 
+    // Determine which live_rounds have at least one player locked in
+    const allIds = liveRounds.map(lr => lr.id)
+    let roundsWithPlayers = new Set<string>()
+    if (allIds.length > 0) {
+      const { data: locks } = await supabase
+        .from("live_player_locks")
+        .select("live_round_id")
+        .in("live_round_id", allIds)
+      for (const lock of locks ?? []) {
+        roundsWithPlayers.add(lock.live_round_id as string)
+      }
+    }
+
     setCards(COURSES.map(c => {
       const cid = courseIds[c.name] ?? ""
       const courseRounds = liveRounds.filter(lr => lr.course_id === cid)
-      const isActive    = courseRounds.some(lr => lr.status === "active")
-      const isFinalised = courseRounds.some(lr => lr.status === "finalised")
-      // Completed = at least one group has finalised and none remain active
-      const isCompleted = isFinalised && !isActive
+
+      // Only count rounds that have at least one player assigned
+      const staffedRounds = courseRounds.filter(lr => roundsWithPlayers.has(lr.id))
+      const isActive    = staffedRounds.some(lr => lr.status === "active")
+      const isCompleted = staffedRounds.length > 0 && staffedRounds.every(lr => lr.status === "finalised")
 
       return { course: { ...c, id: cid }, isActive, isCompleted }
     }))
