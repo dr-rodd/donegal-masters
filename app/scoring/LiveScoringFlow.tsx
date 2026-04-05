@@ -153,15 +153,16 @@ export default function LiveScoringFlow({
   const canStart = selectedPlayerIds.length >= 1 &&
     selectedPlayerIds.every(id => !!playerTeeIds[id])
 
-  // Fetch players locked in OTHER active scorecards for this round so they
-  // can be hidden from the player picker entirely.
+  // Fetch players locked in other scorecards for this round (active OR finalised)
+  // so they are hidden from the player picker. Finalised players must not be
+  // selectable until manually unfinalised via the dashboard settings tab.
   useEffect(() => {
     if (step !== "setup" || !liveRound) return
     supabase
       .from("live_rounds")
       .select("id")
       .eq("round_id", liveRound.round_id)
-      .eq("status", "active")
+      .in("status", ["active", "finalised"])
       .neq("id", liveRound.id)
       .then(async ({ data: otherRounds }) => {
         const ids = (otherRounds ?? []).map((r: any) => r.id as string)
@@ -265,15 +266,6 @@ export default function LiveScoringFlow({
         playerSetups.map(({ player }) => ({ live_round_id: liveRound.id, player_id: player.id })),
         { onConflict: "live_round_id,player_id" }
       )
-  }
-
-  async function unlockPlayers() {
-    if (!liveRound || playerSetups.length === 0) return
-    await supabase
-      .from("live_player_locks")
-      .delete()
-      .eq("live_round_id", liveRound.id)
-      .in("player_id", playerSetups.map(({ player }) => player.id))
   }
 
   function syncLiveRound(r: ActiveLiveRound | null) {
