@@ -4,14 +4,16 @@
 -- If pg_cron is ever enabled, uncomment the cron.schedule block below
 -- to run it directly from the database instead.
 --
--- live_scores: deletes uncommitted rows for sessions where the
---   most recent hole submission is older than 2 hours. Groups by
---   (player_id, round_id) so all holes in an abandoned session are
---   removed together rather than partially.
+-- Rules:
+--   Closes active live_rounds where ALL of the following are true:
+--     1. status = 'active'  (finalised rounds are never touched)
+--     2. activated_at is older than 2 hours
+--     3. Zero hole scores have been submitted by the players locked
+--        into that round (checked via live_player_locks + live_scores)
 --
--- live_rounds: closes active sessions with no live_scores activity
---   in the past 2h AND activated >2h ago, so legitimate long rounds
---   are never accidentally closed mid-play.
+--   In-progress rounds (any scores submitted) are never touched,
+--   even if the last submission was hours ago.
+--   Live_scores rows are not deleted — only empty rounds are closed.
 -- ============================================================
 
 CREATE OR REPLACE FUNCTION public.cleanup_stale_live_data()
@@ -20,28 +22,23 @@ LANGUAGE plpgsql
 SECURITY DEFINER
 AS $$
 BEGIN
-  -- Remove uncommitted scores for abandoned sessions
-  DELETE FROM public.live_scores
-  WHERE committed = false
-    AND (player_id, round_id) IN (
-      SELECT player_id, round_id
-      FROM   public.live_scores
-      WHERE  committed = false
-      GROUP  BY player_id, round_id
-      HAVING max(submitted_at) < now() - interval '2 hours'
-    );
-
-  -- Close active live_rounds with no recent scoring activity
+  -- Close active live_rounds that are older than 2 hours and have
+  -- zero scores submitted by the players locked into the round.
+  -- Rounds with any scores (even 1 hole) are left untouched.
+  -- Finalised rounds are excluded by the status = 'active' filter.
   UPDATE public.live_rounds
   SET    status    = 'closed',
          closed_at = now()
   WHERE  status       = 'active'
     AND  activated_at < now() - interval '2 hours'
     AND  NOT EXISTS (
+           -- Any score from a player locked into this specific live_round
            SELECT 1
-           FROM   public.live_scores
-           WHERE  round_id     = live_rounds.round_id
-             AND  submitted_at > now() - interval '2 hours'
+           FROM   public.live_player_locks lpl
+           JOIN   public.live_scores ls
+                  ON  ls.player_id = lpl.player_id
+                  AND ls.round_id  = live_rounds.round_id
+           WHERE  lpl.live_round_id = live_rounds.id
          );
 END;
 $$;
