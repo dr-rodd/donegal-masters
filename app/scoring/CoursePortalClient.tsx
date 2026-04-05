@@ -15,6 +15,7 @@ interface LiveRound {
   course_id: string
   round_id: string
   status: string
+  session_finalised_at: string | null
 }
 
 
@@ -39,7 +40,7 @@ export default function CoursePortalClient({ courseIds, totalPlayers }: { course
   async function fetchState() {
     const { data } = await supabase
       .from("live_rounds")
-      .select("id, course_id, round_id, status")
+      .select("id, course_id, round_id, status, session_finalised_at")
       .in("status", ["active", "finalised"])
 
     const liveRounds: LiveRound[] = data ?? []
@@ -67,11 +68,13 @@ export default function CoursePortalClient({ courseIds, totalPlayers }: { course
       const finalisedPlayers = new Set(lockRows.filter(l => finalisedIds.has(l.live_round_id)).map(l => l.player_id))
 
       const isActive = activePlayers.size > 0
-      // Complete only when every player in the pool has a finalised scorecard
-      // and none remain in an active (in-progress) scorecard
-      const isCompleted = totalPlayers > 0
+      // Explicitly finalised by admin via "Finalise Session"
+      const sessionFinalised = courseRounds.some(lr => lr.session_finalised_at != null)
+      // Natural completion: every player in the pool has a finalised scorecard
+      const allFinalised = totalPlayers > 0
         && finalisedPlayers.size === totalPlayers
         && activePlayers.size === 0
+      const isCompleted = allFinalised || sessionFinalised
 
       return { course: { ...c, id: cid }, isActive, isCompleted }
     }))
