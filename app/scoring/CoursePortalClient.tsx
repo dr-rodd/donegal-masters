@@ -108,48 +108,48 @@ export default function CoursePortalClient({ courseIds, totalPlayers }: { course
         >
           <div className="px-5 py-5 flex items-center justify-between gap-4">
             <div className="min-w-0">
-              <p className="font-[family-name:var(--font-playfair)] text-white text-lg leading-tight">
+              <p className="font-[family-name:var(--font-playfair)] text-white text-xl leading-tight">
                 {course.name}
               </p>
               {isMixed && (
-                <p className="text-amber-400/80 text-xs mt-1 font-medium tracking-wide">
+                <p className="text-amber-400/80 text-sm mt-1 font-medium tracking-wide">
                   {finalisedCount} done · {activeCount} still scoring
                 </p>
               )}
               {isActive && !isCompleted && !isMixed && (
-                <p className="text-green-400 text-xs mt-1 font-medium tracking-wide">
+                <p className="text-green-400 text-sm mt-1 font-medium tracking-wide">
                   Live scoring in progress
                 </p>
               )}
               {isCompleted && (
-                <p className="text-[#C9A84C] text-xs mt-1 font-medium tracking-wide">
+                <p className="text-[#C9A84C] text-sm mt-1 font-medium tracking-wide">
                   All scorecards complete
                 </p>
               )}
               {!isActive && (
-                <p className="text-white/25 text-xs mt-1">No active sessions</p>
+                <p className="text-white/25 text-sm mt-1">No active sessions</p>
               )}
             </div>
 
             <div className="flex-shrink-0 flex flex-col items-end gap-2">
               {isCompleted && (
-                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-sm border border-[#C9A84C]/50 bg-[#C9A84C]/10 text-[#C9A84C] text-xs font-semibold tracking-wide">
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-sm border border-[#C9A84C]/50 bg-[#C9A84C]/10 text-[#C9A84C] text-sm font-semibold tracking-wide">
                   ✓ Completed
                 </span>
               )}
               {isMixed && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-amber-600/40 bg-amber-600/10 text-amber-400/80 text-xs font-semibold">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-amber-600/40 bg-amber-600/10 text-amber-400/80 text-sm font-semibold">
                   <span className="w-1.5 h-1.5 rounded-full bg-amber-400 animate-pulse" />
                   Partial
                 </span>
               )}
               {isActive && !isCompleted && !isMixed && (
-                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-green-500/40 bg-green-500/10 text-green-400 text-xs font-semibold">
+                <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-sm border border-green-500/40 bg-green-500/10 text-green-400 text-sm font-semibold">
                   <span className="w-1.5 h-1.5 rounded-full bg-green-400 animate-pulse" />
                   Active
                 </span>
               )}
-              <span className="text-white/30 text-xs">View →</span>
+              <span className="text-white/30 text-sm">View →</span>
             </div>
           </div>
         </button>

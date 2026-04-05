@@ -147,7 +147,7 @@ export default function LiveClient({ players, rounds, holes, tees, roundHandicap
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`flex-1 py-3 text-xs tracking-[0.2em] uppercase transition-colors
+              className={`flex-1 py-3 text-sm tracking-[0.2em] uppercase transition-colors
                 ${tab === t
                   ? "text-[#C9A84C] border-b-2 border-[#C9A84C]"
                   : "text-white/40 hover:text-white/70"}`}
@@ -333,22 +333,22 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
     return (
       <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 py-12">
         <div className="text-center mb-4">
-          <p className="text-white/40 text-xs tracking-[0.2em] uppercase mb-2">Entry Mode</p>
-          <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white">How are you playing?</h2>
+          <p className="text-white/40 text-sm tracking-[0.2em] uppercase mb-2">Entry Mode</p>
+          <h2 className="font-[family-name:var(--font-playfair)] text-3xl text-white">How are you playing?</h2>
         </div>
         <button
           onClick={() => handleModeSelect("solo")}
-          className="w-full max-w-xs py-5 border border-[#C9A84C]/50 text-[#C9A84C] tracking-[0.2em] uppercase text-sm hover:bg-[#C9A84C]/10 transition-colors"
+          className="w-full max-w-xs py-5 border border-[#C9A84C]/50 text-[#C9A84C] tracking-[0.2em] uppercase text-base hover:bg-[#C9A84C]/10 transition-colors"
         >
           Solo
-          <div className="text-[10px] text-white/40 normal-case tracking-normal mt-1">Enter your own round</div>
+          <div className="text-xs text-white/40 normal-case tracking-normal mt-1">Enter your own round</div>
         </button>
         <button
           onClick={() => handleModeSelect("group")}
-          className="w-full max-w-xs py-5 border border-white/20 text-white/60 tracking-[0.2em] uppercase text-sm hover:border-white/40 hover:text-white/80 transition-colors"
+          className="w-full max-w-xs py-5 border border-white/20 text-white/60 tracking-[0.2em] uppercase text-base hover:border-white/40 hover:text-white/80 transition-colors"
         >
           Group
-          <div className="text-[10px] text-white/40 normal-case tracking-normal mt-1">Enter 2–4 players together</div>
+          <div className="text-xs text-white/40 normal-case tracking-normal mt-1">Enter 2–4 players together</div>
         </button>
       </div>
     )
@@ -368,11 +368,11 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
     return (
       <div className="max-w-lg mx-auto w-full px-4 py-8 flex flex-col gap-6">
         <div className="flex items-center gap-3">
-          <button onClick={() => setStep("mode")} className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase">
+          <button onClick={() => setStep("mode")} className="text-[#C9A84C] text-sm tracking-[0.2em] uppercase">
             ← Back
           </button>
-          <span className="text-white/20 text-xs">|</span>
-          <span className="text-white/40 text-xs tracking-[0.2em] uppercase">
+          <span className="text-white/20 text-sm">|</span>
+          <span className="text-white/40 text-sm tracking-[0.2em] uppercase">
             {mode === "solo" ? "Solo Entry" : "Group Entry"}
           </span>
         </div>
@@ -380,13 +380,13 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
         {/* Round selection (if multiple available) */}
         {availableRounds.length > 1 && (
           <div>
-            <label className="block text-white/50 text-xs tracking-[0.15em] uppercase mb-2">Round</label>
+            <label className="block text-white/50 text-sm tracking-[0.15em] uppercase mb-2">Round</label>
             <div className="flex flex-col gap-2">
               {availableRounds.map(r => (
                 <button
                   key={r.id}
                   onClick={() => { setSelectedRound(r); setSelectedTeeId("") }}
-                  className={`w-full text-left px-4 py-3 border text-sm transition-colors
+                  className={`w-full text-left px-4 py-3 border text-base transition-colors
                     ${selectedRound?.id === r.id
                       ? "border-[#C9A84C] text-[#C9A84C] bg-[#C9A84C]/10"
                       : "border-white/20 text-white/60 hover:border-white/40"}`}
@@ -402,7 +402,7 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
           <>
             {/* Tee selection */}
             <div>
-              <label className="block text-white/50 text-xs tracking-[0.15em] uppercase mb-2">Tee</label>
+              <label className="block text-white/50 text-sm tracking-[0.15em] uppercase mb-2">Tee</label>
               <div className="flex flex-wrap gap-2">
                 {courseTees.map(t => {
                   const style = TEE_STYLES[t.name] ?? { dot: "bg-white/40", active: "border-white/40 text-white/60" }
@@ -411,7 +411,7 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
                     <button
                       key={t.id}
                       onClick={() => setSelectedTeeId(t.id)}
-                      className={`flex items-center gap-2 px-3 py-2 border text-xs tracking-wider uppercase transition-colors
+                      className={`flex items-center gap-2 px-3 py-2 border text-sm tracking-wider uppercase transition-colors
                         ${isActive ? style.active + " bg-white/5" : "border-white/20 text-white/50 hover:border-white/40"}`}
                     >
                       <span className={`w-2.5 h-2.5 rounded-full ${style.dot}`} />
@@ -424,7 +424,7 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
 
             {/* Player selection */}
             <div>
-              <label className="block text-white/50 text-xs tracking-[0.15em] uppercase mb-2">
+              <label className="block text-white/50 text-sm tracking-[0.15em] uppercase mb-2">
                 {mode === "solo" ? "Player" : "Players (2–4)"}
               </label>
               <div className="flex flex-col gap-2">
@@ -445,7 +445,7 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
                           }
                         }
                       }}
-                      className={`flex items-center justify-between px-4 py-3 border text-sm transition-colors
+                      className={`flex items-center justify-between px-4 py-3 border text-base transition-colors
                         ${isSelected
                           ? "border-[#C9A84C] text-[#C9A84C] bg-[#C9A84C]/10"
                           : "border-white/20 text-white/60 hover:border-white/40"}`}
@@ -456,7 +456,7 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
                         )}
                         <span>{p.name}</span>
                       </div>
-                      <span className="text-xs opacity-50">HCP {p.handicap}</span>
+                      <span className="text-sm opacity-50">HCP {p.handicap}</span>
                     </button>
                   )
                 })}
@@ -468,7 +468,7 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
         <button
           onClick={handleSetupStart}
           disabled={!canStart}
-          className={`w-full py-4 text-sm tracking-[0.2em] uppercase transition-colors mt-2
+          className={`w-full py-4 text-base tracking-[0.2em] uppercase transition-colors mt-2
             ${canStart
               ? "bg-[#C9A84C] text-black hover:bg-[#d4b05a]"
               : "bg-white/10 text-white/30 cursor-not-allowed"}`}
@@ -527,11 +527,11 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
     return (
       <div className="max-w-lg mx-auto w-full px-4 py-8 flex flex-col gap-6">
         <div className="text-center">
-          <div className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase mb-2">Round Complete</div>
-          <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white mb-1">
+          <div className="text-[#C9A84C] text-sm tracking-[0.2em] uppercase mb-2">Round Complete</div>
+          <h2 className="font-[family-name:var(--font-playfair)] text-3xl text-white mb-1">
             Commit to Leaderboard?
           </h2>
-          <p className="text-white/40 text-sm">
+          <p className="text-white/40 text-base">
             This will save scores as official. You can still edit them later via Score Entry.
           </p>
         </div>
@@ -544,34 +544,34 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
                 {player.teams && (
                   <span className="w-2 h-2 rounded-full" style={{ backgroundColor: player.teams.color }} />
                 )}
-                <span className="text-sm text-white/80">{player.name}</span>
+                <span className="text-base text-white/80">{player.name}</span>
               </div>
               <div className="text-right">
-                <span className="text-[#C9A84C] font-bold">{pts}</span>
-                <span className="text-white/40 text-xs ml-1">pts</span>
+                <span className="text-[#C9A84C] font-bold text-xl">{pts}</span>
+                <span className="text-white/40 text-sm ml-1">pts</span>
               </div>
             </div>
           ))}
-          <div className="px-4 py-2 text-xs text-white/30">
+          <div className="px-4 py-2 text-sm text-white/30">
             {Object.keys(scores).length} of {courseHoles.length} holes entered
           </div>
         </div>
 
         {commitError && (
-          <div className="text-red-400 text-sm text-center">{commitError}</div>
+          <div className="text-red-400 text-base text-center">{commitError}</div>
         )}
 
         <div className="flex gap-3">
           <button
             onClick={() => { setStep("holes"); setHoleIdx(courseHoles.length - 1) }}
-            className="flex-1 py-4 border border-white/20 text-white/60 text-sm tracking-[0.15em] uppercase hover:border-white/40 transition-colors"
+            className="flex-1 py-4 border border-white/20 text-white/60 text-base tracking-[0.15em] uppercase hover:border-white/40 transition-colors"
           >
             ← Review
           </button>
           <button
             onClick={handleCommit}
             disabled={saving}
-            className="flex-[2] py-4 bg-[#C9A84C] text-black text-sm tracking-[0.2em] uppercase font-bold hover:bg-[#d4b05a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="flex-[2] py-4 bg-[#C9A84C] text-black text-base tracking-[0.2em] uppercase font-bold hover:bg-[#d4b05a] disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
           >
             {saving ? "Saving…" : "Commit Scores"}
           </button>
@@ -579,7 +579,7 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
 
         <button
           onClick={resetFlow}
-          className="text-center text-white/30 text-xs tracking-widest uppercase hover:text-white/50 transition-colors"
+          className="text-center text-white/30 text-sm tracking-widest uppercase hover:text-white/50 transition-colors"
         >
           Discard & Start Over
         </button>
@@ -596,12 +596,12 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
           ✓
         </div>
         <div>
-          <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white mb-2">Scores Committed</h2>
-          <p className="text-white/40 text-sm">Scores have been saved to the official leaderboard.</p>
+          <h2 className="font-[family-name:var(--font-playfair)] text-3xl text-white mb-2">Scores Committed</h2>
+          <p className="text-white/40 text-base">Scores have been saved to the official leaderboard.</p>
         </div>
         <button
           onClick={resetFlow}
-          className="mt-4 px-8 py-3 border border-[#C9A84C]/50 text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:bg-[#C9A84C]/10 transition-colors"
+          className="mt-4 px-8 py-3 border border-[#C9A84C]/50 text-[#C9A84C] text-sm tracking-[0.2em] uppercase hover:bg-[#C9A84C]/10 transition-colors"
         >
           New Round
         </button>
@@ -711,7 +711,7 @@ function HoleCard({
     <div className="max-w-lg mx-auto w-full px-4 py-6 flex flex-col gap-5">
       {/* Progress */}
       <div className="flex items-center justify-between">
-        <button onClick={onBack} className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase">
+        <button onClick={onBack} className="text-[#C9A84C] text-sm tracking-[0.2em] uppercase">
           ← Back
         </button>
         <div className="flex items-center gap-1">
@@ -726,29 +726,29 @@ function HoleCard({
             />
           ))}
         </div>
-        <span className="text-white/40 text-xs">{holeIdx + 1}/{totalHoles}</span>
+        <span className="text-white/40 text-sm">{holeIdx + 1}/{totalHoles}</span>
       </div>
 
       {/* Hole info */}
       <div className="border border-[#1e3d28] px-5 py-4 flex items-center justify-between bg-[#0d2015]">
         <div>
-          <div className="text-white/40 text-[10px] tracking-[0.2em] uppercase">Hole</div>
+          <div className="text-white/40 text-xs tracking-[0.2em] uppercase">Hole</div>
           <div className="font-[family-name:var(--font-playfair)] text-4xl text-white leading-none">
             {hole.hole_number}
           </div>
         </div>
         <div className="text-center">
-          <div className="text-white/40 text-[10px] tracking-[0.2em] uppercase">Par</div>
+          <div className="text-white/40 text-xs tracking-[0.2em] uppercase">Par</div>
           <div className="text-2xl font-bold text-[#C9A84C]">{par}</div>
         </div>
         <div className="text-center">
-          <div className="text-white/40 text-[10px] tracking-[0.2em] uppercase">SI</div>
+          <div className="text-white/40 text-xs tracking-[0.2em] uppercase">SI</div>
           <div className="text-2xl font-bold text-white/70">{effectiveSI(hole, playerSetups[0]?.player.gender ?? "M", courseId)}</div>
         </div>
         {yardage !== null && (
           <div className="text-center">
-            <div className="text-white/40 text-[10px] tracking-[0.2em] uppercase">Yds</div>
-            <div className="text-lg font-semibold text-white/60">{yardage}</div>
+            <div className="text-white/40 text-xs tracking-[0.2em] uppercase">Yds</div>
+            <div className="text-xl font-semibold text-white/60">{yardage}</div>
           </div>
         )}
       </div>
@@ -771,9 +771,9 @@ function HoleCard({
                   {player.teams && (
                     <span className="w-2 h-2 rounded-full" style={{ backgroundColor: player.teams.color }} />
                   )}
-                  <span className="text-sm text-white/80">{player.name}</span>
+                  <span className="text-base text-white/80">{player.name}</span>
                 </div>
-                <div className="flex items-center gap-1 text-xs text-white/30">
+                <div className="flex items-center gap-1 text-sm text-white/30">
                   <span>{shots > 0 ? `+${shots}` : "0"} shots</span>
                   {stableford !== null && (
                     <span className={`ml-2 font-bold ${stableford >= 3 ? "text-[#C9A84C]" : stableford === 0 ? "text-red-400/70" : "text-white/60"}`}>
@@ -787,7 +787,7 @@ function HoleCard({
               <div className="flex items-center justify-center gap-6 mb-4">
                 <button
                   onClick={() => setPlayerScore(player.id, { gross: Math.max(1, (hs.gross ?? p) - 1) })}
-                  className="w-12 h-12 rounded-full border border-white/20 text-white/60 text-xl hover:border-white/50 hover:text-white transition-colors active:bg-white/10"
+                  className="w-12 h-12 rounded-full border border-white/20 text-white/60 text-2xl hover:border-white/50 hover:text-white transition-colors active:bg-white/10"
                 >
                   −
                 </button>
@@ -796,14 +796,14 @@ function HoleCard({
                     {hs.gross ?? "—"}
                   </div>
                   {hs.gross !== null && (
-                    <div className={`text-xs mt-1 ${hs.gross - p <= -2 ? "text-[#C9A84C]" : hs.gross - p === -1 ? "text-emerald-400" : hs.gross - p === 0 ? "text-white/40" : hs.gross - p === 1 ? "text-orange-400/70" : "text-red-400/70"}`}>
+                    <div className={`text-sm mt-1 ${hs.gross - p <= -2 ? "text-[#C9A84C]" : hs.gross - p === -1 ? "text-emerald-400" : hs.gross - p === 0 ? "text-white/40" : hs.gross - p === 1 ? "text-orange-400/70" : "text-red-400/70"}`}>
                       {hs.gross - p <= -2 ? "Eagle" : hs.gross - p === -1 ? "Birdie" : hs.gross - p === 0 ? "Par" : hs.gross - p === 1 ? "Bogey" : `+${hs.gross - p}`}
                     </div>
                   )}
                 </div>
                 <button
                   onClick={() => setPlayerScore(player.id, { gross: (hs.gross ?? p) + 1 })}
-                  className="w-12 h-12 rounded-full border border-white/20 text-white/60 text-xl hover:border-white/50 hover:text-white transition-colors active:bg-white/10"
+                  className="w-12 h-12 rounded-full border border-white/20 text-white/60 text-2xl hover:border-white/50 hover:text-white transition-colors active:bg-white/10"
                 >
                   +
                 </button>
@@ -812,13 +812,13 @@ function HoleCard({
               {/* Fairway (par 4+5 only) */}
               {showFairway && (
                 <div className="mb-3">
-                  <div className="text-white/30 text-[10px] tracking-[0.15em] uppercase mb-2">Fairway</div>
+                  <div className="text-white/30 text-xs tracking-[0.15em] uppercase mb-2">Fairway</div>
                   <div className="flex gap-2">
                     {(["left", "fairway", "right"] as const).map(fw => (
                       <button
                         key={fw}
                         onClick={() => setPlayerScore(player.id, { fairway: hs.fairway === fw ? null : fw })}
-                        className={`flex-1 py-2 text-xs tracking-wider uppercase border transition-colors
+                        className={`flex-1 py-2 text-sm tracking-wider uppercase border transition-colors
                           ${hs.fairway === fw
                             ? "border-[#C9A84C] text-[#C9A84C] bg-[#C9A84C]/10"
                             : "border-white/15 text-white/40 hover:border-white/30"}`}
@@ -832,7 +832,7 @@ function HoleCard({
 
               {/* Putts */}
               <div>
-                <div className="text-white/30 text-[10px] tracking-[0.15em] uppercase mb-2">Putts</div>
+                <div className="text-white/30 text-xs tracking-[0.15em] uppercase mb-2">Putts</div>
                 <div className="flex items-center gap-3">
                   <button
                     onClick={() => setPlayerScore(player.id, { putts: Math.max(0, (hs.putts ?? 2) - 1) })}
@@ -840,7 +840,7 @@ function HoleCard({
                   >
                     −
                   </button>
-                  <span className="text-lg font-semibold text-white/70 min-w-[1.5rem] text-center">
+                  <span className="text-2xl font-bold text-white/70 min-w-[1.5rem] text-center">
                     {hs.putts ?? "—"}
                   </span>
                   <button
@@ -860,7 +860,7 @@ function HoleCard({
       <button
         onClick={handleNext}
         disabled={!allHaveGross || saving}
-        className={`w-full py-4 text-sm tracking-[0.2em] uppercase font-semibold transition-colors
+        className={`w-full py-4 text-base tracking-[0.2em] uppercase font-semibold transition-colors
           ${allHaveGross && !saving
             ? "bg-[#C9A84C] text-black hover:bg-[#d4b05a]"
             : "bg-white/10 text-white/30 cursor-not-allowed"}`}
@@ -917,7 +917,7 @@ function LiveLeaderboard({ players, rounds, holes, roundHandicaps }: LiveLeaderb
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <div className="text-white/30 text-sm tracking-widest uppercase">Loading…</div>
+        <div className="text-white/30 text-base tracking-widest uppercase">Loading…</div>
       </div>
     )
   }
@@ -926,8 +926,8 @@ function LiveLeaderboard({ players, rounds, holes, roundHandicaps }: LiveLeaderb
     return (
       <div className="flex-1 flex items-center justify-center px-6 text-center">
         <div>
-          <div className="text-white/20 text-sm">No active rounds</div>
-          <div className="text-white/10 text-xs mt-1">Live leaderboard shows in-progress rounds</div>
+          <div className="text-white/20 text-base">No active rounds</div>
+          <div className="text-white/10 text-sm mt-1">Live leaderboard shows in-progress rounds</div>
         </div>
       </div>
     )
@@ -939,10 +939,10 @@ function LiveLeaderboard({ players, rounds, holes, roundHandicaps }: LiveLeaderb
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full bg-green-400 animate-pulse" />
-          <span className="text-green-400 text-xs tracking-[0.2em] uppercase">Live — In Progress</span>
+          <span className="text-green-400 text-sm tracking-[0.2em] uppercase">Live — In Progress</span>
         </div>
         {lastFetch && (
-          <span className="text-white/20 text-xs">
+          <span className="text-white/20 text-sm">
             Updated {lastFetch.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
           </span>
         )}
@@ -971,8 +971,8 @@ function LiveLeaderboard({ players, rounds, holes, roundHandicaps }: LiveLeaderb
         if (playerStats.length === 0) {
           return (
             <div key={round.id} className="border border-[#1e3d28] px-4 py-6 text-center">
-              <div className="text-white/30 text-xs mb-1">Round {round.round_number} — {round.courses?.name}</div>
-              <div className="text-white/20 text-sm">No scores entered yet</div>
+              <div className="text-white/30 text-sm mb-1">Round {round.round_number} — {round.courses?.name}</div>
+              <div className="text-white/20 text-base">No scores entered yet</div>
             </div>
           )
         }
@@ -980,7 +980,7 @@ function LiveLeaderboard({ players, rounds, holes, roundHandicaps }: LiveLeaderb
         return (
           <div key={round.id} className="border border-[#1e3d28]">
             <div className="px-4 py-3 border-b border-[#1e3d28] bg-[#0d2015]">
-              <span className="text-white/50 text-xs tracking-[0.15em] uppercase">
+              <span className="text-white/50 text-sm tracking-[0.15em] uppercase">
                 Round {round.round_number} — {round.courses?.name}
               </span>
             </div>
@@ -988,16 +988,16 @@ function LiveLeaderboard({ players, rounds, holes, roundHandicaps }: LiveLeaderb
             <div className="divide-y divide-[#1e3d28]">
               {playerStats.map(({ player, holesCompleted, totalPts }, idx) => (
                 <div key={player.id} className="flex items-center gap-3 px-4 py-3">
-                  <span className="text-white/30 text-sm w-6 text-center">{idx + 1}</span>
+                  <span className="text-white/40 text-lg font-semibold w-6 text-center">{idx + 1}</span>
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     {player.teams && (
                       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams.color }} />
                     )}
-                    <span className="text-sm text-white/80 truncate">{player.name}</span>
+                    <span className="text-base text-white/80 truncate">{player.name}</span>
                   </div>
                   <div className="text-right">
-                    <div className="text-[#C9A84C] font-bold">{totalPts}</div>
-                    <div className="text-white/30 text-[10px]">{holesCompleted}/18</div>
+                    <div className="text-[#C9A84C] font-bold text-xl">{totalPts}</div>
+                    <div className="text-white/30 text-xs">{holesCompleted}/18</div>
                   </div>
                 </div>
               ))}
@@ -1008,7 +1008,7 @@ function LiveLeaderboard({ players, rounds, holes, roundHandicaps }: LiveLeaderb
 
       <button
         onClick={fetchScores}
-        className="text-center text-white/20 text-xs tracking-widest uppercase hover:text-white/40 transition-colors"
+        className="text-center text-white/20 text-sm tracking-widest uppercase hover:text-white/40 transition-colors"
       >
         Refresh
       </button>

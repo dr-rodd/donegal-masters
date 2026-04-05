@@ -46,16 +46,6 @@ interface LiveScoreRow {
 
 const ST_PATRICKS_COURSE_ID = "11111111-0000-0000-0000-000000000003"
 
-function shotsReceived(si: number, hcp: number) {
-  return Math.floor(hcp / 18) + (si <= hcp % 18 ? 1 : 0)
-}
-
-function effectiveSI(hole: Hole, gender: string, courseId: string) {
-  return gender === "F" && courseId === ST_PATRICKS_COURSE_ID && hole.stroke_index_ladies
-    ? hole.stroke_index_ladies
-    : hole.stroke_index
-}
-
 function effectivePar(hole: Hole, gender: string, courseId: string) {
   return gender === "F" && courseId === ST_PATRICKS_COURSE_ID && hole.par_ladies
     ? hole.par_ladies
@@ -201,24 +191,18 @@ export default function LiveLeaderboardPanel({
       )
       if (playerScores.length === 0) return []
 
-      const hcp = roundHandicaps.find(
-        rh => rh.round_id === liveRound.round_id && rh.player_id === player.id
-      )?.playing_handicap ?? 0
-
       const totalStableford = playerScores.reduce((s, ls) => s + (ls.stableford_points ?? 0), 0)
       const totalGross      = playerScores.reduce((s, ls) => s + (ls.gross_score ?? 0), 0)
 
-      let totalNett      = 0
       let totalParPlayed = 0
       for (const ls of playerScores) {
         const hole = courseHoles.find(h => h.hole_number === ls.hole_number)
         if (!hole || ls.gross_score === null) continue
-        const par   = effectivePar(hole, player.gender, liveRound.course_id)
-        const shots = shotsReceived(effectiveSI(hole, player.gender, liveRound.course_id), hcp)
-        totalNett      += Math.min(ls.gross_score - shots, par + 2)
-        totalParPlayed += par
+        totalParPlayed += effectivePar(hole, player.gender, liveRound.course_id)
       }
 
+      const playerCoursePar = courseHoles.reduce((s, h) => s + effectivePar(h, player.gender, liveRound.course_id), 0)
+      const totalNett = playerCoursePar + 36 - totalStableford
       const holesCompleted = playerScores.length
 
       return [{
@@ -230,7 +214,7 @@ export default function LiveLeaderboardPanel({
         totalGross,
         grossRelative: totalGross - totalParPlayed,
         totalNett,
-        nettRelative: totalNett - totalParPlayed,
+        nettRelative: holesCompleted * 2 - totalStableford,
         perHoleStableford: playerScores.map(ls => ({
           hole_number: ls.hole_number,
           pts: ls.stableford_points ?? 0,
@@ -262,12 +246,12 @@ export default function LiveLeaderboardPanel({
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-          <span className="text-green-400 text-xs tracking-[0.2em] uppercase">{roundLabel}</span>
+          <span className="text-green-400 text-sm tracking-[0.2em] uppercase">{roundLabel}</span>
         </div>
         {showBackButton && onClose && (
           <button
             onClick={onClose}
-            className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors"
+            className="text-[#C9A84C] text-sm tracking-[0.2em] uppercase hover:text-white transition-colors"
           >
             ← Back
           </button>
@@ -280,7 +264,7 @@ export default function LiveLeaderboardPanel({
           <button
             key={m}
             onClick={() => setMode(m)}
-            className={`flex-1 py-2.5 text-xs tracking-[0.15em] uppercase transition-colors
+            className={`flex-1 py-2.5 text-sm tracking-[0.15em] uppercase transition-colors
               ${mode === m ? "bg-[#1e3d28] text-[#C9A84C]" : "text-white/40 hover:text-white/60"}`}
           >
             {m === "stableford" ? "Stableford" : "Strokes"}
@@ -295,7 +279,7 @@ export default function LiveLeaderboardPanel({
             <button
               key={sv}
               onClick={() => setStrokesView(sv)}
-              className={`flex-1 py-2 text-xs tracking-[0.15em] uppercase transition-colors
+              className={`flex-1 py-2 text-sm tracking-[0.15em] uppercase transition-colors
                 ${strokesView === sv ? "bg-[#1e3d28] text-white/80" : "text-white/30 hover:text-white/50"}`}
             >
               {sv}
@@ -357,7 +341,7 @@ export default function LiveLeaderboardPanel({
               <div key={player.id} className="flex items-center gap-3 px-4 py-3">
 
                 {/* Col 1: position */}
-                <span className="text-white/35 text-sm w-5 flex-shrink-0 tabular-nums">
+                <span className="text-white/40 text-base font-semibold w-6 flex-shrink-0 tabular-nums">
                   {positions[idx]}
                 </span>
 
@@ -369,18 +353,18 @@ export default function LiveLeaderboardPanel({
                       style={{ backgroundColor: player.teams.color }}
                     />
                   )}
-                  <span className="text-sm text-white/80 truncate">{player.name}</span>
+                  <span className="text-base text-white/80 truncate">{player.name}</span>
                 </div>
 
                 {/* Col 3: relative score pill */}
                 <span className={`flex-shrink-0 inline-flex items-center justify-center
-                  px-2 py-0.5 rounded-sm text-sm font-bold tabular-nums min-w-[3rem] ${scorePillClass}`}>
+                  px-2 py-0.5 rounded-sm text-lg font-bold tabular-nums min-w-[3.5rem] ${scorePillClass}`}>
                   {scoreDisplay}
                 </span>
 
                 {/* Col 4: holes or finalised total */}
-                <span className={`flex-shrink-0 w-8 text-right tabular-nums text-xs
-                  ${isFinalised ? "text-white/55 font-medium" : "text-white/25"}`}>
+                <span className={`flex-shrink-0 w-9 text-right tabular-nums text-base
+                  ${isFinalised ? "text-white/60 font-semibold" : "text-white/30"}`}>
                   {col4}
                 </span>
 
@@ -392,7 +376,7 @@ export default function LiveLeaderboardPanel({
 
       {/* Last update */}
       {lastFetch && (
-        <div className="text-center text-white/20 text-[10px]">
+        <div className="text-center text-white/20 text-xs">
           Updated {lastFetch.toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
         </div>
       )}

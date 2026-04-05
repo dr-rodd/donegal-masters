@@ -105,28 +105,25 @@ function playerHasAnyNR(playerId: string, scores: Score[]) {
   return scores.some(s => s.player_id === playerId && s.no_return)
 }
 
-// Nett strokes per hole = par - stableford_points + 2
-// For NR holes stableford_points treated as 0 (equivalent to double bogey nett)
-function playerRoundNett(playerId: string, roundId: string, scores: Score[], holes: Hole[]) {
-  return scores
-    .filter(s => s.player_id === playerId && s.round_id === roundId)
-    .reduce((sum, s) => {
-      const hole = holes.find(h => h.id === s.hole_id)
-      if (!hole) return sum
-      const pts = s.no_return ? 0 : s.stableford_points
-      return sum + (hole.par - pts + 2)
-    }, 0)
+// Nett = course_par + 36 - total_stableford_points
+// For in-progress rounds, nettRelative is shown separately in LiveLeaderboardPanel
+function playerRoundNett(playerId: string, roundId: string, courseId: string, scores: Score[], holes: Hole[]) {
+  const roundScores = scores.filter(s => s.player_id === playerId && s.round_id === roundId)
+  if (roundScores.length === 0) return 0
+  const pts = roundScores.reduce((sum, s) => sum + (s.no_return ? 0 : s.stableford_points), 0)
+  const coursePar = holes.filter(h => h.course_id === courseId).reduce((sum, h) => sum + h.par, 0)
+  return coursePar + 36 - pts
 }
 
-function playerTotalNett(playerId: string, scores: Score[], holes: Hole[]) {
-  return scores
-    .filter(s => s.player_id === playerId)
-    .reduce((sum, s) => {
-      const hole = holes.find(h => h.id === s.hole_id)
-      if (!hole) return sum
-      const pts = s.no_return ? 0 : s.stableford_points
-      return sum + (hole.par - pts + 2)
-    }, 0)
+function playerTotalNett(playerId: string, scores: Score[], holes: Hole[], rounds: Round[]) {
+  return rounds.reduce((total, r) => {
+    const courseId = r.courses?.id ?? ""
+    const roundScores = scores.filter(s => s.player_id === playerId && s.round_id === r.id)
+    if (roundScores.length === 0) return total
+    const pts = roundScores.reduce((sum, s) => sum + (s.no_return ? 0 : s.stableford_points), 0)
+    const coursePar = holes.filter(h => h.course_id === courseId).reduce((sum, h) => sum + h.par, 0)
+    return total + coursePar + 36 - pts
+  }, 0)
 }
 
 function playerBadges(playerId: string, scores: Score[], holes: Hole[]) {
@@ -355,13 +352,13 @@ export default function IndividualClient({ rounds, players, holes, scores, round
         score: viewMode === "stableford"
           ? playerRoundStableford(p.id, r.id, scores)
           : playerRoundGross(p.id, r.id, scores, holes, roundHandicaps),
-        nett: playerRoundNett(p.id, r.id, scores, holes),
+        nett: playerRoundNett(p.id, r.id, r.courses?.id ?? "", scores, holes),
         hasNR: viewMode === "stroke" ? playerRoundHasNR(p.id, r.id, scores) : false,
       }))
       const total = viewMode === "stableford"
         ? playerTotalStableford(p.id, scores)
         : playerTotalGross(p.id, scores, holes, roundHandicaps)
-      const totalNett = playerTotalNett(p.id, scores, holes)
+      const totalNett = playerTotalNett(p.id, scores, holes, rounds)
       const hasNR = viewMode === "stroke" ? playerHasAnyNR(p.id, scores) : false
       return { player: p, byRound, total, totalNett, hasNR, badges: playerBadges(p.id, scores, holes) }
     })
@@ -376,10 +373,10 @@ export default function IndividualClient({ rounds, players, holes, scores, round
       {/* ── Individual standings ── */}
       <section>
         <div className="flex items-center gap-4 mb-5 flex-wrap">
-          <h2 className="font-[family-name:var(--font-playfair)] text-xl text-white">Standings</h2>
+          <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white">Standings</h2>
 
           {/* Stableford / Stroke toggle */}
-          <div className="flex rounded-sm border border-[#1e3d28] overflow-hidden text-xs">
+          <div className="flex rounded-sm border border-[#1e3d28] overflow-hidden text-sm">
             <button
               onClick={() => setViewMode("stableford")}
               className={`px-3 py-1.5 transition-colors ${
@@ -408,7 +405,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
               <button
                 key={f.key}
                 onClick={() => setFilter(f.key as any)}
-                className={`px-3 py-1 text-xs tracking-wide border rounded-sm transition-colors
+                className={`px-3 py-1 text-sm tracking-wide border rounded-sm transition-colors
                   ${filter === f.key
                     ? "border-[#C9A84C]/60 bg-[#C9A84C]/10 text-[#C9A84C]"
                     : "border-[#1e3d28] text-white/35 hover:text-white/60"}`}
@@ -420,13 +417,13 @@ export default function IndividualClient({ rounds, players, holes, scores, round
         </div>
 
         <div className="border border-[#1e3d28] rounded-sm overflow-hidden">
-          <table className="w-full border-collapse text-sm">
+          <table className="w-full border-collapse text-base">
             <thead>
               <tr className="border-b border-[#1e3d28]">
-                <th className="text-left px-2 sm:px-4 py-3 text-white/25 font-normal w-6">#</th>
+                <th className="text-left px-2 sm:px-4 py-3 text-white/25 font-normal w-8">#</th>
                 <th className="text-left px-2 sm:px-4 py-3 text-white/25 font-normal">Player</th>
                 {rounds.map(r => (
-                  <th key={r.id} className="text-center px-1 sm:px-3 py-3 text-white/25 font-normal text-xs">
+                  <th key={r.id} className="text-center px-1 sm:px-3 py-3 text-white/25 font-normal text-base">
                     <div>Day {r.round_number}</div>
                     <div className="text-white/15 text-[9px] hidden sm:block">{r.courses?.name ? (COURSE_SHORT[r.courses.name] ?? r.courses.name) : ""}</div>
                   </th>
@@ -443,7 +440,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
                 </tr>
               ) : standings.map(({ player, byRound, total, totalNett, hasNR, badges }, i) => (
                 <tr key={player.id} className="border-t border-[#1e3d28]/50 hover:bg-white/[0.02] transition-colors">
-                  <td className="px-2 sm:px-4 py-3 text-white/30 text-xs sm:text-sm">
+                  <td className="px-2 sm:px-4 py-3 text-white/40 text-sm sm:text-base font-semibold">
                     {i < 3 ? MEDALS[i] : <span>{i + 1}</span>}
                   </td>
                   <td className="px-2 sm:px-4 py-2.5">
@@ -455,8 +452,8 @@ export default function IndividualClient({ rounds, players, holes, scores, round
                         : ""
                       const wrap = showEmojis && badges.eagles + badges.birdies > 5
                       const nameEl = showScorecard
-                        ? (cls: string) => <Link href={`/scorecard/${player.id}?from=individual`} className={`text-white font-medium hover:text-[#C9A84C] transition-colors ${cls}`}>{displayName(player)}</Link>
-                        : (cls: string) => <span className={`text-white font-medium ${cls}`}>{displayName(player)}</span>
+                        ? (cls: string) => <Link href={`/scorecard/${player.id}?from=individual`} className={`text-white text-base font-semibold hover:text-[#C9A84C] transition-colors ${cls}`}>{displayName(player)}</Link>
+                        : (cls: string) => <span className={`text-white text-base font-semibold ${cls}`}>{displayName(player)}</span>
                       return (
                         <div className="flex items-center gap-1.5 sm:gap-2 min-w-0">
                           <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ROLE_DOT[player.role] ?? "bg-white/30"}`} />
@@ -479,18 +476,18 @@ export default function IndividualClient({ rounds, players, holes, scores, round
                     })()}
                   </td>
                   {byRound.map((r, j) => (
-                    <td key={j} className="text-center px-1 sm:px-3 py-3 text-white/50 text-xs sm:text-sm">
+                    <td key={j} className="text-center px-1 sm:px-3 py-3 text-white/70 text-base sm:text-lg font-semibold">
                       {r.score > 0
                         ? <>
                             {r.score}
-                            {viewMode === "stroke" && <span className="text-white/30 ml-0.5 hidden sm:inline">({r.nett})</span>}
+                            {viewMode === "stroke" && <span className="text-white/30 text-xs ml-0.5 hidden sm:inline">({r.nett})</span>}
                             {r.hasNR && <span className="text-orange-400/60 text-[10px] ml-0.5">NR</span>}
                           </>
-                        : <span className="text-white/20">—</span>
+                        : <span className="text-white/20 font-normal">—</span>
                       }
                     </td>
                   ))}
-                  <td className="text-center px-2 sm:px-4 py-3 font-[family-name:var(--font-playfair)] text-[#C9A84C] text-lg sm:text-xl font-bold">
+                  <td className="text-center px-2 sm:px-4 py-3 font-[family-name:var(--font-playfair)] text-[#C9A84C] text-xl sm:text-2xl font-bold">
                     {total > 0
                       ? <>
                           {total}
@@ -508,12 +505,12 @@ export default function IndividualClient({ rounds, players, holes, scores, round
 
       {/* ── Matchplay ── */}
       {features.matchplay() && <section>
-        <h2 className="font-[family-name:var(--font-playfair)] text-xl text-white mb-5">Matchplay</h2>
+        <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white mb-5">Matchplay</h2>
 
         {/* Player selectors */}
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
           <div>
-            <label className="block text-xs tracking-[0.2em] uppercase text-white/30 mb-1.5">Player A</label>
+            <label className="block text-sm tracking-[0.2em] uppercase text-white/30 mb-1.5">Player A</label>
             <select
               value={playerAId}
               onChange={e => { setPlayerAId(e.target.value); setNoShots(false) }}
@@ -528,7 +525,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
             </select>
           </div>
           <div>
-            <label className="block text-xs tracking-[0.2em] uppercase text-white/30 mb-1.5">Player B</label>
+            <label className="block text-sm tracking-[0.2em] uppercase text-white/30 mb-1.5">Player B</label>
             <select
               value={playerBId}
               onChange={e => { setPlayerBId(e.target.value); setNoShots(false) }}

@@ -300,13 +300,13 @@ export default function CourseDashboardClient({
   // ─── Header ───────────────────────────────────────────────
 
   const headerLeft = view === "dashboard"
-    ? <Link href="/scoring" className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">← Courses</Link>
-    : <button onClick={goBack} className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">← Back</button>
+    ? <Link href="/scoring" className="text-[#C9A84C] text-sm tracking-[0.2em] uppercase hover:text-white transition-colors">← Courses</Link>
+    : <button onClick={goBack} className="text-[#C9A84C] text-sm tracking-[0.2em] uppercase hover:text-white transition-colors">← Back</button>
 
   const headerRight = view === "scoring" && scoringLiveRound && isResuming
     ? <button
         onClick={() => setShowLiveLeaderboard(v => !v)}
-        className={`text-xs tracking-[0.2em] uppercase transition-colors w-[80px] text-right
+        className={`text-sm tracking-[0.2em] uppercase transition-colors w-[80px] text-right
           ${showLiveLeaderboard ? "text-[#C9A84C]" : "text-white/40 hover:text-white/60"}`}
       >
         {showLiveLeaderboard ? "← Scores" : "Leaderboard"}
@@ -314,7 +314,7 @@ export default function CourseDashboardClient({
     : view === "dashboard" && firstLiveRound
       ? <button
           onClick={() => setView("live-board")}
-          className="text-white/40 text-xs tracking-[0.2em] uppercase hover:text-[#C9A84C] transition-colors w-[80px] text-right"
+          className="text-white/40 text-sm tracking-[0.2em] uppercase hover:text-[#C9A84C] transition-colors w-[80px] text-right"
         >
           Board →
         </button>
@@ -329,7 +329,7 @@ export default function CourseDashboardClient({
       <div className="border-b border-[#1e3d28] sticky top-0 z-20 bg-[#0a1a0e]">
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
           {headerLeft}
-          <h1 className="font-[family-name:var(--font-playfair)] text-lg text-white tracking-wide">
+          <h1 className="font-[family-name:var(--font-playfair)] text-xl text-white tracking-wide">
             {courseName}
           </h1>
           {headerRight}
@@ -337,7 +337,7 @@ export default function CourseDashboardClient({
         {view === "scoring" && liveHole && (
           <div className="max-w-lg mx-auto px-4 pb-3">
             <div className="flex items-center gap-3">
-              <span className="font-[family-name:var(--font-playfair)] text-white text-2xl leading-none w-8 tabular-nums">
+              <span className="font-[family-name:var(--font-playfair)] text-white text-3xl leading-none w-8 tabular-nums">
                 {liveHole.idx + 1}
               </span>
               <div className="flex-1 flex gap-[2px]">
@@ -363,7 +363,7 @@ export default function CourseDashboardClient({
               <button
                 key={tab}
                 onClick={() => setDashTab(tab)}
-                className={`flex-1 py-3 text-xs tracking-[0.15em] uppercase transition-colors
+                className={`flex-1 py-3 text-sm tracking-[0.15em] uppercase transition-colors
                   ${dashTab === tab ? "text-[#C9A84C] border-b-2 border-[#C9A84C] -mb-px" : "text-white/30 hover:text-white/50"}`}
               >
                 {tab}
@@ -378,21 +378,21 @@ export default function CourseDashboardClient({
           {/* Active scorecards */}
           <section>
             <div className="flex items-center gap-3 mb-3">
-              <p className="text-white/30 text-[10px] tracking-[0.2em] uppercase">
+              <p className="text-white/30 text-xs tracking-[0.2em] uppercase">
                 Scorecards
               </p>
               {scorecards.some(s => !s.finalised && s.playerNames.length > 0) && scorecards.some(s => s.finalised) && (
-                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm border border-amber-600/40 bg-amber-600/10 text-amber-400/80 text-[10px] tracking-wide font-semibold">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-sm border border-amber-600/40 bg-amber-600/10 text-amber-400/80 text-xs tracking-wide font-semibold">
                   Mixed
                 </span>
               )}
             </div>
 
             {loading ? (
-              <p className="text-white/20 text-sm py-4">Loading…</p>
+              <p className="text-white/20 text-base py-4">Loading…</p>
             ) : scorecards.length === 0 ? (
               <div className="border border-[#1e3d28] rounded-sm px-4 py-5">
-                <p className="text-white/25 text-sm">No active scorecards</p>
+                <p className="text-white/25 text-base">No active scorecards</p>
               </div>
             ) : (
               <div className="space-y-2">
@@ -422,19 +422,19 @@ export default function CourseDashboardClient({
                       >
                         <div className="flex items-start justify-between gap-3">
                           <div className="min-w-0">
-                            <p className="text-white text-sm font-semibold leading-snug">
+                            <p className="text-white text-base font-semibold leading-snug">
                               {playerNames.length > 0 ? playerNames.join(", ") : "No players locked in yet"}
                             </p>
-                            <p className={`text-xs mt-1 ${finalised ? "text-[#C9A84C]/60" : "text-white/35"}`}>
+                            <p className={`text-sm mt-1 ${finalised ? "text-[#C9A84C]/60" : "text-white/35"}`}>
                               {holeLabel} · Started {startedAt}
                             </p>
                           </div>
                           {playerNames.length > 0 && (finalised ? (
-                            <span className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-sm border border-[#C9A84C]/40 bg-[#C9A84C]/10 text-[#C9A84C] text-xs font-semibold tracking-wide">
+                            <span className="flex-shrink-0 inline-flex items-center gap-1 px-2.5 py-1 rounded-sm border border-[#C9A84C]/40 bg-[#C9A84C]/10 text-[#C9A84C] text-sm font-semibold tracking-wide">
                               ✓ Done
                             </span>
                           ) : (
-                            <span className="flex-shrink-0 text-[#C9A84C] text-xs tracking-wider uppercase pt-0.5">
+                            <span className="flex-shrink-0 text-[#C9A84C] text-sm tracking-wider uppercase pt-0.5">
                               Score →
                             </span>
                           ))}
@@ -473,18 +473,18 @@ export default function CourseDashboardClient({
             <button
               onClick={startNewScorecard}
               disabled={starting}
-              className="w-full py-4 border border-[#C9A84C]/40 text-[#C9A84C] text-sm tracking-[0.2em] uppercase hover:bg-[#C9A84C]/10 disabled:opacity-50 transition-colors rounded-sm"
+              className="w-full py-4 border border-[#C9A84C]/40 text-[#C9A84C] text-base tracking-[0.2em] uppercase hover:bg-[#C9A84C]/10 disabled:opacity-50 transition-colors rounded-sm"
             >
               {starting ? "Starting…" : "+ Start New Scorecard"}
             </button>
             {startError && (
-              <p className="text-red-400/80 text-xs text-center">{startError}</p>
+              <p className="text-red-400/80 text-sm text-center">{startError}</p>
             )}
 
             {firstLiveRound && (
               <button
                 onClick={() => setView("live-board")}
-                className="w-full py-3 border border-white/10 text-white/30 text-xs tracking-[0.2em] uppercase hover:border-white/20 hover:text-white/50 transition-colors rounded-sm"
+                className="w-full py-3 border border-white/10 text-white/30 text-sm tracking-[0.2em] uppercase hover:border-white/20 hover:text-white/50 transition-colors rounded-sm"
               >
                 View Live Leaderboard →
               </button>
@@ -524,9 +524,9 @@ export default function CourseDashboardClient({
 
                 {/* ── Void Scorecard ── */}
                 <section>
-                  <p className="text-white/30 text-[10px] tracking-[0.2em] uppercase mb-3">Void Scorecard</p>
+                  <p className="text-white/30 text-xs tracking-[0.2em] uppercase mb-3">Void Scorecard</p>
                   {staffedScorecards.length === 0 ? (
-                    <p className="text-white/20 text-sm border border-[#1e3d28] px-4 py-4 rounded-sm">No scorecards with players</p>
+                    <p className="text-white/20 text-base border border-[#1e3d28] px-4 py-4 rounded-sm">No scorecards with players</p>
                   ) : (
                     <div className="space-y-2">
                       {staffedScorecards.map(s => {
@@ -538,15 +538,15 @@ export default function CourseDashboardClient({
                                 ${isConfirming ? "border-red-800/50 bg-red-950/20" : "border-[#1e3d28] bg-[#0f2418]"}`}
                             >
                               <div className="min-w-0">
-                                <p className="text-white/70 text-sm truncate">{s.playerNames.join(", ")}</p>
-                                <p className="text-white/30 text-xs mt-0.5">
+                                <p className="text-white/70 text-base truncate">{s.playerNames.join(", ")}</p>
+                                <p className="text-white/30 text-sm mt-0.5">
                                   {s.finalised ? "Finalised" : `Through ${s.holesThrough || "0"}`}
                                 </p>
                               </div>
                               {!isConfirming ? (
                                 <button
                                   onClick={() => setSettingsVoidId(s.liveRound.id)}
-                                  className="flex-shrink-0 px-3 py-1.5 text-xs text-red-400/70 border border-red-800/40 hover:border-red-600/60 hover:text-red-300 transition-colors rounded-sm"
+                                  className="flex-shrink-0 px-3 py-1.5 text-sm text-red-400/70 border border-red-800/40 hover:border-red-600/60 hover:text-red-300 transition-colors rounded-sm"
                                 >
                                   Void
                                 </button>
@@ -554,14 +554,14 @@ export default function CourseDashboardClient({
                                 <div className="flex items-center gap-2 flex-shrink-0">
                                   <button
                                     onClick={() => setSettingsVoidId(null)}
-                                    className="px-3 py-1.5 text-xs text-white/40 border border-white/15 hover:border-white/30 transition-colors rounded-sm"
+                                    className="px-3 py-1.5 text-sm text-white/40 border border-white/15 hover:border-white/30 transition-colors rounded-sm"
                                   >
                                     Cancel
                                   </button>
                                   <button
                                     onClick={() => voidScorecard(s.liveRound.id)}
                                     disabled={settingsWorking}
-                                    className="px-3 py-1.5 text-xs text-red-300 border border-red-700/60 hover:border-red-500/70 disabled:opacity-50 transition-colors rounded-sm"
+                                    className="px-3 py-1.5 text-sm text-red-300 border border-red-700/60 hover:border-red-500/70 disabled:opacity-50 transition-colors rounded-sm"
                                   >
                                     {settingsWorking ? "…" : "Confirm"}
                                   </button>
@@ -577,15 +577,15 @@ export default function CourseDashboardClient({
 
                 {/* ── Players ── */}
                 <section>
-                  <p className="text-white/30 text-[10px] tracking-[0.2em] uppercase mb-3">Players</p>
+                  <p className="text-white/30 text-xs tracking-[0.2em] uppercase mb-3">Players</p>
                   {allPlayersList.length === 0 ? (
-                    <p className="text-white/20 text-sm border border-[#1e3d28] px-4 py-4 rounded-sm">No active or finalised players</p>
+                    <p className="text-white/20 text-base border border-[#1e3d28] px-4 py-4 rounded-sm">No active or finalised players</p>
                   ) : (
                     <div className="space-y-2">
                       {/* Active players */}
                       {activePlayersList.length > 0 && (
                         <>
-                          <p className="text-white/20 text-[10px] tracking-[0.15em] uppercase pt-1 pb-0.5">Active</p>
+                          <p className="text-white/20 text-xs tracking-[0.15em] uppercase pt-1 pb-0.5">Active</p>
                           {activePlayersList.map(({ id, name, liveRoundId, roundId }) => {
                             const isConfirming = playerConfirm?.playerId === id && playerConfirm.type === "remove"
                             return (
@@ -595,15 +595,15 @@ export default function CourseDashboardClient({
                                   ${isConfirming ? "border-red-800/50 bg-red-950/20" : "border-[#1e3d28] bg-[#0f2418]"}`}
                               >
                                 <div className="min-w-0">
-                                  <p className="text-white/70 text-sm truncate">{name}</p>
+                                  <p className="text-white/70 text-base truncate">{name}</p>
                                   {isConfirming && (
-                                    <p className="text-red-400/60 text-xs mt-0.5">Remove from scorecard?</p>
+                                    <p className="text-red-400/60 text-sm mt-0.5">Remove from scorecard?</p>
                                   )}
                                 </div>
                                 {!isConfirming ? (
                                   <button
                                     onClick={() => setPlayerConfirm({ type: "remove", playerId: id, liveRoundId, roundId, playerName: name })}
-                                    className="flex-shrink-0 px-3 py-1.5 text-xs text-red-400/60 border border-red-800/40 hover:border-red-600/60 hover:text-red-300 transition-colors rounded-sm"
+                                    className="flex-shrink-0 px-3 py-1.5 text-sm text-red-400/60 border border-red-800/40 hover:border-red-600/60 hover:text-red-300 transition-colors rounded-sm"
                                   >
                                     Remove
                                   </button>
@@ -611,14 +611,14 @@ export default function CourseDashboardClient({
                                   <div className="flex items-center gap-2 flex-shrink-0">
                                     <button
                                       onClick={() => setPlayerConfirm(null)}
-                                      className="px-3 py-1.5 text-xs text-white/40 border border-white/15 hover:border-white/30 transition-colors rounded-sm"
+                                      className="px-3 py-1.5 text-sm text-white/40 border border-white/15 hover:border-white/30 transition-colors rounded-sm"
                                     >
                                       Cancel
                                     </button>
                                     <button
                                       onClick={() => removePlayerFromScorecard(id, liveRoundId)}
                                       disabled={settingsWorking}
-                                      className="px-3 py-1.5 text-xs text-red-300 border border-red-700/60 hover:border-red-500/70 disabled:opacity-50 transition-colors rounded-sm"
+                                      className="px-3 py-1.5 text-sm text-red-300 border border-red-700/60 hover:border-red-500/70 disabled:opacity-50 transition-colors rounded-sm"
                                     >
                                       {settingsWorking ? "…" : "Confirm"}
                                     </button>
@@ -632,7 +632,7 @@ export default function CourseDashboardClient({
                       {/* Finalised players */}
                       {finalisedPlayersList.length > 0 && (
                         <>
-                          <p className="text-white/20 text-[10px] tracking-[0.15em] uppercase pt-2 pb-0.5">Finalised</p>
+                          <p className="text-white/20 text-xs tracking-[0.15em] uppercase pt-2 pb-0.5">Finalised</p>
                           {finalisedPlayersList.map(({ id, name, liveRoundId, roundId }) => {
                             const isConfirming = playerConfirm?.playerId === id && playerConfirm.type === "unfinalise"
                             return (
@@ -642,15 +642,15 @@ export default function CourseDashboardClient({
                                   ${isConfirming ? "border-[#C9A84C]/40 bg-[#C9A84C]/5" : "border-[#1e3d28] bg-[#0f2418]"}`}
                               >
                                 <div className="min-w-0">
-                                  <p className="text-white/70 text-sm truncate">{name}</p>
+                                  <p className="text-white/70 text-base truncate">{name}</p>
                                   {isConfirming && (
-                                    <p className="text-[#C9A84C]/60 text-xs mt-0.5">Reopens at hole 18. Other players on this card keep finalised state.</p>
+                                    <p className="text-[#C9A84C]/60 text-sm mt-0.5">Reopens at hole 18. Other players on this card keep finalised state.</p>
                                   )}
                                 </div>
                                 {!isConfirming ? (
                                   <button
                                     onClick={() => setPlayerConfirm({ type: "unfinalise", playerId: id, liveRoundId, roundId, playerName: name })}
-                                    className="flex-shrink-0 px-3 py-1.5 text-xs text-[#C9A84C]/60 border border-[#C9A84C]/25 hover:border-[#C9A84C]/50 hover:text-[#C9A84C] transition-colors rounded-sm"
+                                    className="flex-shrink-0 px-3 py-1.5 text-sm text-[#C9A84C]/60 border border-[#C9A84C]/25 hover:border-[#C9A84C]/50 hover:text-[#C9A84C] transition-colors rounded-sm"
                                   >
                                     Unfinalise
                                   </button>
@@ -658,14 +658,14 @@ export default function CourseDashboardClient({
                                   <div className="flex items-center gap-2 flex-shrink-0">
                                     <button
                                       onClick={() => setPlayerConfirm(null)}
-                                      className="px-3 py-1.5 text-xs text-white/40 border border-white/15 hover:border-white/30 transition-colors rounded-sm"
+                                      className="px-3 py-1.5 text-sm text-white/40 border border-white/15 hover:border-white/30 transition-colors rounded-sm"
                                     >
                                       Cancel
                                     </button>
                                     <button
                                       onClick={() => unfinalisePlayer(id, liveRoundId, roundId)}
                                       disabled={settingsWorking}
-                                      className="px-3 py-1.5 text-xs text-[#C9A84C] border border-[#C9A84C]/50 hover:border-[#C9A84C]/80 disabled:opacity-50 transition-colors rounded-sm"
+                                      className="px-3 py-1.5 text-sm text-[#C9A84C] border border-[#C9A84C]/50 hover:border-[#C9A84C]/80 disabled:opacity-50 transition-colors rounded-sm"
                                     >
                                       {settingsWorking ? "…" : "Confirm"}
                                     </button>
@@ -683,17 +683,17 @@ export default function CourseDashboardClient({
                 {/* ── Finalise Session ── */}
                 {finalisedPlayers.length > 0 && (
                   <section>
-                    <p className="text-white/30 text-[10px] tracking-[0.2em] uppercase mb-3">Finalise Session</p>
+                    <p className="text-white/30 text-xs tracking-[0.2em] uppercase mb-3">Finalise Session</p>
                     {!settingsFinaliseSession ? (
                       <button
                         onClick={() => setSettingsFinaliseSession(true)}
-                        className="w-full py-3 border border-[#C9A84C]/40 text-[#C9A84C]/70 text-sm tracking-[0.15em] uppercase hover:border-[#C9A84C]/70 hover:text-[#C9A84C] transition-colors rounded-sm"
+                        className="w-full py-3 border border-[#C9A84C]/40 text-[#C9A84C]/70 text-base tracking-[0.15em] uppercase hover:border-[#C9A84C]/70 hover:text-[#C9A84C] transition-colors rounded-sm"
                       >
                         Finalise Session
                       </button>
                     ) : (
                       <div className="border border-[#C9A84C]/30 bg-[#C9A84C]/5 rounded-sm px-4 py-4 space-y-3">
-                        <p className="text-white/60 text-sm">
+                        <p className="text-white/60 text-base">
                           {scorecards.filter(s => !s.finalised && s.playerNames.length > 0).length > 0
                             ? `${scorecards.filter(s => !s.finalised && s.playerNames.length > 0).length} active scorecard(s) will be discarded and those players released. Finalised scores are kept.`
                             : "The session will be marked as complete. Finalised scores are kept."
@@ -702,14 +702,14 @@ export default function CourseDashboardClient({
                         <div className="flex gap-2">
                           <button
                             onClick={() => setSettingsFinaliseSession(false)}
-                            className="flex-1 py-2.5 text-xs text-white/40 border border-white/15 hover:border-white/30 transition-colors rounded-sm uppercase tracking-wider"
+                            className="flex-1 py-2.5 text-sm text-white/40 border border-white/15 hover:border-white/30 transition-colors rounded-sm uppercase tracking-wider"
                           >
                             Cancel
                           </button>
                           <button
                             onClick={finaliseSession}
                             disabled={settingsWorking}
-                            className="flex-1 py-2.5 text-xs text-[#C9A84C] border border-[#C9A84C]/50 hover:border-[#C9A84C]/80 disabled:opacity-50 transition-colors rounded-sm uppercase tracking-wider"
+                            className="flex-1 py-2.5 text-sm text-[#C9A84C] border border-[#C9A84C]/50 hover:border-[#C9A84C]/80 disabled:opacity-50 transition-colors rounded-sm uppercase tracking-wider"
                           >
                             {settingsWorking ? "Finalising…" : "Confirm"}
                           </button>
@@ -721,28 +721,28 @@ export default function CourseDashboardClient({
 
                 {/* ── Void Live Session ── */}
                 <section>
-                  <p className="text-white/30 text-[10px] tracking-[0.2em] uppercase mb-3">Void Live Session</p>
+                  <p className="text-white/30 text-xs tracking-[0.2em] uppercase mb-3">Void Live Session</p>
                   {!settingsVoidSession ? (
                     <button
                       onClick={() => setSettingsVoidSession(true)}
-                      className="w-full py-3 border border-red-900/50 text-red-400/60 text-sm tracking-[0.15em] uppercase hover:border-red-700/60 hover:text-red-400 transition-colors rounded-sm"
+                      className="w-full py-3 border border-red-900/50 text-red-400/60 text-base tracking-[0.15em] uppercase hover:border-red-700/60 hover:text-red-400 transition-colors rounded-sm"
                     >
                       Clear All Live Data
                     </button>
                   ) : (
                     <div className="border border-red-800/50 bg-red-950/20 rounded-sm px-4 py-4 space-y-3">
-                      <p className="text-white/60 text-sm">This will delete all scorecards, scores, and player locks for {courseName}. This cannot be undone.</p>
+                      <p className="text-white/60 text-base">This will delete all scorecards, scores, and player locks for {courseName}. This cannot be undone.</p>
                       <div className="flex gap-2">
                         <button
                           onClick={() => setSettingsVoidSession(false)}
-                          className="flex-1 py-2.5 text-xs text-white/40 border border-white/15 hover:border-white/30 transition-colors rounded-sm uppercase tracking-wider"
+                          className="flex-1 py-2.5 text-sm text-white/40 border border-white/15 hover:border-white/30 transition-colors rounded-sm uppercase tracking-wider"
                         >
                           Cancel
                         </button>
                         <button
                           onClick={voidLiveSession}
                           disabled={settingsWorking}
-                          className="flex-1 py-2.5 text-xs text-red-300 border border-red-700/60 hover:border-red-500/70 disabled:opacity-50 transition-colors rounded-sm uppercase tracking-wider"
+                          className="flex-1 py-2.5 text-sm text-red-300 border border-red-700/60 hover:border-red-500/70 disabled:opacity-50 transition-colors rounded-sm uppercase tracking-wider"
                         >
                           {settingsWorking ? "Clearing…" : "Void Session"}
                         </button>

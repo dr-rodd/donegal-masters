@@ -96,14 +96,14 @@ function ScoreCell({ gross, pts, nr, role }: { gross: number; pts: number; nr: b
     <td className={`text-center px-1 py-1.5 min-w-[30px] ${bg}`}>
       {nr
         ? <span className="text-orange-400/70 text-xs">NR</span>
-        : <span className="text-white text-xs whitespace-nowrap">{gross}<sup className="text-white/40 text-[9px]">{pts}</sup></span>
+        : <span className="text-white text-base whitespace-nowrap">{gross}<sup className="text-white/40 text-[9px]">{pts}</sup></span>
       }
     </td>
   )
 }
 
 function EmptyCell() {
-  return <td className="text-center px-1 py-1.5 min-w-[30px] text-white/20 text-xs">—</td>
+  return <td className="text-center px-1 py-1.5 min-w-[30px] text-white/20 text-sm">—</td>
 }
 
 // ─── Team scorecard (best-ball + individual rows) ──────────────
@@ -170,14 +170,14 @@ function TeamScorecard({ team, holes, scores, roundHandicaps, roundId }: {
                   ? <ScoreCell key={h.hole.id} gross={h.gross} pts={h.pts} nr={h.nr} role={h.role} />
                   : <EmptyCell key={h.hole.id} />
                 )}
-                <td className="text-center px-2 py-1.5 text-white/60 font-semibold">{outPts}</td>
+                <td className="text-center px-2 py-1.5 text-base text-white/60 font-semibold">{outPts}</td>
                 {back.map(h => h.hasScore
                   ? <ScoreCell key={h.hole.id} gross={h.gross} pts={h.pts} nr={h.nr} role={h.role} />
                   : <EmptyCell key={h.hole.id} />
                 )}
-                <td className="text-center px-2 py-1.5 text-white/60 font-semibold">{inPts}</td>
+                <td className="text-center px-2 py-1.5 text-base text-white/60 font-semibold">{inPts}</td>
                 <td />
-                <td className="text-center px-2 py-1.5 text-[#C9A84C] font-bold">{outPts + inPts}</td>
+                <td className="text-center px-2 py-1.5 text-[#C9A84C] text-base font-bold">{outPts + inPts}</td>
               </tr>
 
               {/* Divider */}
@@ -204,8 +204,8 @@ function TeamScorecard({ team, holes, scores, roundHandicaps, roundId }: {
                       <div className="flex items-center gap-1.5">
                         <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ROLE_DOT[player.role] ?? "bg-white/30"}`} />
                         {features.scorecardViewer()
-                          ? <Link href={`/scorecard/${player.id}?from=leaderboard`} className="text-xs text-[#C9A84C] hover:text-white transition-colors">{displayName(player)}</Link>
-                          : <span className="text-xs text-[#C9A84C]">{displayName(player)}</span>
+                          ? <Link href={`/scorecard/${player.id}?from=leaderboard`} className="text-sm text-[#C9A84C] hover:text-white transition-colors">{displayName(player)}</Link>
+                          : <span className="text-sm text-[#C9A84C]">{displayName(player)}</span>
                         }
                         {player.is_composite && (
                           <span className="text-[9px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-0.5 rounded-sm leading-tight">C</span>
@@ -323,8 +323,8 @@ function OverallTab({ rounds, teams, holes, scores }: {
                     {sortedPlayers(team.players).map(p => (
                       <div key={p.id} className="flex items-center gap-1 leading-relaxed">
                         {features.scorecardViewer()
-                          ? <Link href={`/scorecard/${p.id}?from=leaderboard`} className="text-xs text-[#C9A84C]/70 hover:text-[#C9A84C] transition-colors">{displayName(p)}</Link>
-                          : <span className="text-xs text-[#C9A84C]/70">{displayName(p)}</span>
+                          ? <Link href={`/scorecard/${p.id}?from=leaderboard`} className="text-sm text-[#C9A84C]/70 hover:text-[#C9A84C] transition-colors">{displayName(p)}</Link>
+                          : <span className="text-sm text-[#C9A84C]/70">{displayName(p)}</span>
                         }
                         {p.is_composite && (
                           <span className="text-[9px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-0.5 rounded-sm leading-tight">C</span>
@@ -334,12 +334,12 @@ function OverallTab({ rounds, teams, holes, scores }: {
                   </div>
                 </td>
                 {byRound.map((pts, j) => (
-                  <td key={j} className="text-center px-3 pb-3 text-white/50 align-middle">
-                    {pts > 0 ? pts : <span className="text-white/20">—</span>}
+                  <td key={j} className="text-center px-3 pb-3 text-white/70 text-lg font-semibold align-middle">
+                    {pts > 0 ? pts : <span className="text-white/20 font-normal text-base">—</span>}
                   </td>
                 ))}
-                <td className="text-center px-4 pb-3 font-[family-name:var(--font-playfair)] text-[#C9A84C] text-xl font-bold align-middle">
-                  {total > 0 ? total : <span className="text-white/20 text-sm font-normal">—</span>}
+                <td className="text-center px-4 pb-3 font-[family-name:var(--font-playfair)] text-[#C9A84C] text-2xl font-bold align-middle">
+                  {total > 0 ? total : <span className="text-white/20 text-base font-normal">—</span>}
                 </td>
               </tr>
             </Fragment>
@@ -399,8 +399,8 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
                 {/* Mobile: logo → course name → day number, stacked */}
                 <div className="flex flex-col items-center justify-center text-center gap-1.5 px-2 py-3 sm:hidden">
                   {tab.logo && <div className="h-10 w-10 flex-shrink-0" style={logoMask(tab.logo)} />}
-                  <span className="font-[family-name:var(--font-playfair)] text-[11px] font-semibold leading-tight w-full">{tab.sub}</span>
-                  <span className={`text-[9px] tracking-[0.15em] uppercase ${isActive ? "text-[#C9A84C]/50" : "text-white/25"}`}>{tab.label}</span>
+                  <span className="font-[family-name:var(--font-playfair)] text-sm font-semibold leading-tight w-full">{tab.sub}</span>
+                  <span className={`text-xs tracking-[0.15em] uppercase ${isActive ? "text-[#C9A84C]/50" : "text-white/25"}`}>{tab.label}</span>
                 </div>
 
                 {/* Desktop: text centred, logo right — unchanged */}

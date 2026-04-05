@@ -507,14 +507,14 @@ export default function LiveScoringFlow({
     return (
       <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 py-12">
         <div className="text-center">
-          <h2 className="font-[family-name:var(--font-playfair)] text-xl text-white mb-2">Discard Scorecard?</h2>
-          <p className="text-white/40 text-sm">This voids the scorecard and releases all players. Scores will not be saved.</p>
+          <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white mb-2">Discard Scorecard?</h2>
+          <p className="text-white/40 text-base">This voids the scorecard and releases all players. Scores will not be saved.</p>
         </div>
         <div className="flex gap-3 w-full max-w-xs">
-          <button onClick={() => setCloseConfirm(false)} className="flex-1 py-3 border border-white/20 text-white/60 text-sm uppercase tracking-wider hover:border-white/40 transition-colors">
+          <button onClick={() => setCloseConfirm(false)} className="flex-1 py-3 border border-white/20 text-white/60 text-base uppercase tracking-wider hover:border-white/40 transition-colors">
             Cancel
           </button>
-          <button onClick={handleCloseRound} disabled={saving} className="flex-1 py-3 bg-red-900/60 border border-red-700/50 text-red-300 text-sm uppercase tracking-wider hover:bg-red-900/80 disabled:opacity-50 transition-colors">
+          <button onClick={handleCloseRound} disabled={saving} className="flex-1 py-3 bg-red-900/60 border border-red-700/50 text-red-300 text-base uppercase tracking-wider hover:bg-red-900/80 disabled:opacity-50 transition-colors">
             {saving ? "Voiding…" : "Discard"}
           </button>
         </div>
@@ -542,7 +542,7 @@ export default function LiveScoringFlow({
   if (step === "resuming") {
     return (
       <div className="flex items-center justify-center min-h-[calc(100dvh-57px)]">
-        <p className="text-white/30 text-sm tracking-wide">Loading scorecard…</p>
+        <p className="text-white/30 text-base tracking-wide">Loading scorecard…</p>
       </div>
     )
   }
@@ -553,26 +553,26 @@ export default function LiveScoringFlow({
     return (
       <div className="max-w-lg mx-auto w-full px-4 py-8 flex flex-col gap-6">
         <div className="text-center">
-          <p className="text-white/30 text-xs tracking-[0.2em] uppercase mb-2">No live round active</p>
-          <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white">Start Live Round</h2>
+          <p className="text-white/30 text-sm tracking-[0.2em] uppercase mb-2">No live round active</p>
+          <h2 className="font-[family-name:var(--font-playfair)] text-3xl text-white">Start Live Round</h2>
         </div>
 
         <div className="flex flex-col gap-2">
-          <label className="text-white/50 text-xs tracking-[0.15em] uppercase">Select Round</label>
+          <label className="text-white/50 text-sm tracking-[0.15em] uppercase">Select Round</label>
           {availableRounds.length === 0 ? (
-            <p className="text-white/30 text-sm">No rounds available. Rounds must be upcoming or active.</p>
+            <p className="text-white/30 text-base">No rounds available. Rounds must be upcoming or active.</p>
           ) : (
             availableRounds.map(r => (
               <button
                 key={r.id}
                 onClick={() => setActivatingRoundId(r.id)}
-                className={`w-full text-left px-4 py-3 border text-sm transition-colors
+                className={`w-full text-left px-4 py-3 border text-base transition-colors
                   ${activatingRoundId === r.id
                     ? "border-green-500 text-green-400 bg-green-900/20"
                     : "border-white/20 text-white/60 hover:border-white/40"}`}
               >
                 Round {r.round_number} — {r.courses?.name}
-                <span className={`ml-2 text-xs ${r.status === "active" ? "text-green-400" : "text-white/30"}`}>
+                <span className={`ml-2 text-sm ${r.status === "active" ? "text-green-400" : "text-white/30"}`}>
                   [{r.status}]
                 </span>
               </button>
@@ -580,12 +580,12 @@ export default function LiveScoringFlow({
           )}
         </div>
 
-        {error && <p className="text-red-400 text-sm">{error}</p>}
+        {error && <p className="text-red-400 text-base">{error}</p>}
 
         <button
           onClick={handleActivate}
           disabled={!activatingRoundId || saving || availableRounds.length === 0}
-          className={`w-full py-4 text-sm tracking-[0.2em] uppercase transition-colors
+          className={`w-full py-4 text-base tracking-[0.2em] uppercase transition-colors
             ${activatingRoundId && !saving
               ? "bg-green-700 text-white hover:bg-green-600"
               : "bg-white/10 text-white/30 cursor-not-allowed"}`}
@@ -620,7 +620,7 @@ export default function LiveScoringFlow({
     return (
       <div className="max-w-lg mx-auto w-full px-4 py-6 flex flex-col gap-5">
         <div className="flex flex-col gap-3">
-          <label className="text-white/50 text-xs tracking-[0.15em] uppercase">
+          <label className="text-white/50 text-sm tracking-[0.15em] uppercase">
             Select Players (1–4)
           </label>
 
@@ -638,7 +638,7 @@ export default function LiveScoringFlow({
                 {/* Player toggle */}
                 <button
                   onClick={() => togglePlayer(player.id)}
-                  className={`w-full flex items-center justify-between px-4 py-3 border text-sm transition-colors
+                  className={`w-full flex items-center justify-between px-4 py-3 border text-base transition-colors
                     ${isSelected
                       ? "border-[#C9A84C] text-[#C9A84C] bg-[#C9A84C]/10"
                       : "border-white/20 text-white/60 hover:border-white/40"}`}
@@ -649,7 +649,7 @@ export default function LiveScoringFlow({
                     )}
                     <span>{player.name}</span>
                   </div>
-                  <span className="text-xs opacity-50">HCP {player.handicap}</span>
+                  <span className="text-sm opacity-50">HCP {player.handicap}</span>
                 </button>
 
                 {/* Tee selector — only for selected players */}
@@ -657,7 +657,7 @@ export default function LiveScoringFlow({
                   <div className="bg-[#0d1f14] border-x border-b border-[#C9A84C]/20 px-4 py-3">
                     <div className="flex flex-wrap gap-2 mb-2">
                       {playerCourseTees.length === 0 ? (
-                        <span className="text-white/30 text-xs">No tees for this course</span>
+                        <span className="text-white/30 text-sm">No tees for this course</span>
                       ) : (
                         playerCourseTees.map(tee => {
                           const style = TEE_STYLES[tee.name] ?? { dot: "bg-white/40", active: "border-white/40 text-white/60" }
@@ -666,7 +666,7 @@ export default function LiveScoringFlow({
                             <button
                               key={tee.id}
                               onClick={() => setTeeForPlayer(player.id, tee.id)}
-                              className={`flex items-center gap-1.5 px-3 py-1.5 border text-xs tracking-wider uppercase transition-colors
+                              className={`flex items-center gap-1.5 px-3 py-1.5 border text-sm tracking-wider uppercase transition-colors
                                 ${isActive ? style.active + " bg-white/5" : "border-white/20 text-white/40 hover:border-white/40"}`}
                             >
                               <span className={`w-2 h-2 rounded-full ${style.dot}`} />
@@ -677,12 +677,12 @@ export default function LiveScoringFlow({
                       )}
                     </div>
                     {playingHcp !== null && (
-                      <p className="text-white/40 text-xs">
+                      <p className="text-white/40 text-sm">
                         Playing HC: <span className="text-[#C9A84C] font-semibold">{playingHcp}</span>
                       </p>
                     )}
                     {!selectedTeeId && playerCourseTees.length > 0 && (
-                      <p className="text-orange-400/60 text-xs">Select a tee to continue</p>
+                      <p className="text-orange-400/60 text-sm">Select a tee to continue</p>
                     )}
                   </div>
                 )}
@@ -699,13 +699,13 @@ export default function LiveScoringFlow({
             window.scrollTo({ top: 0, behavior: "instant" })
           }}
           disabled={!canStart}
-          className={`w-full py-4 text-sm tracking-[0.2em] uppercase transition-colors
+          className={`w-full py-4 text-base tracking-[0.2em] uppercase transition-colors
             ${canStart ? "bg-[#C9A84C] text-black hover:bg-[#d4b05a]" : "bg-white/10 text-white/30 cursor-not-allowed"}`}
         >
           Start Round →
         </button>
 
-        <button onClick={() => setCloseConfirm(true)} className="text-center text-white/20 text-xs tracking-widest uppercase hover:text-red-400/60 transition-colors">
+        <button onClick={() => setCloseConfirm(true)} className="text-center text-white/20 text-sm tracking-widest uppercase hover:text-red-400/60 transition-colors">
           Close Live Round
         </button>
       </div>
@@ -844,7 +844,7 @@ export default function LiveScoringFlow({
           <div className="sticky top-[57px] z-10 bg-[#0a1a0e] border-b border-[#1e3d28] px-4 py-3 flex items-center justify-between">
             <button
               onClick={() => setEditingPlayerId(null)}
-              className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors"
+              className="text-[#C9A84C] text-sm tracking-[0.2em] uppercase hover:text-white transition-colors"
             >
               ← Back
             </button>
@@ -852,7 +852,7 @@ export default function LiveScoringFlow({
               {player.teams && (
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams.color }} />
               )}
-              <span className="text-white/60 text-xs font-medium">{player.name}</span>
+              <span className="text-white/80 text-base font-semibold">{player.name}</span>
             </div>
             <div className="w-[60px]" />
           </div>
@@ -900,13 +900,13 @@ export default function LiveScoringFlow({
                   {/* Hole info row */}
                   <div className="flex items-center justify-between px-4 pt-3 pb-2">
                     <div className="flex items-baseline gap-3">
-                      <span className="font-[family-name:var(--font-playfair)] text-xl text-white leading-none w-6">{hole.hole_number}</span>
-                      <span className="text-white/45 text-sm">Par <span className="text-white font-semibold">{ePar}</span></span>
-                      <span className="text-white/25 text-xs">SI {eSI}</span>
+                      <span className="font-[family-name:var(--font-playfair)] text-2xl text-white leading-none w-6">{hole.hole_number}</span>
+                      <span className="text-white/45 text-base">Par <span className="text-white font-semibold">{ePar}</span></span>
+                      <span className="text-white/25 text-sm">SI {eSI}</span>
                     </div>
                     <button
                       onClick={toggleNR}
-                      className={`text-xs tracking-widest uppercase border rounded-sm px-2.5 py-1 transition-colors
+                      className={`text-sm tracking-widest uppercase border rounded-sm px-2.5 py-1 transition-colors
                         ${hs.isNR
                           ? "border-orange-400/60 text-orange-400 bg-orange-900/20"
                           : "border-white/15 text-white/30 hover:border-orange-400/40 hover:text-orange-400/60"}`}
@@ -943,11 +943,11 @@ export default function LiveScoringFlow({
                         flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed"
                     >+</button>
                     <div className={`flex-shrink-0 flex items-baseline gap-1 px-2.5 py-1.5 rounded-sm border ${ptsBadge}`}>
-                      <span className="text-base font-bold leading-none font-[family-name:var(--font-playfair)]">{pts ?? "·"}</span>
+                      <span className="text-lg font-bold leading-none font-[family-name:var(--font-playfair)]">{pts ?? "·"}</span>
                       <span className="text-[10px] opacity-60">pts</span>
                     </div>
                     {label && label !== "NR" && (
-                      <span className={`text-xs flex-shrink-0 ${color}`}>{label}</span>
+                      <span className={`text-sm flex-shrink-0 ${color}`}>{label}</span>
                     )}
                   </div>
                 </div>
@@ -960,7 +960,7 @@ export default function LiveScoringFlow({
             <button
               onClick={saveEditDraft}
               disabled={editSaving}
-              className="w-full py-4 bg-[#C9A84C] text-black text-sm tracking-[0.2em] uppercase font-bold
+              className="w-full py-4 bg-[#C9A84C] text-black text-base tracking-[0.2em] uppercase font-bold
                 hover:bg-[#d4b05a] disabled:opacity-50 transition-colors rounded-sm"
             >
               {editSaving ? "Saving…" : "Confirm"}
@@ -992,11 +992,11 @@ export default function LiveScoringFlow({
                     {player.teams && (
                       <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams.color }} />
                     )}
-                    <span className={`text-sm font-medium leading-tight ${isSel ? "text-white" : "text-white/55"}`}>
+                    <span className={`text-base font-medium leading-tight ${isSel ? "text-white" : "text-white/55"}`}>
                       {player.name.split(" ")[0]}
                     </span>
                   </div>
-                  <span className={`text-xs ${isSel ? "text-[#C9A84C]" : "text-white/25"}`}>HC {playingHcp}</span>
+                  <span className={`text-sm ${isSel ? "text-[#C9A84C]" : "text-white/25"}`}>HC {playingHcp}</span>
                 </button>
               )
             })}
@@ -1039,7 +1039,7 @@ export default function LiveScoringFlow({
             <div className="flex justify-end -mt-1">
               <button
                 onClick={() => enterEditMode(selectedId)}
-                className="text-[#C9A84C]/60 text-xs tracking-[0.2em] uppercase hover:text-[#C9A84C] transition-colors"
+                className="text-[#C9A84C]/60 text-sm tracking-[0.2em] uppercase hover:text-[#C9A84C] transition-colors"
               >
                 Edit →
               </button>
@@ -1047,11 +1047,11 @@ export default function LiveScoringFlow({
             <div className="border border-[#1e3d28] rounded-sm overflow-hidden">
               {/* Column headers */}
               <div className="grid grid-cols-[2.5rem_2.5rem_1fr_2.5rem_3rem] px-3 py-2 bg-[#0d1f14] border-b border-[#1e3d28]">
-                <span className="text-[10px] text-white/25 tracking-[0.15em] uppercase">H</span>
-                <span className="text-[10px] text-white/25 tracking-[0.15em] uppercase">Par</span>
-                <span className="text-[10px] text-white/25 tracking-[0.15em] uppercase">Score</span>
-                <span className="text-[10px] text-white/25 tracking-[0.15em] uppercase">SI</span>
-                <span className="text-[10px] text-white/25 tracking-[0.15em] uppercase text-right">Pts</span>
+                <span className="text-xs text-white/25 tracking-[0.15em] uppercase">H</span>
+                <span className="text-xs text-white/25 tracking-[0.15em] uppercase">Par</span>
+                <span className="text-xs text-white/25 tracking-[0.15em] uppercase">Score</span>
+                <span className="text-xs text-white/25 tracking-[0.15em] uppercase">SI</span>
+                <span className="text-xs text-white/25 tracking-[0.15em] uppercase text-right">Pts</span>
               </div>
 
               {/* Hole rows */}
@@ -1061,42 +1061,42 @@ export default function LiveScoringFlow({
                   className={`grid grid-cols-[2.5rem_2.5rem_1fr_2.5rem_3rem] px-3 py-2.5 items-center border-b border-[#1e3d28]/40
                     ${idx % 2 === 1 ? "bg-white/[0.018]" : ""}`}
                 >
-                  <span className="text-white/50 text-sm">{hole.hole_number}</span>
-                  <span className="text-white/35 text-sm">{ePar}</span>
-                  <span className={`text-sm font-semibold ${isNR ? "text-orange-400/70" : color}`}>
+                  <span className="text-white/55 text-base tabular-nums">{hole.hole_number}</span>
+                  <span className="text-white/40 text-base">{ePar}</span>
+                  <span className={`text-lg font-semibold ${isNR ? "text-orange-400/70" : color}`}>
                     {isNR ? "NR" : gross !== null ? gross : "—"}
                   </span>
-                  <span className="text-white/25 text-xs">{eSI}</span>
-                  <span className={`text-right text-sm ${ptsBadge(pts)}`}>{pts ?? "—"}</span>
+                  <span className="text-white/25 text-sm">{eSI}</span>
+                  <span className={`text-right text-lg font-semibold ${ptsBadge(pts)}`}>{pts ?? "—"}</span>
                 </div>
               ))}
 
               {/* Totals row */}
               <div className="grid grid-cols-[2.5rem_2.5rem_1fr_2.5rem_3rem] px-3 py-3 bg-[#0d1f14]">
-                <span className="text-white/30 text-xs col-span-2 self-center">Total</span>
-                <span className="text-white/60 text-sm self-center">{hasAnyScore && totalGross > 0 ? totalGross : "—"}</span>
+                <span className="text-white/30 text-sm col-span-2 self-center">Total</span>
+                <span className="text-white/70 text-lg font-semibold self-center">{hasAnyScore && totalGross > 0 ? totalGross : "—"}</span>
                 <span />
-                <span className="text-right text-[#C9A84C] font-bold text-base self-center">{totalPts}</span>
+                <span className="text-right text-[#C9A84C] font-bold text-2xl self-center">{totalPts}</span>
               </div>
             </div>
             </>
           )
         })()}
 
-        {error && <p className="text-red-400 text-sm text-center">{error}</p>}
+        {error && <p className="text-red-400 text-base text-center">{error}</p>}
 
         {/* Actions */}
         <div className="flex gap-3 pt-1">
           <button
             onClick={() => { setStep("holes"); setHoleIdx(courseHoles.length - 1) }}
-            className="flex-1 py-4 border border-white/20 text-white/60 text-sm tracking-[0.15em] uppercase hover:border-white/40 transition-colors rounded-sm"
+            className="flex-1 py-4 border border-white/20 text-white/60 text-base tracking-[0.15em] uppercase hover:border-white/40 transition-colors rounded-sm"
           >
             ← Review
           </button>
           <button
             onClick={handleCommit}
             disabled={saving}
-            className="flex-[2] py-4 bg-[#C9A84C] text-black text-sm tracking-[0.2em] uppercase font-bold hover:bg-[#d4b05a] disabled:opacity-50 transition-colors rounded-sm"
+            className="flex-[2] py-4 bg-[#C9A84C] text-black text-base tracking-[0.2em] uppercase font-bold hover:bg-[#d4b05a] disabled:opacity-50 transition-colors rounded-sm"
           >
             {saving ? "Saving…" : "Commit All"}
           </button>
@@ -1113,16 +1113,16 @@ export default function LiveScoringFlow({
       <div className="flex flex-col items-center justify-center px-6 gap-6 text-center min-h-[calc(100dvh-113px)]">
         <div className="w-16 h-16 rounded-full bg-[#C9A84C]/20 flex items-center justify-center text-[#C9A84C] text-3xl">✓</div>
         <div>
-          <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white mb-2">Scores Committed</h2>
-          <p className="text-white/40 text-sm">Saved to the official leaderboard.</p>
+          <h2 className="font-[family-name:var(--font-playfair)] text-3xl text-white mb-2">Scores Committed</h2>
+          <p className="text-white/40 text-base">Saved to the official leaderboard.</p>
         </div>
         <button
           onClick={() => { setSelectedPlayerIds([]); setPlayerTeeIds({}); setScores({}); setHoleIdx(0); setStep("setup") }}
-          className="mt-4 px-8 py-3 border border-[#C9A84C]/50 text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:bg-[#C9A84C]/10 transition-colors"
+          className="mt-4 px-8 py-3 border border-[#C9A84C]/50 text-[#C9A84C] text-sm tracking-[0.2em] uppercase hover:bg-[#C9A84C]/10 transition-colors"
         >
           Score Another Player
         </button>
-        <button onClick={() => setCloseConfirm(true)} className="text-white/20 text-xs tracking-widest uppercase hover:text-red-400/60 transition-colors">
+        <button onClick={() => setCloseConfirm(true)} className="text-white/20 text-sm tracking-widest uppercase hover:text-red-400/60 transition-colors">
           Close Live Round
         </button>
       </div>
@@ -1279,9 +1279,9 @@ function LivePlayerTile({
         {teamColor && (
           <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: teamColor }} />
         )}
-        <span className="text-white/60 text-xs font-medium tracking-wide flex-1">{playerName}</span>
-        <span className="text-[#C9A84C] text-xs font-semibold">{runningTotal} pts</span>
-        <span className="text-white/20 text-xs">HC {playingHcp}</span>
+        <span className="text-white/70 text-base font-semibold flex-1">{playerName}</span>
+        <span className="text-[#C9A84C] text-base font-bold">{runningTotal} pts</span>
+        <span className="text-white/20 text-sm">HC {playingHcp}</span>
       </div>
 
       {/* ══ MOBILE LAYOUT (hidden at sm+) ══ */}
@@ -1290,15 +1290,15 @@ function LivePlayerTile({
         {/* Row 1: hole info + NR toggle */}
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
           <div className="flex items-baseline gap-3">
-            <span className="text-white/50 text-sm">
+            <span className="text-white/50 text-base">
               Par <span className="text-white font-semibold">{effectivePar}</span>
             </span>
-            <span className="text-white/30 text-sm">SI {effectiveSI}</span>
-            {yardage && <span className="text-white/25 text-xs">{yardage} yds</span>}
+            <span className="text-white/30 text-base">SI {effectiveSI}</span>
+            {yardage && <span className="text-white/25 text-sm">{yardage} yds</span>}
           </div>
           <button
             onClick={onToggleNR}
-            className={`text-xs tracking-widest uppercase border rounded-sm px-3 py-1.5 transition-colors
+            className={`text-sm tracking-widest uppercase border rounded-sm px-3 py-1.5 transition-colors
               ${isNR
                 ? "border-orange-400/60 text-orange-400 bg-orange-900/20"
                 : "border-white/15 text-white/30 hover:border-orange-400/40 hover:text-orange-400/60"}`}
@@ -1349,14 +1349,14 @@ function LivePlayerTile({
 
         {/* Row 3: score label + pts badge */}
         <div className="flex items-center justify-between px-4 pb-4">
-          <span className={`text-sm font-semibold ${color || "text-white/15"}`}>
+          <span className={`text-base font-semibold ${color || "text-white/15"}`}>
             {label || "—"}
           </span>
           <div className={`flex items-baseline gap-1.5 px-3 py-1.5 rounded-sm border ${ptsBadge}`}>
-            <span className="text-xl font-bold leading-none font-[family-name:var(--font-playfair)]">
+            <span className="text-2xl font-bold leading-none font-[family-name:var(--font-playfair)]">
               {pts ?? "·"}
             </span>
-            <span className="text-xs opacity-60 leading-none">pts</span>
+            <span className="text-[10px] opacity-60 leading-none">pts</span>
           </div>
         </div>
 
@@ -1367,9 +1367,9 @@ function LivePlayerTile({
 
         {/* Hole info */}
         <div className="flex flex-col gap-0.5 w-20 flex-shrink-0">
-          <span className="text-white/50 text-xs">Par {effectivePar} · SI {effectiveSI}</span>
-          {yardage && <span className="text-white/40 text-xs">{yardage} yds</span>}
-          {label && <span className={`text-xs font-semibold mt-0.5 ${color}`}>{label}</span>}
+          <span className="text-white/50 text-sm">Par {effectivePar} · SI {effectiveSI}</span>
+          {yardage && <span className="text-white/40 text-sm">{yardage} yds</span>}
+          {label && <span className={`text-sm font-semibold mt-0.5 ${color}`}>{label}</span>}
         </div>
 
         {/* Score stepper + NR */}
@@ -1412,7 +1412,7 @@ function LivePlayerTile({
           </button>
           <button
             onClick={onToggleNR}
-            className={`text-xs tracking-widest uppercase border rounded-sm px-2 py-1.5 flex-shrink-0 transition-colors
+            className={`text-sm tracking-widest uppercase border rounded-sm px-2 py-1.5 flex-shrink-0 transition-colors
               ${isNR
                 ? "border-orange-400/60 text-orange-400 bg-orange-900/20"
                 : "border-white/15 text-white/30 hover:border-orange-400/40 hover:text-orange-400/60"}`}
@@ -1429,7 +1429,7 @@ function LivePlayerTile({
             : pts === 2 ? "bg-white/10 text-white"
             : pts === 1 ? "bg-white/5 text-white/50"
             : "bg-red-900/30 text-red-400/70"}`}>
-          <span className="text-base font-bold leading-none">{pts ?? "·"}</span>
+          <span className="text-lg font-bold leading-none">{pts ?? "·"}</span>
           <span className="text-[10px] opacity-60 leading-none mt-0.5">{pts !== null || isNR ? "pts" : ""}</span>
         </div>
 

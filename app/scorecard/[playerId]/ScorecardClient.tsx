@@ -76,30 +76,30 @@ function ScoreShape({ gross, par }: { gross: number; par: number }) {
   if (diff <= -2) {
     return (
       <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#C9A84C]">
-        <span className={`${f} text-base font-semibold text-[#1a0a00]`}>{gross}</span>
+        <span className={`${f} text-lg font-semibold text-[#1a0a00]`}>{gross}</span>
       </span>
     )
   }
   if (diff === -1) {
     return (
       <span className="inline-flex items-center justify-center w-8 h-8 rounded-full border-2 border-[#2d6a4f]">
-        <span className={`${f} text-base text-[#1a5235]`}>{gross}</span>
+        <span className={`${f} text-lg text-[#1a5235]`}>{gross}</span>
       </span>
     )
   }
   if (diff === 0) {
-    return <span className={`${f} text-base text-gray-700`}>{gross}</span>
+    return <span className={`${f} text-lg text-gray-700`}>{gross}</span>
   }
   if (diff === 1) {
     return (
       <span className="inline-flex items-center justify-center w-7 h-7 border border-gray-400">
-        <span className={`${f} text-sm text-gray-500`}>{gross}</span>
+        <span className={`${f} text-base text-gray-500`}>{gross}</span>
       </span>
     )
   }
   return (
     <span className="inline-flex items-center justify-center w-7 h-7 bg-gray-300">
-      <span className={`${f} text-sm text-gray-600`}>{gross}</span>
+      <span className={`${f} text-base text-gray-600`}>{gross}</span>
     </span>
   )
 }
@@ -120,15 +120,15 @@ function SubtotalRow({
 
   return (
     <tr className={`border-t-2 ${isTotal ? "border-[#1e3a22]" : "border-gray-200"} ${bg}`}>
-      <td className={`py-2 px-3 text-xs uppercase tracking-wider font-semibold ${textLabel} font-[family-name:var(--font-playfair)]`}>
+      <td className={`py-2 px-3 text-sm uppercase tracking-wider font-semibold ${textLabel} font-[family-name:var(--font-playfair)]`}>
         {label}
       </td>
-      <td className={`text-center py-2 px-2 text-sm font-semibold ${textData} ${crimson}`}>{par}</td>
+      <td className={`text-center py-2 px-2 ${isTotal ? "text-lg" : "text-base"} font-semibold ${textData} ${crimson}`}>{par}</td>
       <td className="py-2 px-2" />
-      <td className={`text-center py-2 px-2 text-sm ${textData} ${crimson}`}>
+      <td className={`text-center py-2 px-2 text-base ${textData} ${crimson}`}>
         {yards ?? "—"}
       </td>
-      <td className={`text-center py-2 px-2 text-sm font-semibold ${textData} ${crimson}`}>
+      <td className={`text-center py-2 px-2 ${isTotal ? "text-lg" : "text-base"} font-semibold ${textData} ${crimson}`}>
         {hasScores
           ? <>
               {gross > 0 ? gross : "—"}
@@ -137,7 +137,7 @@ function SubtotalRow({
           : "—"
         }
       </td>
-      <td className={`text-center py-2 px-2 text-sm ${textPts} ${crimson}`}>
+      <td className={`text-center py-2 px-2 ${isTotal ? "text-lg font-bold" : "text-base"} ${textPts} ${crimson}`}>
         {hasScores ? pts : "—"}
       </td>
     </tr>
@@ -261,8 +261,8 @@ export default function ScorecardClient({ player, rounds, holes, scores, roundHa
                   : "bg-white/[0.03] border-[#1e3d28] text-white/35 hover:text-white/60"
               }`}
             >
-              <div className="font-[family-name:var(--font-playfair)] text-sm font-semibold leading-tight">{short}</div>
-              <div className={`text-[10px] mt-0.5 tracking-[0.15em] uppercase ${active ? "text-[#C9A84C]/50" : "text-white/20"}`}>
+              <div className="font-[family-name:var(--font-playfair)] text-base font-semibold leading-tight">{short}</div>
+              <div className={`text-xs mt-0.5 tracking-[0.15em] uppercase ${active ? "text-[#C9A84C]/50" : "text-white/20"}`}>
                 Day {r.round_number}
               </div>
             </button>
@@ -312,8 +312,8 @@ export default function ScorecardClient({ player, rounds, holes, scores, roundHa
 
           {/* Card header */}
           <div className="bg-[#1a3a22] px-4 py-3 flex items-center justify-between">
-            <span className="font-[family-name:var(--font-playfair)] text-white text-base">{courseName}</span>
-            <div className={`flex items-center gap-3 text-xs ${crimson}`}>
+            <span className="font-[family-name:var(--font-playfair)] text-white text-lg">{courseName}</span>
+            <div className={`flex items-center gap-3 text-sm ${crimson}`}>
               {tee && (
                 <span className="text-[#C9A84C]/80 capitalize">{tee.name.toLowerCase()} tees</span>
               )}
@@ -330,12 +330,12 @@ export default function ScorecardClient({ player, rounds, holes, scores, roundHa
               {/* Column headers */}
               <thead>
                 <tr className="border-b-2 border-gray-200 bg-gray-50">
-                  <th className="text-left py-2 px-3 text-[11px] font-semibold text-gray-400 uppercase tracking-wide font-[family-name:var(--font-playfair)] w-10">Hole</th>
-                  <th className="text-center py-2 px-2 text-[11px] font-normal text-gray-400 uppercase tracking-wide w-9">Par</th>
-                  <th className="text-center py-2 px-2 text-[11px] font-normal text-gray-400 uppercase tracking-wide w-9">SI</th>
-                  <th className="text-center py-2 px-2 text-[11px] font-normal text-gray-400 uppercase tracking-wide w-12">Yds</th>
-                  <th className="text-center py-2 px-2 text-[11px] font-normal text-gray-400 uppercase tracking-wide">Score</th>
-                  <th className="text-center py-2 px-2 text-[11px] font-normal text-gray-400 uppercase tracking-wide w-10">Pts</th>
+                  <th className="text-left py-2 px-3 text-sm font-semibold text-gray-400 uppercase tracking-wide font-[family-name:var(--font-playfair)] w-10">Hole</th>
+                  <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-9">Par</th>
+                  <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-9">SI</th>
+                  <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-12">Yds</th>
+                  <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide">Score</th>
+                  <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-10">Pts</th>
                 </tr>
               </thead>
 
@@ -348,7 +348,7 @@ export default function ScorecardClient({ player, rounds, holes, scores, roundHa
                   const initials = compositeMap[hole.id]
                   return (
                     <tr key={hole.id} className={`border-t border-gray-100 ${isOdd ? "bg-white" : "bg-gray-50/40"}`}>
-                      <td className={`py-2.5 px-3 text-sm font-semibold text-gray-700 ${crimson}`}>
+                      <td className={`py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>
                         <div className="flex items-center gap-1">
                           {hole.hole_number}
                           {initials && (
@@ -356,9 +356,9 @@ export default function ScorecardClient({ player, rounds, holes, scores, roundHa
                           )}
                         </div>
                       </td>
-                      <td className={`text-center py-2.5 px-2 text-sm text-gray-500 ${crimson}`}>{hole.par}</td>
-                      <td className={`text-center py-2.5 px-2 text-xs text-gray-300 ${crimson}`}>{hole.stroke_index}</td>
-                      <td className={`text-center py-2.5 px-2 text-xs text-gray-400 ${crimson}`}>
+                      <td className={`text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
+                      <td className={`text-center py-2.5 px-2 text-sm text-gray-300 ${crimson}`}>{hole.stroke_index}</td>
+                      <td className={`text-center py-2.5 px-2 text-sm text-gray-400 ${crimson}`}>
                         {tee ? (getYardage(hole, tee.name) ?? "—") : "—"}
                       </td>
                       <td className="text-center py-1.5 px-2">
@@ -369,7 +369,7 @@ export default function ScorecardClient({ player, rounds, holes, scores, roundHa
                           : <span className="text-gray-200 text-sm">—</span>
                         }
                       </td>
-                      <td className={`text-center py-2.5 px-2 text-sm font-semibold ${crimson} ${
+                      <td className={`text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
                         pts == null ? "text-gray-200"
                         : pts >= 3 ? "text-[#2d6a4f]"
                         : pts === 0 ? "text-gray-300"
@@ -399,7 +399,7 @@ export default function ScorecardClient({ player, rounds, holes, scores, roundHa
                   const initials = compositeMap[hole.id]
                   return (
                     <tr key={hole.id} className={`border-t border-gray-100 ${isOdd ? "bg-white" : "bg-gray-50/40"}`}>
-                      <td className={`py-2.5 px-3 text-sm font-semibold text-gray-700 ${crimson}`}>
+                      <td className={`py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>
                         <div className="flex items-center gap-1">
                           {hole.hole_number}
                           {initials && (
@@ -407,9 +407,9 @@ export default function ScorecardClient({ player, rounds, holes, scores, roundHa
                           )}
                         </div>
                       </td>
-                      <td className={`text-center py-2.5 px-2 text-sm text-gray-500 ${crimson}`}>{hole.par}</td>
-                      <td className={`text-center py-2.5 px-2 text-xs text-gray-300 ${crimson}`}>{hole.stroke_index}</td>
-                      <td className={`text-center py-2.5 px-2 text-xs text-gray-400 ${crimson}`}>
+                      <td className={`text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
+                      <td className={`text-center py-2.5 px-2 text-sm text-gray-300 ${crimson}`}>{hole.stroke_index}</td>
+                      <td className={`text-center py-2.5 px-2 text-sm text-gray-400 ${crimson}`}>
                         {tee ? (getYardage(hole, tee.name) ?? "—") : "—"}
                       </td>
                       <td className="text-center py-1.5 px-2">
@@ -420,7 +420,7 @@ export default function ScorecardClient({ player, rounds, holes, scores, roundHa
                           : <span className="text-gray-200 text-sm">—</span>
                         }
                       </td>
-                      <td className={`text-center py-2.5 px-2 text-sm font-semibold ${crimson} ${
+                      <td className={`text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
                         pts == null ? "text-gray-200"
                         : pts >= 3 ? "text-[#2d6a4f]"
                         : pts === 0 ? "text-gray-300"
