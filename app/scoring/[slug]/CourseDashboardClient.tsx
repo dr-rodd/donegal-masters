@@ -68,6 +68,7 @@ export default function CourseDashboardClient({
   const [scorecards, setScorecards]           = useState<ScorecardInfo[]>([])
   const [loading, setLoading]                 = useState(true)
   const [dashTab, setDashTab]                 = useState<DashboardTab>("scorecards")
+  const [liveHole, setLiveHole]                           = useState<{ idx: number; total: number } | null>(null)
   const [settingsVoidId, setSettingsVoidId]               = useState<string | null>(null)
   const [settingsUnfinaliseId, setSettingsUnfinaliseId]   = useState<string | null>(null)
   const [settingsFinaliseSession, setSettingsFinaliseSession] = useState(false)
@@ -152,6 +153,7 @@ export default function CourseDashboardClient({
     setShowLiveLeaderboard(false)
     setScoringLiveRound(null)
     setIsResuming(false)
+    setLiveHole(null)
     fetchScorecards()
   }
 
@@ -305,6 +307,23 @@ export default function CourseDashboardClient({
           </h1>
           {headerRight}
         </div>
+        {view === "scoring" && liveHole && (
+          <div className="max-w-lg mx-auto px-4 pb-3">
+            <div className="flex items-center gap-3">
+              <span className="text-white/40 text-xs tabular-nums w-16">
+                Hole {liveHole.idx + 1} / {liveHole.total}
+              </span>
+              <div className="flex-1 flex gap-[2px]">
+                {Array.from({ length: liveHole.total }).map((_, i) => (
+                  <div
+                    key={i}
+                    className={`flex-1 h-1 rounded-full transition-colors ${i < liveHole.idx ? "bg-green-500/60" : i === liveHole.idx ? "bg-[#C9A84C]/70" : "bg-white/10"}`}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* ── Dashboard ── */}
@@ -649,6 +668,7 @@ export default function CourseDashboardClient({
           }}
           showLeaderboard={showLiveLeaderboard}
           onLeaderboardChange={setShowLiveLeaderboard}
+          onHoleChange={(idx, total) => setLiveHole(idx >= 0 ? { idx, total } : null)}
         />
       )}
 

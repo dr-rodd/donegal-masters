@@ -48,6 +48,9 @@ interface Props {
   /** When true and activeLiveRound is set, skip mode/setup and resume at the
    *  first unsubmitted hole using the players already locked in the round. */
   autoResume?: boolean
+  /** Called whenever the active hole changes (step=holes). Receives (-1, 0)
+   *  when not in the holes step so the parent can clear any hole display. */
+  onHoleChange?: (holeIdx: number, totalHoles: number) => void
 }
 
 type LiveStep = "activate" | "setup" | "holes" | "confirm" | "committed" | "resuming"
@@ -111,6 +114,7 @@ export default function LiveScoringFlow({
   activeLiveRound, onBack, onLiveRoundChange,
   showLeaderboard, onLeaderboardChange,
   autoResume = false,
+  onHoleChange,
 }: Props) {
   const [liveRound, setLiveRound] = useState<ActiveLiveRound | null>(activeLiveRound)
   const [step, setStep] = useState<LiveStep>(
@@ -146,6 +150,16 @@ export default function LiveScoringFlow({
   const courseHoles = courseId
     ? holes.filter(h => h.course_id === courseId).sort((a, b) => a.hole_number - b.hole_number)
     : []
+
+  // Notify parent of hole progress so it can render the progress bar in its header
+  useEffect(() => {
+    if (step === "holes" && courseHoles.length > 0) {
+      onHoleChange?.(holeIdx, courseHoles.length)
+    } else {
+      onHoleChange?.(-1, 0)
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, holeIdx, courseHoles.length])
 
   // Player setups — only for players that have a tee selected
   const playerSetups: PlayerSetup[] = selectedPlayerIds
@@ -663,6 +677,19 @@ export default function LiveScoringFlow({
     const hole = courseHoles[holeIdx]
     const existingHoleScores = scores[holeIdx] ?? {}
 
+    // Running stableford total per player across all submitted holes
+    const runningTotals: Record<string, number> = {}
+    for (const { player } of playerSetups) {
+      let total = 0
+      for (const hScores of Object.values(scores)) {
+        const hs = hScores[player.id]
+        if (!hs) continue
+        if (hs.stableford != null) total += hs.stableford
+        // isNR contributes 0 — no addition needed
+      }
+      runningTotals[player.id] = total
+    }
+
     function handleHoleBack() {
       if (holeIdx === 0) { setStep("setup"); return }
       setHoleIdx(holeIdx - 1)
@@ -731,14 +758,12 @@ export default function LiveScoringFlow({
           <div style={{ width: "50%" }}>
             <HoleCard
               hole={hole}
-              holeIdx={holeIdx}
-              totalHoles={courseHoles.length}
               playerSetups={playerSetups}
               courseId={courseId}
               existingScores={existingHoleScores}
+              runningTotals={runningTotals}
               onSubmit={handleHoleSubmit}
               onBack={handleHoleBack}
-              onVoid={() => setCloseConfirm(true)}
             />
           </div>
           {/* Right panel: live leaderboard */}
@@ -842,15 +867,15 @@ export default function LiveScoringFlow({
 // ─── HoleCard ─────────────────────────────────────────────
 
 function HoleCard({
-  hole, holeIdx, totalHoles, playerSetups, courseId,
-  existingScores, onSubmit, onBack, onVoid
+  hole, playerSetups, courseId,
+  existingScores, runningTotals, onSubmit, onBack,
 }: {
-  hole: Hole; holeIdx: number; totalHoles: number
+  hole: Hole
   playerSetups: PlayerSetup[]; courseId: string
   existingScores: Record<string, HoleScore>
+  runningTotals: Record<string, number>
   onSubmit: (scores: Record<string, HoleScore>) => void
   onBack: () => void
-  onVoid: () => void
 }) {
   const [holeScores, setHoleScores] = useState<Record<string, HoleScore>>(() => {
     const init: Record<string, HoleScore> = {}
@@ -867,7 +892,7 @@ function HoleCard({
     }
     setHoleScores(init)
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [holeIdx])
+  }, [existingScores])
 
   const allHaveGross = playerSetups.every(({ player }) => {
     const hs = holeScores[player.id]
@@ -881,30 +906,10 @@ function HoleCard({
   return (
     <div className="max-w-lg mx-auto w-full px-4 py-6 flex flex-col gap-4">
 
-      {/* Progress header: discard · dots · counter */}
-      <div className="flex items-center justify-between">
-        <button
-          onClick={onVoid}
-          className="w-7 h-7 flex items-center justify-center rounded-full border border-red-800/50
-            text-red-500/60 hover:border-red-600/70 hover:text-red-400 transition-colors"
-          aria-label="Discard scorecard"
-        >
-          ✕
-        </button>
-        <div className="flex items-center gap-0.5">
-          {Array.from({ length: totalHoles }).map((_, i) => (
-            <div key={i} className={`h-1 rounded-full transition-all
-              ${i < holeIdx ? "w-3 bg-[#C9A84C]" : i === holeIdx ? "w-4 bg-[#C9A84C]" : "w-2 bg-white/15"}`}
-            />
-          ))}
-        </div>
-        <span className="text-white/40 text-xs w-7 text-right tabular-nums">{holeIdx + 1}/{totalHoles}</span>
-      </div>
-
       {/* One tile per player */}
       <div className="flex flex-col gap-3">
         {playerSetups.map(({ player, playingHcp, tee }) => {
-          const hs  = holeScores[player.id] ?? { gross: null, isNR: false, stableford: null }
+          const hs   = holeScores[player.id] ?? { gross: null, isNR: false, stableford: null }
           const ePar = effectivePar(hole, player.gender, courseId)
           const eSI  = effectiveSI(hole, player.gender, courseId)
           return (
@@ -918,6 +923,7 @@ function HoleCard({
               score={hs.gross}
               isNR={hs.isNR}
               playingHcp={playingHcp}
+              runningTotal={runningTotals[player.id] ?? 0}
               yardage={yardageForTee(hole, tee.name)}
               onChange={v  => set(player.id, { gross: v, isNR: false })}
               onToggleNR={() => set(player.id, hs.isNR ? { isNR: false, gross: null } : { isNR: true, gross: null })}
@@ -959,7 +965,7 @@ function HoleCard({
 
 function LivePlayerTile({
   hole, effectivePar, effectiveSI, playerName, teamColor,
-  score, isNR, playingHcp, yardage,
+  score, isNR, playingHcp, yardage, runningTotal,
   onChange, onToggleNR,
 }: {
   hole: Hole
@@ -971,6 +977,7 @@ function LivePlayerTile({
   isNR: boolean
   playingHcp: number
   yardage?: number | null
+  runningTotal: number
   onChange: (v: number | null) => void
   onToggleNR: () => void
 }) {
@@ -1014,7 +1021,8 @@ function LivePlayerTile({
           <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: teamColor }} />
         )}
         <span className="text-white/60 text-xs font-medium tracking-wide flex-1">{playerName}</span>
-        <span className="text-white/25 text-xs">HC {playingHcp}</span>
+        <span className="text-[#C9A84C] text-xs font-semibold">{runningTotal} pts</span>
+        <span className="text-white/20 text-xs">HC {playingHcp}</span>
       </div>
 
       {/* ══ MOBILE LAYOUT (hidden at sm+) ══ */}
@@ -1023,9 +1031,6 @@ function LivePlayerTile({
         {/* Row 1: hole info + NR toggle */}
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
           <div className="flex items-baseline gap-3">
-            <span className="font-[family-name:var(--font-playfair)] text-3xl text-white leading-none w-8">
-              {hole.hole_number}
-            </span>
             <span className="text-white/50 text-sm">
               Par <span className="text-white font-semibold">{effectivePar}</span>
             </span>
@@ -1103,11 +1108,6 @@ function LivePlayerTile({
 
         {/* Hole info */}
         <div className="flex flex-col gap-0.5 w-20 flex-shrink-0">
-          <span className="text-white/60 text-sm">
-            Hole <span className="font-[family-name:var(--font-playfair)] text-white font-semibold">
-              {hole.hole_number}
-            </span>
-          </span>
           <span className="text-white/50 text-xs">Par {effectivePar} · SI {effectiveSI}</span>
           {yardage && <span className="text-white/40 text-xs">{yardage} yds</span>}
           {label && <span className={`text-xs font-semibold mt-0.5 ${color}`}>{label}</span>}
