@@ -79,6 +79,9 @@ function shotsReceived(si: number, playingHcp: number) {
 function calcStableford(gross: number, par: number, si: number, playingHcp: number) {
   return Math.max(0, par + 2 - (gross - shotsReceived(si, playingHcp)))
 }
+function nrGross(par: number, si: number, playingHcp: number) {
+  return par + 2 + shotsReceived(si, playingHcp)
+}
 
 function effectivePar(hole: Hole, gender: string, courseId: string) {
   if (gender === "F" && courseId === ST_PATRICKS_COURSE_ID && hole.par_ladies) {
@@ -288,19 +291,21 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
         )
       )
 
-      // 2. Upsert scores
+      // 2. Upsert scores — every hole for every player; missing/blank → NR
+      const courseId = selectedRound.courses?.id ?? ""
       const scoreRows: any[] = []
-      for (const [hIdxStr, holeScores] of Object.entries(scores)) {
-        const hIdx = Number(hIdxStr)
-        const hole = courseHoles[hIdx]
-        if (!hole) continue
-        for (const [playerId, hs] of Object.entries(holeScores)) {
-          if (hs.gross === null) continue
+      for (const [hIdx, hole] of courseHoles.entries()) {
+        for (const { player, playingHcp } of playerSetups) {
+          const hs = scores[hIdx]?.[player.id]
+          const noReturn = hs?.gross == null
+          const p = effectivePar(hole, player.gender, courseId)
+          const si = effectiveSI(hole, player.gender, courseId)
           scoreRows.push({
-            player_id: playerId,
+            player_id: player.id,
             hole_id: hole.id,
             round_id: selectedRound.id,
-            gross_score: hs.gross,
+            gross_score: noReturn ? nrGross(p, si, playingHcp) : hs!.gross!,
+            no_return: noReturn,
           })
         }
       }

@@ -456,21 +456,18 @@ export default function LiveScoringFlow({
         )
       )
 
-      // 3. Upsert scores
+      // 3. Upsert scores — every hole for every player; missing/blank → NR
       const scoreRows: any[] = []
-      for (const [hIdxStr, holeScores] of Object.entries(scores)) {
-        const hole = courseHoles[Number(hIdxStr)]
-        if (!hole) continue
-        for (const [playerId, hs] of Object.entries(holeScores)) {
-          if (hs.gross === null && !hs.isNR) continue
-          const setup = playerSetups.find(ps => ps.player.id === playerId)
-          if (!setup) continue
+      for (const [hIdx, hole] of courseHoles.entries()) {
+        for (const setup of playerSetups) {
+          const hs = scores[hIdx]?.[setup.player.id]
+          const noReturn = hs?.isNR === true || hs?.gross == null
           const p = effectivePar(hole, setup.player.gender, courseId)
           const si = effectiveSI(hole, setup.player.gender, courseId)
-          const gross = hs.isNR ? nrGross(p, si, setup.playingHcp) : hs.gross!
           scoreRows.push({
-            player_id: playerId, hole_id: hole.id, round_id: roundId,
-            gross_score: gross, no_return: hs.isNR ?? false,
+            player_id: setup.player.id, hole_id: hole.id, round_id: roundId,
+            gross_score: noReturn ? nrGross(p, si, setup.playingHcp) : hs!.gross!,
+            no_return: noReturn,
           })
         }
       }
