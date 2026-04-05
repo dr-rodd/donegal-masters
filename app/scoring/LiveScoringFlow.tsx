@@ -393,10 +393,9 @@ export default function LiveScoringFlow({
         .in("player_id", playerSetups.map(p => p.player.id))
         .eq("round_id", roundId)
 
-      // 5. Release player locks
-      await unlockPlayers()
-
-      // 6. Finalise the live round and return to the course portal
+      // 5. Finalise the live round and return to the course portal
+      // Note: player locks are intentionally kept so the live leaderboard
+      // continues to display finalised players. Locks are only removed on discard.
       await supabase
         .from("live_rounds")
         .update({ status: "finalised", closed_at: new Date().toISOString() })
