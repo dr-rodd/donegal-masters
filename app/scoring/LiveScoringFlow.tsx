@@ -94,6 +94,15 @@ function yardageForTee(hole: Hole, teeName: string): number | null {
   const key = `yardage_${teeName.toLowerCase()}` as keyof Hole
   return (hole[key] as number | undefined) ?? null
 }
+function scoreToPar(gross: number, par: number): { label: string; color: string } {
+  const d = gross - par
+  if (d <= -3) return { label: "Albatross", color: "text-[#C9A84C]" }
+  if (d === -2) return { label: "Eagle",    color: "text-[#C9A84C]" }
+  if (d === -1) return { label: "Birdie",   color: "text-emerald-400" }
+  if (d === 0)  return { label: "Par",      color: "text-white/50" }
+  if (d === 1)  return { label: "Bogey",    color: "text-orange-400/80" }
+  return { label: `+${d}`, color: "text-red-400/70" }
+}
 
 // ─── Main component ───────────────────────────────────────
 
@@ -870,118 +879,302 @@ function HoleCard({
   }
 
   return (
-    <div className="max-w-lg mx-auto w-full px-4 py-6 flex flex-col gap-5">
-      {/* Progress */}
+    <div className="max-w-lg mx-auto w-full px-4 py-6 flex flex-col gap-4">
+
+      {/* Progress header: discard · dots · counter */}
       <div className="flex items-center justify-between">
-        <button onClick={onBack} className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase">← Back</button>
+        <button
+          onClick={onVoid}
+          className="w-7 h-7 flex items-center justify-center rounded-full border border-red-800/50
+            text-red-500/60 hover:border-red-600/70 hover:text-red-400 transition-colors"
+          aria-label="Discard scorecard"
+        >
+          ✕
+        </button>
         <div className="flex items-center gap-0.5">
           {Array.from({ length: totalHoles }).map((_, i) => (
-            <div key={i} className={`h-1 rounded-full transition-all ${i < holeIdx ? "w-3 bg-[#C9A84C]" : i === holeIdx ? "w-4 bg-[#C9A84C]" : "w-2 bg-white/15"}`} />
+            <div key={i} className={`h-1 rounded-full transition-all
+              ${i < holeIdx ? "w-3 bg-[#C9A84C]" : i === holeIdx ? "w-4 bg-[#C9A84C]" : "w-2 bg-white/15"}`}
+            />
           ))}
         </div>
-        <div className="flex items-center gap-2">
-          <span className="text-white/40 text-xs">{holeIdx + 1}/{totalHoles}</span>
-          <button
-            onClick={onVoid}
-            className="w-6 h-6 flex items-center justify-center rounded-full border border-red-800/50 text-red-500/60 hover:border-red-600/70 hover:text-red-400 transition-colors"
-            aria-label="Discard scorecard"
-          >
-            ✕
-          </button>
-        </div>
+        <span className="text-white/40 text-xs w-7 text-right tabular-nums">{holeIdx + 1}/{totalHoles}</span>
       </div>
 
-      {/* Hole info — use men's par for display; per-player effective par shown in their section */}
-      <div className="border border-[#1e3d28] px-5 py-4 flex items-center justify-between bg-[#0d2015]">
-        <div>
-          <div className="text-white/40 text-[10px] tracking-[0.2em] uppercase">Hole</div>
-          <div className="font-[family-name:var(--font-playfair)] text-4xl text-white leading-none">{hole.hole_number}</div>
-        </div>
-        <div className="text-center">
-          <div className="text-white/40 text-[10px] tracking-[0.2em] uppercase">Par</div>
-          <div className="text-2xl font-bold text-[#C9A84C]">{hole.par}</div>
-        </div>
-        <div className="text-center">
-          <div className="text-white/40 text-[10px] tracking-[0.2em] uppercase">SI</div>
-          <div className="text-2xl font-bold text-white/70">{hole.stroke_index}</div>
-        </div>
-      </div>
-
-      {/* Per-player scoring sections */}
-      <div className="flex flex-col gap-4">
+      {/* One tile per player */}
+      <div className="flex flex-col gap-3">
         {playerSetups.map(({ player, playingHcp, tee }) => {
-          const hs = holeScores[player.id] ?? { gross: null, isNR: false, stableford: null }
-          const par = effectivePar(hole, player.gender, courseId)
-          const si = effectiveSI(hole, player.gender, courseId)
-          const shots = shotsReceived(si, playingHcp)
-          const netParGross = par + shots
-          const stableford = hs.isNR ? 0 : hs.gross !== null ? calcStableford(hs.gross, par, si, playingHcp) : null
-          const yardage = yardageForTee(hole, tee.name)
-
+          const hs  = holeScores[player.id] ?? { gross: null, isNR: false, stableford: null }
+          const ePar = effectivePar(hole, player.gender, courseId)
+          const eSI  = effectiveSI(hole, player.gender, courseId)
           return (
-            <div key={player.id} className="border border-[#1e3d28] bg-[#0d2015] px-4 py-4">
-              {/* Name + handicap info */}
-              <div className="flex items-center justify-between mb-4">
-                <div className="flex items-center gap-2">
-                  {player.teams && <span className="w-2 h-2 rounded-full" style={{ backgroundColor: player.teams.color }} />}
-                  <span className="text-sm text-white/80">{player.name}</span>
-                  {yardage && <span className="text-white/30 text-xs">{yardage}y</span>}
-                </div>
-                <div className="flex items-center gap-2 text-xs text-white/30">
-                  <span>+{shots} shots</span>
-                  {stableford !== null && (
-                    <span className={`font-bold ${stableford >= 3 ? "text-[#C9A84C]" : stableford === 0 ? "text-red-400/70" : "text-white/60"}`}>
-                      {stableford}pts
-                    </span>
-                  )}
-                </div>
-              </div>
-
-              {/* Gross score */}
-              {!hs.isNR && (
-                <div className="flex items-center gap-3 mb-3">
-                  <button
-                    onClick={() => set(player.id, { gross: Math.max(1, (hs.gross ?? netParGross) - 1), isNR: false })}
-                    className="flex-1 h-16 rounded-sm border border-white/20 text-white/70 text-3xl hover:border-white/50 hover:text-white transition-colors active:bg-white/10"
-                  >−</button>
-                  <div className="text-center min-w-[3.5rem]">
-                    <div className="text-5xl font-bold text-white leading-none">{hs.gross ?? "—"}</div>
-                    {hs.gross !== null && (
-                      <div className={`text-xs mt-1 ${hs.gross - par <= -2 ? "text-[#C9A84C]" : hs.gross - par === -1 ? "text-emerald-400" : hs.gross - par === 0 ? "text-white/40" : hs.gross - par === 1 ? "text-orange-400/70" : "text-red-400/70"}`}>
-                        {hs.gross - par <= -2 ? "Eagle" : hs.gross - par === -1 ? "Birdie" : hs.gross - par === 0 ? "Par" : hs.gross - par === 1 ? "Bogey" : `+${hs.gross - par}`}
-                      </div>
-                    )}
-                  </div>
-                  <button
-                    onClick={() => set(player.id, { gross: (hs.gross ?? netParGross) + 1, isNR: false })}
-                    className="flex-1 h-16 rounded-sm border border-white/20 text-white/70 text-3xl hover:border-white/50 hover:text-white transition-colors active:bg-white/10"
-                  >+</button>
-                </div>
-              )}
-
-              {/* NR button */}
-              <button
-                onClick={() => set(player.id, hs.isNR ? { isNR: false, gross: null } : { isNR: true, gross: null })}
-                className={`w-full py-2.5 rounded-sm text-xs tracking-[0.15em] uppercase border transition-colors
-                  ${hs.isNR
-                    ? "border-red-500/60 text-red-400 bg-red-900/20"
-                    : "border-white/15 text-white/35 hover:border-white/30 hover:text-white/50"}`}
-              >
-                {hs.isNR ? "NR — tap to clear" : "NR"}
-              </button>
-            </div>
+            <LivePlayerTile
+              key={player.id}
+              hole={hole}
+              effectivePar={ePar}
+              effectiveSI={eSI}
+              playerName={player.name}
+              teamColor={player.teams?.color}
+              score={hs.gross}
+              isNR={hs.isNR}
+              playingHcp={playingHcp}
+              yardage={yardageForTee(hole, tee.name)}
+              onChange={v  => set(player.id, { gross: v, isNR: false })}
+              onToggleNR={() => set(player.id, hs.isNR ? { isNR: false, gross: null } : { isNR: true, gross: null })}
+            />
           )
         })}
       </div>
 
-      <button
-        onClick={() => onSubmit(holeScores)}
-        disabled={!allHaveGross}
-        className={`w-full py-4 text-sm tracking-[0.2em] uppercase font-semibold transition-colors
-          ${allHaveGross ? "bg-[#C9A84C] text-black hover:bg-[#d4b05a]" : "bg-white/10 text-white/30 cursor-not-allowed"}`}
-      >
-        {holeIdx < totalHoles - 1 ? `Next Hole (${holeIdx + 2}) →` : "Finish Round →"}
-      </button>
+      {/* Left / right navigation arrows */}
+      <div className="flex gap-3 pt-1">
+        <button
+          onClick={onBack}
+          className="flex-1 py-4 border border-white/20 text-white/50 text-2xl
+            hover:border-white/40 hover:text-white/70 active:bg-white/5 transition-colors rounded-sm"
+          aria-label="Previous hole"
+        >
+          ←
+        </button>
+        <button
+          onClick={() => onSubmit(holeScores)}
+          disabled={!allHaveGross}
+          className="flex-[2] py-4 bg-[#C9A84C] text-black text-2xl font-bold
+            hover:bg-[#d4b05a] disabled:opacity-30 disabled:cursor-not-allowed
+            active:scale-[0.98] transition-all rounded-sm"
+          aria-label="Next hole"
+        >
+          →
+        </button>
+      </div>
+
+    </div>
+  )
+}
+
+// ─── LivePlayerTile ───────────────────────────────────────
+// Visual clone of ScoreEntryForm's HoleCard tile, adapted for the live
+// scoring context: accepts pre-computed effectivePar / effectiveSI and
+// renders a player name header above the hole info row.
+
+function LivePlayerTile({
+  hole, effectivePar, effectiveSI, playerName, teamColor,
+  score, isNR, playingHcp, yardage,
+  onChange, onToggleNR,
+}: {
+  hole: Hole
+  effectivePar: number
+  effectiveSI: number
+  playerName: string
+  teamColor?: string
+  score: number | null
+  isNR: boolean
+  playingHcp: number
+  yardage?: number | null
+  onChange: (v: number | null) => void
+  onToggleNR: () => void
+}) {
+  const netParGross = effectivePar + shotsReceived(effectiveSI, playingHcp)
+  const hasScore    = score !== null
+
+  const pts = isNR ? 0 : hasScore ? calcStableford(score, effectivePar, effectiveSI, playingHcp) : null
+  const { label, color } = isNR
+    ? { label: "No Return", color: "text-orange-400/70" }
+    : hasScore ? scoreToPar(score, effectivePar)
+    : { label: "", color: "" }
+
+  const ptsBadge =
+    isNR         ? "border-orange-900/50 bg-orange-900/30 text-orange-400/80" :
+    pts === null ? "border-white/10 text-white/15" :
+    pts >= 3     ? "border-[#C9A84C] bg-[#C9A84C]/15 text-[#C9A84C]" :
+    pts === 2    ? "border-white/20 bg-white/5 text-white" :
+    pts === 1    ? "border-white/10 bg-transparent text-white/40" :
+                   "border-red-900/40 bg-red-900/20 text-red-400/70"
+
+  function handleStep(delta: number) {
+    if (isNR) return
+    if (score === null) onChange(netParGross)
+    else onChange(Math.max(1, Math.min(12, score + delta)))
+  }
+
+  function handleInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const v = e.target.value
+    if (v === "") { onChange(null); return }
+    const n = parseInt(v, 10)
+    if (!isNaN(n) && n >= 1 && n <= 12) onChange(n)
+  }
+
+  return (
+    <div className={`bg-[#0f2418] border rounded-sm transition-colors
+      ${isNR ? "border-orange-900/50" : "border-[#1e3d28]"}`}>
+
+      {/* Player name header */}
+      <div className="flex items-center gap-2 px-4 pt-3 pb-2 border-b border-white/[0.06]">
+        {teamColor && (
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: teamColor }} />
+        )}
+        <span className="text-white/60 text-xs font-medium tracking-wide flex-1">{playerName}</span>
+        <span className="text-white/25 text-xs">HC {playingHcp}</span>
+      </div>
+
+      {/* ══ MOBILE LAYOUT (hidden at sm+) ══ */}
+      <div className="sm:hidden">
+
+        {/* Row 1: hole info + NR toggle */}
+        <div className="flex items-center justify-between px-4 pt-3 pb-2">
+          <div className="flex items-baseline gap-3">
+            <span className="font-[family-name:var(--font-playfair)] text-3xl text-white leading-none w-8">
+              {hole.hole_number}
+            </span>
+            <span className="text-white/50 text-sm">
+              Par <span className="text-white font-semibold">{effectivePar}</span>
+            </span>
+            <span className="text-white/30 text-sm">SI {effectiveSI}</span>
+            {yardage && <span className="text-white/25 text-xs">{yardage} yds</span>}
+          </div>
+          <button
+            onClick={onToggleNR}
+            className={`text-xs tracking-widest uppercase border rounded-sm px-3 py-1.5 transition-colors
+              ${isNR
+                ? "border-orange-400/60 text-orange-400 bg-orange-900/20"
+                : "border-white/15 text-white/30 hover:border-orange-400/40 hover:text-orange-400/60"}`}
+          >
+            NR
+          </button>
+        </div>
+
+        {/* Row 2: score stepper */}
+        <div className="flex items-center gap-3 px-4 pb-3">
+          <button
+            onClick={() => handleStep(-1)}
+            disabled={isNR}
+            className="flex-1 h-16 rounded-sm border border-[#1e3d28] text-white/60 text-4xl leading-none
+              hover:border-[#C9A84C] hover:text-[#C9A84C] active:scale-95 transition-all
+              flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed"
+          >
+            −
+          </button>
+          {isNR ? (
+            <span className="font-[family-name:var(--font-playfair)] text-4xl flex items-center justify-center
+              text-white/20 w-20 h-16">
+              —
+            </span>
+          ) : (
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={score === null ? "" : String(score)}
+              onChange={handleInputChange}
+              className={`font-[family-name:var(--font-playfair)] text-4xl text-center bg-transparent
+                outline-none text-white caret-[#C9A84C] border rounded-sm transition-colors p-0 w-20 h-16
+                ${score === null ? "border-[#C9A84C]/50" : "border-[#C9A84C]/15"}`}
+              style={{ lineHeight: "4rem" }}
+            />
+          )}
+          <button
+            onClick={() => handleStep(1)}
+            disabled={isNR}
+            className="flex-1 h-16 rounded-sm border border-[#1e3d28] text-white/60 text-4xl leading-none
+              hover:border-[#C9A84C] hover:text-[#C9A84C] active:scale-95 transition-all
+              flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed"
+          >
+            +
+          </button>
+        </div>
+
+        {/* Row 3: score label + pts badge */}
+        <div className="flex items-center justify-between px-4 pb-4">
+          <span className={`text-sm font-semibold ${color || "text-white/15"}`}>
+            {label || "—"}
+          </span>
+          <div className={`flex items-baseline gap-1.5 px-3 py-1.5 rounded-sm border ${ptsBadge}`}>
+            <span className="text-xl font-bold leading-none font-[family-name:var(--font-playfair)]">
+              {pts ?? "·"}
+            </span>
+            <span className="text-xs opacity-60 leading-none">pts</span>
+          </div>
+        </div>
+
+      </div>
+
+      {/* ══ DESKTOP LAYOUT (hidden below sm) ══ */}
+      <div className="hidden sm:flex items-center gap-3 px-4 py-4">
+
+        {/* Hole info */}
+        <div className="flex flex-col gap-0.5 w-20 flex-shrink-0">
+          <span className="text-white/60 text-sm">
+            Hole <span className="font-[family-name:var(--font-playfair)] text-white font-semibold">
+              {hole.hole_number}
+            </span>
+          </span>
+          <span className="text-white/50 text-xs">Par {effectivePar} · SI {effectiveSI}</span>
+          {yardage && <span className="text-white/40 text-xs">{yardage} yds</span>}
+          {label && <span className={`text-xs font-semibold mt-0.5 ${color}`}>{label}</span>}
+        </div>
+
+        {/* Score stepper + NR */}
+        <div className="flex items-center gap-2 flex-1 justify-center">
+          <button
+            onClick={() => handleStep(-1)}
+            disabled={isNR}
+            className="w-14 h-14 rounded-full border border-[#1e3d28] text-white/60 text-4xl leading-none
+              hover:border-[#C9A84C] hover:text-[#C9A84C] active:scale-95 transition-all
+              flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed"
+          >
+            −
+          </button>
+          {isNR ? (
+            <span className="font-[family-name:var(--font-playfair)] text-4xl flex items-center justify-center
+              text-white/20 w-14 h-14">
+              —
+            </span>
+          ) : (
+            <input
+              type="text"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={score === null ? "" : String(score)}
+              onChange={handleInputChange}
+              className={`font-[family-name:var(--font-playfair)] text-4xl text-center bg-transparent
+                outline-none text-white caret-[#C9A84C] border rounded-sm transition-colors p-0 w-14 h-14
+                ${score === null ? "border-[#C9A84C]/50" : "border-[#C9A84C]/15"}`}
+              style={{ lineHeight: "3.5rem" }}
+            />
+          )}
+          <button
+            onClick={() => handleStep(1)}
+            disabled={isNR}
+            className="w-14 h-14 rounded-full border border-[#1e3d28] text-white/60 text-4xl leading-none
+              hover:border-[#C9A84C] hover:text-[#C9A84C] active:scale-95 transition-all
+              flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed"
+          >
+            +
+          </button>
+          <button
+            onClick={onToggleNR}
+            className={`text-xs tracking-widest uppercase border rounded-sm px-2 py-1.5 flex-shrink-0 transition-colors
+              ${isNR
+                ? "border-orange-400/60 text-orange-400 bg-orange-900/20"
+                : "border-white/15 text-white/30 hover:border-orange-400/40 hover:text-orange-400/60"}`}
+          >
+            NR
+          </button>
+        </div>
+
+        {/* Pts badge */}
+        <div className={`w-9 h-9 rounded-sm flex flex-col items-center justify-center flex-shrink-0
+          ${isNR ? "bg-orange-900/40 text-orange-400/70"
+            : pts === null ? "bg-transparent text-white/15"
+            : pts >= 3 ? "bg-[#C9A84C] text-black"
+            : pts === 2 ? "bg-white/10 text-white"
+            : pts === 1 ? "bg-white/5 text-white/50"
+            : "bg-red-900/30 text-red-400/70"}`}>
+          <span className="text-base font-bold leading-none">{pts ?? "·"}</span>
+          <span className="text-[10px] opacity-60 leading-none mt-0.5">{pts !== null || isNR ? "pts" : ""}</span>
+        </div>
+
+      </div>
     </div>
   )
 }
