@@ -53,7 +53,7 @@ interface Props {
   onHoleChange?: (holeIdx: number, totalHoles: number) => void
 }
 
-type LiveStep = "activate" | "setup" | "holes" | "confirm" | "committed" | "resuming"
+type LiveStep = "activate" | "setup" | "holes" | "summary" | "committed" | "resuming"
 
 // ─── Constants ────────────────────────────────────────────
 
@@ -131,7 +131,7 @@ export default function LiveScoringFlow({
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [closeConfirm, setCloseConfirm] = useState(false)
-  const [showFinalisePrompt, setShowFinalisePrompt] = useState(false)
+  const [selectedSummaryPlayerId, setSelectedSummaryPlayerId] = useState("")
 
   // Player locking
   const [lockedPlayerIds, setLockedPlayerIds] = useState<string[]>([])
@@ -269,7 +269,8 @@ export default function LiveScoringFlow({
 
       if (resumeIdx >= cHoles.length) {
         setHoleIdx(cHoles.length - 1)
-        setStep("confirm")
+        setSelectedSummaryPlayerId(lockedIds[0] ?? "")
+        setStep("summary")
       } else {
         setHoleIdx(resumeIdx)
         setStep("holes")
@@ -439,43 +440,6 @@ export default function LiveScoringFlow({
           <button onClick={handleCloseRound} disabled={saving} className="flex-1 py-3 bg-red-900/60 border border-red-700/50 text-red-300 text-sm uppercase tracking-wider hover:bg-red-900/80 disabled:opacity-50 transition-colors">
             {saving ? "Voiding…" : "Discard"}
           </button>
-        </div>
-      </div>
-    )
-  }
-
-  // ─── Finalise prompt ──────────────────────────────────────
-
-  if (showFinalisePrompt) {
-    return (
-      <div className="flex flex-col items-center justify-end sm:justify-center min-h-[calc(100dvh-57px)] px-4 pb-8 sm:pb-0">
-        <div className="w-full max-w-sm space-y-5">
-          <div className="text-center space-y-2.5">
-            <div className="w-14 h-14 rounded-full bg-[#C9A84C]/20 flex items-center justify-center mx-auto">
-              <span className="text-[#C9A84C] text-3xl leading-none">✓</span>
-            </div>
-            <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white">Hole 18 Complete</h2>
-            <p className="text-white/40 text-sm">Finalise the scorecard and commit scores to the leaderboard?</p>
-          </div>
-
-          {error && <p className="text-red-400 text-xs text-center">{error}</p>}
-
-          <div className="space-y-2.5">
-            <button
-              onClick={handleCommit}
-              disabled={saving}
-              className="w-full py-4 bg-[#C9A84C] text-black text-sm tracking-[0.2em] uppercase font-bold hover:bg-[#d4b05a] disabled:opacity-50 transition-colors rounded-sm"
-            >
-              {saving ? "Saving…" : "Finalise Scorecard"}
-            </button>
-            <button
-              onClick={() => { setShowFinalisePrompt(false); setStep("confirm") }}
-              disabled={saving}
-              className="w-full py-3 border border-white/20 text-white/40 text-sm tracking-[0.15em] uppercase hover:border-white/40 hover:text-white/60 disabled:opacity-50 transition-colors rounded-sm"
-            >
-              Review Scores First
-            </button>
-          </div>
         </div>
       </div>
     )
@@ -733,7 +697,8 @@ export default function LiveScoringFlow({
         setHoleIdx(holeIdx + 1)
         window.scrollTo({ top: 0, behavior: "instant" })
       } else {
-        setShowFinalisePrompt(true)
+        setSelectedSummaryPlayerId(playerSetups[0]?.player.id ?? "")
+        setStep("summary")
         window.scrollTo({ top: 0, behavior: "instant" })
       }
     }
@@ -782,58 +747,133 @@ export default function LiveScoringFlow({
     )
   }
 
-  // ─── Confirm ──────────────────────────────────────────────
+  // ─── Summary ──────────────────────────────────────────────
 
-  if (step === "confirm") {
-    const totals = playerSetups.map(({ player, playingHcp }) => {
-      let pts = 0
-      for (const [hIdxStr, hs] of Object.entries(scores)) {
-        const hole = courseHoles[Number(hIdxStr)]
-        if (!hole) continue
-        const entry = hs[player.id]
-        if (entry?.gross != null) {
-          pts += calcStableford(entry.gross,
-            effectivePar(hole, player.gender, courseId),
-            effectiveSI(hole, player.gender, courseId),
-            playingHcp)
-        }
-      }
-      return { player, pts }
-    })
+  if (step === "summary") {
+    const selectedId = selectedSummaryPlayerId || playerSetups[0]?.player.id || ""
+    const selectedSetup = playerSetups.find(ps => ps.player.id === selectedId) ?? playerSetups[0]
 
     return (
-      <div className="max-w-lg mx-auto w-full px-4 py-8 flex flex-col gap-6">
-        <div className="text-center">
-          <div className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase mb-2">Round Complete</div>
-          <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white mb-1">Commit to Leaderboard?</h2>
-          <p className="text-white/40 text-sm">Saves as official scores. Replaces any previous entry for this round.</p>
-        </div>
+      <div className="max-w-lg mx-auto w-full px-4 pt-5 pb-8 flex flex-col gap-4">
 
-        <div className="border border-[#1e3d28] divide-y divide-[#1e3d28]">
-          {totals.map(({ player, pts }) => (
-            <div key={player.id} className="flex items-center justify-between px-4 py-3">
-              <div className="flex items-center gap-2">
-                {player.teams && <span className="w-2 h-2 rounded-full" style={{ backgroundColor: player.teams.color }} />}
-                <span className="text-sm text-white/80">{player.name}</span>
+        {/* Player selector tiles — 2+ players only */}
+        {playerSetups.length >= 2 && (
+          <div className="flex gap-2 overflow-x-auto pb-0.5 -mx-4 px-4">
+            {playerSetups.map(({ player, playingHcp }) => {
+              const isSel = player.id === selectedId
+              return (
+                <button
+                  key={player.id}
+                  onClick={() => setSelectedSummaryPlayerId(player.id)}
+                  className={`flex-shrink-0 flex flex-col items-start px-3.5 py-2.5 rounded-sm border transition-colors min-w-[100px]
+                    ${isSel
+                      ? "border-[#C9A84C] bg-[#C9A84C]/10"
+                      : "border-[#1e3d28] bg-[#0f2418] hover:border-white/20"}`}
+                >
+                  <div className="flex items-center gap-1.5 mb-1">
+                    {player.teams && (
+                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams.color }} />
+                    )}
+                    <span className={`text-sm font-medium leading-tight ${isSel ? "text-white" : "text-white/55"}`}>
+                      {player.name.split(" ")[0]}
+                    </span>
+                  </div>
+                  <span className={`text-xs ${isSel ? "text-[#C9A84C]" : "text-white/25"}`}>HC {playingHcp}</span>
+                </button>
+              )
+            })}
+          </div>
+        )}
+
+        {/* Per-player scorecard */}
+        {selectedSetup && (() => {
+          const { player, playingHcp } = selectedSetup
+          let totalPts = 0
+          let totalGross = 0
+          let hasAnyScore = false
+
+          const rows = courseHoles.map((hole, idx) => {
+            const hs = scores[idx]?.[player.id]
+            const ePar = effectivePar(hole, player.gender, courseId)
+            const eSI  = effectiveSI(hole, player.gender, courseId)
+            const isNR = hs?.isNR === true
+            const gross = isNR ? null : (hs?.gross ?? null)
+            const pts   = isNR ? 0 : gross !== null
+              ? (hs?.stableford ?? calcStableford(gross, ePar, eSI, playingHcp))
+              : null
+            const { color } = gross !== null ? scoreToPar(gross, ePar) : { color: "text-white/25" }
+
+            if (pts !== null) { totalPts += pts; hasAnyScore = true }
+            if (gross !== null) totalGross += gross
+
+            return { hole, idx, isNR, gross, pts, ePar, eSI, color }
+          })
+
+          const ptsBadge = (pts: number | null) =>
+            pts === null ? "text-white/20" :
+            pts >= 3     ? "text-[#C9A84C] font-bold" :
+            pts === 2    ? "text-white/70" :
+            pts === 1    ? "text-white/40" :
+                           "text-red-400/60"
+
+          return (
+            <div className="border border-[#1e3d28] rounded-sm overflow-hidden">
+              {/* Column headers */}
+              <div className="grid grid-cols-[2.5rem_2.5rem_1fr_2.5rem_3rem] px-3 py-2 bg-[#0d1f14] border-b border-[#1e3d28]">
+                <span className="text-[10px] text-white/25 tracking-[0.15em] uppercase">H</span>
+                <span className="text-[10px] text-white/25 tracking-[0.15em] uppercase">Par</span>
+                <span className="text-[10px] text-white/25 tracking-[0.15em] uppercase">Score</span>
+                <span className="text-[10px] text-white/25 tracking-[0.15em] uppercase">SI</span>
+                <span className="text-[10px] text-white/25 tracking-[0.15em] uppercase text-right">Pts</span>
               </div>
-              <div><span className="text-[#C9A84C] font-bold">{pts}</span><span className="text-white/40 text-xs ml-1">pts</span></div>
+
+              {/* Hole rows */}
+              {rows.map(({ hole, idx, isNR, gross, pts, ePar, eSI, color }) => (
+                <div
+                  key={hole.id}
+                  className={`grid grid-cols-[2.5rem_2.5rem_1fr_2.5rem_3rem] px-3 py-2.5 items-center border-b border-[#1e3d28]/40
+                    ${idx % 2 === 1 ? "bg-white/[0.018]" : ""}`}
+                >
+                  <span className="text-white/50 text-sm">{hole.hole_number}</span>
+                  <span className="text-white/35 text-sm">{ePar}</span>
+                  <span className={`text-sm font-semibold ${isNR ? "text-orange-400/70" : color}`}>
+                    {isNR ? "NR" : gross !== null ? gross : "—"}
+                  </span>
+                  <span className="text-white/25 text-xs">{eSI}</span>
+                  <span className={`text-right text-sm ${ptsBadge(pts)}`}>{pts ?? "—"}</span>
+                </div>
+              ))}
+
+              {/* Totals row */}
+              <div className="grid grid-cols-[2.5rem_2.5rem_1fr_2.5rem_3rem] px-3 py-3 bg-[#0d1f14]">
+                <span className="text-white/30 text-xs col-span-2 self-center">Total</span>
+                <span className="text-white/60 text-sm self-center">{hasAnyScore && totalGross > 0 ? totalGross : "—"}</span>
+                <span />
+                <span className="text-right text-[#C9A84C] font-bold text-base self-center">{totalPts}</span>
+              </div>
             </div>
-          ))}
-          <div className="px-4 py-2 text-xs text-white/30">{Object.keys(scores).length}/{courseHoles.length} holes entered</div>
-        </div>
+          )
+        })()}
 
         {error && <p className="text-red-400 text-sm text-center">{error}</p>}
 
-        <div className="flex gap-3">
-          <button onClick={() => { setStep("holes"); setHoleIdx(courseHoles.length - 1) }}
-            className="flex-1 py-4 border border-white/20 text-white/60 text-sm tracking-[0.15em] uppercase hover:border-white/40 transition-colors">
+        {/* Actions */}
+        <div className="flex gap-3 pt-1">
+          <button
+            onClick={() => { setStep("holes"); setHoleIdx(courseHoles.length - 1) }}
+            className="flex-1 py-4 border border-white/20 text-white/60 text-sm tracking-[0.15em] uppercase hover:border-white/40 transition-colors rounded-sm"
+          >
             ← Review
           </button>
-          <button onClick={handleCommit} disabled={saving}
-            className="flex-[2] py-4 bg-[#C9A84C] text-black text-sm tracking-[0.2em] uppercase font-bold hover:bg-[#d4b05a] disabled:opacity-50 transition-colors">
-            {saving ? "Saving…" : "Commit Scores"}
+          <button
+            onClick={handleCommit}
+            disabled={saving}
+            className="flex-[2] py-4 bg-[#C9A84C] text-black text-sm tracking-[0.2em] uppercase font-bold hover:bg-[#d4b05a] disabled:opacity-50 transition-colors rounded-sm"
+          >
+            {saving ? "Saving…" : "Finalise Scorecard"}
           </button>
         </div>
+
       </div>
     )
   }
