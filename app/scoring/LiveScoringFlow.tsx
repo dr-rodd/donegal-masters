@@ -133,6 +133,11 @@ export default function LiveScoringFlow({
   const [closeConfirm, setCloseConfirm] = useState(false)
   const [selectedSummaryPlayerId, setSelectedSummaryPlayerId] = useState("")
 
+  // Edit mode (within summary)
+  const [editingPlayerId, setEditingPlayerId] = useState<string | null>(null)
+  const [editDraft, setEditDraft] = useState<Record<number, HoleScore>>({})
+  const [editSaving, setEditSaving] = useState(false)
+
   // Player locking
   const [lockedPlayerIds, setLockedPlayerIds] = useState<string[]>([])
 
@@ -355,6 +360,78 @@ export default function LiveScoringFlow({
   }
 
   // ─── Commit ───────────────────────────────────────────────
+
+  // ─── Edit mode helpers ────────────────────────────────────
+
+  function setDraftHole(idx: number, update: Partial<HoleScore>) {
+    setEditDraft(prev => ({
+      ...prev,
+      [idx]: { ...(prev[idx] ?? { gross: null, isNR: false, stableford: null }), ...update },
+    }))
+  }
+
+  function enterEditMode(playerId: string) {
+    const draft: Record<number, HoleScore> = {}
+    for (let i = 0; i < courseHoles.length; i++) {
+      draft[i] = scores[i]?.[playerId] ?? { gross: null, isNR: false, stableford: null }
+    }
+    setEditDraft(draft)
+    setEditingPlayerId(playerId)
+  }
+
+  async function saveEditDraft() {
+    const playerId = editingPlayerId
+    if (!playerId || !roundId) return
+    const setup = playerSetups.find(ps => ps.player.id === playerId)
+    if (!setup) { setEditingPlayerId(null); return }
+    setEditSaving(true)
+
+    const upsertRows: any[] = []
+    const deleteHoleNums: number[] = []
+    const newPlayerScores: Record<number, HoleScore> = {}
+
+    for (let i = 0; i < courseHoles.length; i++) {
+      const hole = courseHoles[i]
+      const hs = editDraft[i] ?? { gross: null, isNR: false, stableford: null }
+      const p  = effectivePar(hole, setup.player.gender, courseId)
+      const si = effectiveSI(hole, setup.player.gender, courseId)
+      const stableford = hs.isNR ? 0 : hs.gross !== null ? calcStableford(hs.gross, p, si, setup.playingHcp) : null
+      newPlayerScores[i] = { ...hs, stableford }
+
+      if (hs.gross !== null || hs.isNR) {
+        const gross = hs.isNR ? nrGross(p, si, setup.playingHcp) : hs.gross!
+        upsertRows.push({
+          player_id: playerId, round_id: roundId, hole_number: hole.hole_number,
+          gross_score: gross,
+          stableford_points: hs.isNR ? 0 : calcStableford(gross, p, si, setup.playingHcp),
+          committed: false,
+        })
+      } else {
+        deleteHoleNums.push(hole.hole_number)
+      }
+    }
+
+    await Promise.all([
+      upsertRows.length > 0
+        ? supabase.from("live_scores").upsert(upsertRows, { onConflict: "player_id,round_id,hole_number" })
+        : Promise.resolve(),
+      deleteHoleNums.length > 0
+        ? supabase.from("live_scores").delete()
+            .eq("player_id", playerId).eq("round_id", roundId).in("hole_number", deleteHoleNums)
+        : Promise.resolve(),
+    ])
+
+    setScores(prev => {
+      const next = { ...prev }
+      for (let i = 0; i < courseHoles.length; i++) {
+        next[i] = { ...next[i], [playerId]: newPlayerScores[i] }
+      }
+      return next
+    })
+
+    setEditSaving(false)
+    setEditingPlayerId(null)
+  }
 
   async function handleCommit() {
     if (!roundId || courseHoles.length === 0 || !liveRound) return
@@ -753,6 +830,146 @@ export default function LiveScoringFlow({
     const selectedId = selectedSummaryPlayerId || playerSetups[0]?.player.id || ""
     const selectedSetup = playerSetups.find(ps => ps.player.id === selectedId) ?? playerSetups[0]
 
+    // ── Edit mode ──
+    if (editingPlayerId) {
+      const editSetup = playerSetups.find(ps => ps.player.id === editingPlayerId)
+      if (!editSetup) { setEditingPlayerId(null); return null }
+      const { player, playingHcp } = editSetup
+
+      return (
+        <div className="flex flex-col" style={{ minHeight: "calc(100dvh - 57px)" }}>
+
+          {/* Sub-header */}
+          <div className="sticky top-[57px] z-10 bg-[#0a1a0e] border-b border-[#1e3d28] px-4 py-3 flex items-center justify-between">
+            <button
+              onClick={() => setEditingPlayerId(null)}
+              className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors"
+            >
+              ← Back
+            </button>
+            <div className="flex items-center gap-2">
+              {player.teams && (
+                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams.color }} />
+              )}
+              <span className="text-white/60 text-xs font-medium">{player.name}</span>
+            </div>
+            <div className="w-[60px]" />
+          </div>
+
+          {/* Scrollable holes */}
+          <div className="max-w-lg mx-auto w-full px-4 pt-4 pb-28 space-y-2">
+            {courseHoles.map((hole, idx) => {
+              const hs = editDraft[idx] ?? { gross: null, isNR: false, stableford: null }
+              const ePar = effectivePar(hole, player.gender, courseId)
+              const eSI  = effectiveSI(hole, player.gender, courseId)
+              const netParGross = ePar + shotsReceived(eSI, playingHcp)
+              const pts = hs.isNR ? 0 : hs.gross !== null
+                ? calcStableford(hs.gross, ePar, eSI, playingHcp)
+                : null
+              const { label, color } = hs.isNR
+                ? { label: "NR", color: "text-orange-400/70" }
+                : hs.gross !== null ? scoreToPar(hs.gross, ePar)
+                : { label: "", color: "" }
+
+              const ptsBadge =
+                hs.isNR      ? "border-orange-900/50 bg-orange-900/30 text-orange-400/80" :
+                pts === null  ? "border-white/10 text-white/15" :
+                pts >= 3      ? "border-[#C9A84C] bg-[#C9A84C]/15 text-[#C9A84C]" :
+                pts === 2     ? "border-white/20 bg-white/5 text-white" :
+                pts === 1     ? "border-white/10 bg-transparent text-white/40" :
+                                "border-red-900/40 bg-red-900/20 text-red-400/70"
+
+              const stepScore = (delta: number) => {
+                if (hs.isNR) return
+                const cur = hs.gross === null ? netParGross : hs.gross
+                setDraftHole(idx, { gross: Math.max(1, Math.min(12, cur + delta)), isNR: false })
+              }
+              const onInput = (e: React.ChangeEvent<HTMLInputElement>) => {
+                const v = e.target.value
+                if (v === "") { setDraftHole(idx, { gross: null }); return }
+                const n = parseInt(v, 10)
+                if (!isNaN(n) && n >= 1 && n <= 12) setDraftHole(idx, { gross: n, isNR: false })
+              }
+              const toggleNR = () => setDraftHole(idx,
+                hs.isNR ? { isNR: false, gross: null } : { isNR: true, gross: null }
+              )
+
+              return (
+                <div key={hole.id} className={`bg-[#0f2418] border rounded-sm ${hs.isNR ? "border-orange-900/50" : "border-[#1e3d28]"}`}>
+                  {/* Hole info row */}
+                  <div className="flex items-center justify-between px-4 pt-3 pb-2">
+                    <div className="flex items-baseline gap-3">
+                      <span className="font-[family-name:var(--font-playfair)] text-xl text-white leading-none w-6">{hole.hole_number}</span>
+                      <span className="text-white/45 text-sm">Par <span className="text-white font-semibold">{ePar}</span></span>
+                      <span className="text-white/25 text-xs">SI {eSI}</span>
+                    </div>
+                    <button
+                      onClick={toggleNR}
+                      className={`text-xs tracking-widest uppercase border rounded-sm px-2.5 py-1 transition-colors
+                        ${hs.isNR
+                          ? "border-orange-400/60 text-orange-400 bg-orange-900/20"
+                          : "border-white/15 text-white/30 hover:border-orange-400/40 hover:text-orange-400/60"}`}
+                    >
+                      NR
+                    </button>
+                  </div>
+
+                  {/* Score stepper row */}
+                  <div className="flex items-center gap-3 px-4 pb-3">
+                    <button
+                      onClick={() => stepScore(-1)} disabled={hs.isNR}
+                      className="flex-1 h-10 rounded-sm border border-[#1e3d28] text-white/60 text-2xl leading-none
+                        hover:border-[#C9A84C] hover:text-[#C9A84C] active:scale-95 transition-all
+                        flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed"
+                    >−</button>
+                    {hs.isNR ? (
+                      <span className="font-[family-name:var(--font-playfair)] text-3xl flex items-center justify-center text-white/20 w-14 h-10">—</span>
+                    ) : (
+                      <input
+                        type="text" inputMode="numeric" pattern="[0-9]*"
+                        value={hs.gross === null ? "" : String(hs.gross)}
+                        onChange={onInput}
+                        className={`font-[family-name:var(--font-playfair)] text-3xl text-center bg-transparent
+                          outline-none text-white caret-[#C9A84C] border rounded-sm transition-colors p-0 w-14 h-10
+                          ${hs.gross === null ? "border-[#C9A84C]/50" : "border-[#C9A84C]/15"}`}
+                        style={{ lineHeight: "2.5rem" }}
+                      />
+                    )}
+                    <button
+                      onClick={() => stepScore(1)} disabled={hs.isNR}
+                      className="flex-1 h-10 rounded-sm border border-[#1e3d28] text-white/60 text-2xl leading-none
+                        hover:border-[#C9A84C] hover:text-[#C9A84C] active:scale-95 transition-all
+                        flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed"
+                    >+</button>
+                    <div className={`flex-shrink-0 flex items-baseline gap-1 px-2.5 py-1.5 rounded-sm border ${ptsBadge}`}>
+                      <span className="text-base font-bold leading-none font-[family-name:var(--font-playfair)]">{pts ?? "·"}</span>
+                      <span className="text-[10px] opacity-60">pts</span>
+                    </div>
+                    {label && label !== "NR" && (
+                      <span className={`text-xs flex-shrink-0 ${color}`}>{label}</span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* Sticky save */}
+          <div className="sticky bottom-0 bg-[#0a1a0e] border-t border-[#1e3d28] px-4 py-4 max-w-lg mx-auto w-full">
+            <button
+              onClick={saveEditDraft}
+              disabled={editSaving}
+              className="w-full py-4 bg-[#C9A84C] text-black text-sm tracking-[0.2em] uppercase font-bold
+                hover:bg-[#d4b05a] disabled:opacity-50 transition-colors rounded-sm"
+            >
+              {editSaving ? "Saving…" : "Save Changes"}
+            </button>
+          </div>
+
+        </div>
+      )
+    }
+
     return (
       <div className="max-w-lg mx-auto w-full px-4 pt-5 pb-8 flex flex-col gap-4">
 
@@ -785,7 +1002,7 @@ export default function LiveScoringFlow({
           </div>
         )}
 
-        {/* Per-player scorecard */}
+        {/* Edit button + scorecard */}
         {selectedSetup && (() => {
           const { player, playingHcp } = selectedSetup
           let totalPts = 0
@@ -817,6 +1034,15 @@ export default function LiveScoringFlow({
                            "text-red-400/60"
 
           return (
+            <>
+            <div className="flex justify-end -mt-1">
+              <button
+                onClick={() => enterEditMode(selectedId)}
+                className="text-[#C9A84C]/60 text-xs tracking-[0.2em] uppercase hover:text-[#C9A84C] transition-colors"
+              >
+                Edit →
+              </button>
+            </div>
             <div className="border border-[#1e3d28] rounded-sm overflow-hidden">
               {/* Column headers */}
               <div className="grid grid-cols-[2.5rem_2.5rem_1fr_2.5rem_3rem] px-3 py-2 bg-[#0d1f14] border-b border-[#1e3d28]">
@@ -852,6 +1078,7 @@ export default function LiveScoringFlow({
                 <span className="text-right text-[#C9A84C] font-bold text-base self-center">{totalPts}</span>
               </div>
             </div>
+            </>
           )
         })()}
 
