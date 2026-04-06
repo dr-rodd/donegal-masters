@@ -916,26 +916,26 @@ export default function LiveScoringFlow({
                   <div className="flex items-center gap-3 px-4 pb-3">
                     <button
                       onClick={() => stepScore(-1)} disabled={hs.isNR}
-                      className="flex-1 h-10 rounded-sm border border-[#1e3d28] text-white/60 text-2xl leading-none
+                      className="flex-1 h-16 rounded-sm border border-[#1e3d28] text-white/60 text-4xl leading-none
                         hover:border-[#C9A84C] hover:text-[#C9A84C] active:scale-95 transition-all
                         flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed"
                     >−</button>
                     {hs.isNR ? (
-                      <span className="font-[family-name:var(--font-playfair)] text-3xl flex items-center justify-center text-white/20 w-14 h-10">—</span>
+                      <span className="font-[family-name:var(--font-playfair)] text-4xl flex items-center justify-center text-white/20 w-20 h-16">—</span>
                     ) : (
                       <input
                         type="text" inputMode="numeric" pattern="[0-9]*"
                         value={hs.gross === null ? "" : String(hs.gross)}
                         onChange={onInput}
-                        className={`font-[family-name:var(--font-playfair)] text-3xl text-center bg-transparent
-                          outline-none text-white caret-[#C9A84C] border rounded-sm transition-colors p-0 w-14 h-10
+                        className={`font-[family-name:var(--font-playfair)] text-4xl text-center bg-transparent
+                          outline-none text-white caret-[#C9A84C] border rounded-sm transition-colors p-0 w-20 h-16
                           ${hs.gross === null ? "border-[#C9A84C]/50" : "border-[#C9A84C]/15"}`}
-                        style={{ lineHeight: "2.5rem" }}
+                        style={{ lineHeight: "4rem" }}
                       />
                     )}
                     <button
                       onClick={() => stepScore(1)} disabled={hs.isNR}
-                      className="flex-1 h-10 rounded-sm border border-[#1e3d28] text-white/60 text-2xl leading-none
+                      className="flex-1 h-16 rounded-sm border border-[#1e3d28] text-white/60 text-4xl leading-none
                         hover:border-[#C9A84C] hover:text-[#C9A84C] active:scale-95 transition-all
                         flex items-center justify-center disabled:opacity-20 disabled:cursor-not-allowed"
                     >+</button>
@@ -1000,83 +1000,150 @@ export default function LiveScoringFlow({
           </div>
         )}
 
-        {/* Edit button + scorecard */}
+        {/* Paper scorecard */}
         {selectedSetup && (() => {
-          const { player, playingHcp } = selectedSetup
-          let totalPts = 0
-          let totalGross = 0
+          const { player, playingHcp, tee } = selectedSetup
+
+          const currentRound = rounds.find(r => r.id === liveRound?.round_id)
+          const courseNameLabel = currentRound?.courses?.name ?? ""
+          const ROUND_DATES: Record<number, string> = { 1: "Thu 16 Apr", 2: "Fri 17 Apr", 3: "Sat 18 Apr" }
+          const dateLabel = ROUND_DATES[currentRound?.round_number ?? 0] ?? ""
+
+          let totalPts = 0, totalGross = 0, totalYards = 0, totalPar = 0
+          let front9Pts = 0, front9Gross = 0, front9Yards = 0, front9Par = 0
           let hasAnyScore = false
 
           const rows = courseHoles.map((hole, idx) => {
-            const hs = scores[idx]?.[player.id]
-            const ePar = effectivePar(hole, player.gender, courseId)
-            const eSI  = effectiveSI(hole, player.gender, courseId)
-            const isNR = hs?.isNR === true
-            const gross = isNR ? null : (hs?.gross ?? null)
-            const pts   = isNR ? 0 : gross !== null
+            const hs      = scores[idx]?.[player.id]
+            const ePar    = effectivePar(hole, player.gender, courseId)
+            const eSI     = effectiveSI(hole, player.gender, courseId)
+            const isNR    = hs?.isNR === true
+            const gross   = isNR ? null : (hs?.gross ?? null)
+            const pts     = isNR ? 0 : gross !== null
               ? (hs?.stableford ?? calcStableford(gross, ePar, eSI, playingHcp))
               : null
-            const { color } = gross !== null ? scoreToPar(gross, ePar) : { color: "text-white/25" }
+            const yardage = yardageForTee(hole, tee.name)
 
             if (pts !== null) { totalPts += pts; hasAnyScore = true }
             if (gross !== null) totalGross += gross
-
-            return { hole, idx, isNR, gross, pts, ePar, eSI, color }
+            if (yardage) totalYards += yardage
+            totalPar += ePar
+            if (idx < 9) {
+              if (pts !== null) front9Pts += pts
+              if (gross !== null) front9Gross += gross
+              if (yardage) front9Yards += yardage
+              front9Par += ePar
+            }
+            return { hole, idx, isNR, gross, pts, ePar, eSI, yardage }
           })
 
-          const ptsBadge = (pts: number | null) =>
-            pts === null ? "text-white/20" :
-            pts >= 3     ? "text-[#C9A84C] font-bold" :
-            pts === 2    ? "text-white/70" :
-            pts === 1    ? "text-white/40" :
-                           "text-red-400/60"
+          const back9Pts   = totalPts   - front9Pts
+          const back9Gross = totalGross - front9Gross
+          const back9Yards = totalYards - front9Yards
+          const back9Par   = totalPar   - front9Par
+
+          // Score symbol — number always legible inside the shape
+          const scoreSymbol = (gross: number | null, ePar: number, isNR: boolean) => {
+            if (isNR) return <span className="text-orange-600 text-[11px] font-semibold" style={{ fontFamily: "Georgia, serif" }}>NR</span>
+            if (gross === null) return <span className="text-[#C8BFA8] text-sm">—</span>
+            const diff = gross - ePar
+            const n = <span className="text-[11px] font-bold leading-none">{gross}</span>
+            if (diff <= -2) return <span className="w-[22px] h-[22px] rounded-full bg-[#2C5F2E] flex items-center justify-center text-white">{n}</span>
+            if (diff === -1) return <span className="w-[22px] h-[22px] rounded-full border-[2.5px] border-[#2C5F2E] flex items-center justify-center text-[#2C5F2E]">{n}</span>
+            if (diff === 0)  return <span className="text-[#3A3A2E] text-sm font-semibold" style={{ fontFamily: "Georgia, serif" }}>{gross}</span>
+            if (diff === 1)  return <span className="w-[22px] h-[22px] border-[2.5px] border-[#8B7355] flex items-center justify-center text-[#5A4F3A]">{n}</span>
+            return               <span className="w-[22px] h-[22px] bg-[#8B7355] flex items-center justify-center text-white">{n}</span>
+          }
+
+          const ptsColor = (pts: number | null) =>
+            pts === null ? "text-[#C8BFA8]" :
+            pts >= 3     ? "text-[#7B6C3E] font-bold" :
+            pts === 0    ? "text-[#C8BFA8]" :
+                           "text-[#3A3A2E]"
+
+          const grid = "grid grid-cols-[1.5rem_2.8rem_1.5rem_1.5rem_2.6rem_1.8rem] gap-x-1"
+          const sf   = { fontFamily: "Georgia, serif" }
+          const muted = "text-[#B8AE9C]"
+          const dark  = "text-[#3A3A2E]"
 
           return (
-            <>
-            <div className="flex justify-end -mt-1">
-              <button
-                onClick={() => enterEditMode(selectedId)}
-                className="text-[#C9A84C]/60 text-sm tracking-[0.2em] uppercase hover:text-[#C9A84C] transition-colors"
-              >
-                Edit →
-              </button>
-            </div>
-            <div className="border border-[#1e3d28] rounded-sm overflow-hidden">
-              {/* Column headers */}
-              <div className="grid grid-cols-[2.5rem_2.5rem_1fr_2.5rem_3rem] px-3 py-2 bg-[#0d1f14] border-b border-[#1e3d28]">
-                <span className="text-xs text-white/25 tracking-[0.15em] uppercase">H</span>
-                <span className="text-xs text-white/25 tracking-[0.15em] uppercase">Par</span>
-                <span className="text-xs text-white/25 tracking-[0.15em] uppercase">Score</span>
-                <span className="text-xs text-white/25 tracking-[0.15em] uppercase">SI</span>
-                <span className="text-xs text-white/25 tracking-[0.15em] uppercase text-right">Pts</span>
+            <div className="rounded-xl overflow-hidden shadow-[0_4px_24px_rgba(0,0,0,0.22)]" style={{ background: "#F5F0E8" }}>
+
+              {/* Header */}
+              <div className="px-4 pt-4 pb-3 border-b border-[#D4CBBA]" style={{ background: "#EAE4D5" }}>
+                <p className={`text-[11px] tracking-[0.15em] uppercase ${muted}`} style={sf}>
+                  {[courseNameLabel, tee.name + " Tees", dateLabel].filter(Boolean).join("  ·  ")}
+                </p>
+                <div className="flex items-baseline gap-2.5 mt-1.5 flex-wrap">
+                  <span className="font-[family-name:var(--font-playfair)] text-[22px] text-[#2C2C1E] font-semibold leading-tight">
+                    {player.name}
+                  </span>
+                  <span className={`text-xs ${muted}`} style={sf}>HCI {player.handicap} · PH {playingHcp}</span>
+                </div>
               </div>
 
-              {/* Hole rows */}
-              {rows.map(({ hole, idx, isNR, gross, pts, ePar, eSI, color }) => (
-                <div
-                  key={hole.id}
-                  className={`grid grid-cols-[2.5rem_2.5rem_1fr_2.5rem_3rem] px-3 py-2.5 items-center border-b border-[#1e3d28]/40
-                    ${idx % 2 === 1 ? "bg-white/[0.018]" : ""}`}
-                >
-                  <span className="text-white/55 text-base tabular-nums">{hole.hole_number}</span>
-                  <span className="text-white/40 text-base">{ePar}</span>
-                  <span className={`text-lg font-semibold ${isNR ? "text-orange-400/70" : color}`}>
-                    {isNR ? "NR" : gross !== null ? gross : "—"}
-                  </span>
-                  <span className="text-white/25 text-sm">{eSI}</span>
-                  <span className={`text-right text-lg font-semibold ${ptsBadge(pts)}`}>{pts ?? "—"}</span>
+              {/* Column headers */}
+              <div className={`${grid} px-3 py-1.5 border-b border-[#D4CBBA]`} style={{ background: "#EAE4D5" }}>
+                {(["H","Yds","Par","SI","Score","Pts"] as const).map((h, i) => (
+                  <span key={h} className={`text-[9px] tracking-[0.18em] uppercase font-semibold ${muted} ${i === 4 ? "text-center" : i === 5 ? "text-right" : ""}`} style={sf}>{h}</span>
+                ))}
+              </div>
+
+              {/* Front 9 */}
+              {rows.slice(0, 9).map(({ hole, idx, isNR, gross, pts, ePar, eSI, yardage }) => (
+                <div key={hole.id} className={`${grid} px-3 py-[5px] items-center border-b border-[#E2DAC8] ${idx % 2 === 1 ? "bg-[#EEE8D6]" : ""}`}>
+                  <span className={`text-xs font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
+                  <span className={`text-xs ${muted}`} style={sf}>{yardage ?? "—"}</span>
+                  <span className={`text-xs ${dark}`} style={sf}>{ePar}</span>
+                  <span className={`text-xs ${muted}`} style={sf}>{eSI}</span>
+                  <span className="flex items-center justify-center">{scoreSymbol(gross, ePar, isNR)}</span>
+                  <span className={`text-right text-xs ${ptsColor(pts)}`} style={sf}>{pts ?? "—"}</span>
                 </div>
               ))}
 
-              {/* Totals row */}
-              <div className="grid grid-cols-[2.5rem_2.5rem_1fr_2.5rem_3rem] px-3 py-3 bg-[#0d1f14]">
-                <span className="text-white/30 text-sm col-span-2 self-center">Total</span>
-                <span className="text-white/70 text-lg font-semibold self-center">{hasAnyScore && totalGross > 0 ? totalGross : "—"}</span>
+              {/* Out subtotal */}
+              <div className={`${grid} px-3 py-[7px] items-center border-b border-[#C8BFA8]`} style={{ background: "#EAE4D5" }}>
+                <span className={`text-[10px] tracking-widest uppercase font-semibold ${muted}`} style={sf}>Out</span>
+                <span className={`text-xs ${muted}`} style={sf}>{front9Yards > 0 ? front9Yards : "—"}</span>
+                <span className={`text-xs font-semibold ${dark}`} style={sf}>{front9Par}</span>
                 <span />
-                <span className="text-right text-[#C9A84C] font-bold text-2xl self-center">{totalPts}</span>
+                <span className={`text-center text-xs font-semibold ${dark}`} style={sf}>{front9Gross > 0 ? front9Gross : "—"}</span>
+                <span className="text-right text-sm font-bold text-[#7B6C3E]" style={sf}>{front9Pts}</span>
               </div>
+
+              {/* Back 9 */}
+              {rows.slice(9).map(({ hole, idx, isNR, gross, pts, ePar, eSI, yardage }) => (
+                <div key={hole.id} className={`${grid} px-3 py-[5px] items-center border-b border-[#E2DAC8] ${idx % 2 === 1 ? "bg-[#EEE8D6]" : ""}`}>
+                  <span className={`text-xs font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
+                  <span className={`text-xs ${muted}`} style={sf}>{yardage ?? "—"}</span>
+                  <span className={`text-xs ${dark}`} style={sf}>{ePar}</span>
+                  <span className={`text-xs ${muted}`} style={sf}>{eSI}</span>
+                  <span className="flex items-center justify-center">{scoreSymbol(gross, ePar, isNR)}</span>
+                  <span className={`text-right text-xs ${ptsColor(pts)}`} style={sf}>{pts ?? "—"}</span>
+                </div>
+              ))}
+
+              {/* In subtotal */}
+              <div className={`${grid} px-3 py-[7px] items-center border-b border-[#C8BFA8]`} style={{ background: "#EAE4D5" }}>
+                <span className={`text-[10px] tracking-widest uppercase font-semibold ${muted}`} style={sf}>In</span>
+                <span className={`text-xs ${muted}`} style={sf}>{back9Yards > 0 ? back9Yards : "—"}</span>
+                <span className={`text-xs font-semibold ${dark}`} style={sf}>{back9Par}</span>
+                <span />
+                <span className={`text-center text-xs font-semibold ${dark}`} style={sf}>{back9Gross > 0 ? back9Gross : "—"}</span>
+                <span className="text-right text-sm font-bold text-[#7B6C3E]" style={sf}>{back9Pts}</span>
+              </div>
+
+              {/* Total */}
+              <div className={`${grid} px-3 py-[9px] items-center`} style={{ background: "#EAE4D5" }}>
+                <span className={`text-[10px] tracking-widest uppercase font-semibold ${muted}`} style={sf}>Total</span>
+                <span className={`text-xs ${muted}`} style={sf}>{totalYards > 0 ? totalYards : "—"}</span>
+                <span className={`text-xs font-semibold ${dark}`} style={sf}>{totalPar}</span>
+                <span />
+                <span className={`text-center text-xs font-semibold ${dark}`} style={sf}>{hasAnyScore && totalGross > 0 ? totalGross : "—"}</span>
+                <span className="text-right text-base font-bold text-[#7B6C3E] font-[family-name:var(--font-playfair)]">{totalPts}</span>
+              </div>
+
             </div>
-            </>
           )
         })()}
 
@@ -1085,10 +1152,10 @@ export default function LiveScoringFlow({
         {/* Actions */}
         <div className="flex gap-3 pt-1">
           <button
-            onClick={() => { setStep("holes"); setHoleIdx(courseHoles.length - 1) }}
+            onClick={() => enterEditMode(selectedId)}
             className="flex-1 py-4 border border-white/20 text-white/60 text-base tracking-[0.15em] uppercase hover:border-white/40 transition-colors rounded-sm"
           >
-            ← Review
+            Edit Scorecard
           </button>
           <button
             onClick={handleCommit}

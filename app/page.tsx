@@ -50,6 +50,12 @@ export default function Home() {
               Team Selection
             </Link>
             <Link
+              href="/tee-times"
+              className="w-[312px] text-center py-[18px] border-2 border-white/70 text-white text-sm tracking-[0.25em] uppercase rounded-xl hover:border-gold hover:text-gold transition-colors duration-300"
+            >
+              Tee Times
+            </Link>
+            <Link
               href="/scoring"
               className="w-[312px] text-center py-[18px] border-2 border-white/70 text-white text-sm tracking-[0.25em] uppercase rounded-xl hover:border-gold hover:text-gold transition-colors duration-300"
             >
@@ -60,12 +66,6 @@ export default function Home() {
               className="w-[312px] text-center py-[18px] border-2 border-white/70 text-white text-sm tracking-[0.25em] uppercase rounded-xl hover:border-gold hover:text-gold transition-colors duration-300"
             >
               Leaderboard
-            </Link>
-            <Link
-              href="/tee-times"
-              className="w-[312px] text-center py-[18px] border-2 border-white/70 text-white text-sm tracking-[0.25em] uppercase rounded-xl hover:border-gold hover:text-gold transition-colors duration-300"
-            >
-              Tee Times
             </Link>
           </nav>
         </Countdown>

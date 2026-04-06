@@ -6,7 +6,7 @@ import { supabase } from "@/lib/supabase"
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface Team { id: string; name: string; color: string }
-interface Player { id: string; name: string; role: "dad" | "mum" | "son"; team_id: string; is_composite?: boolean; teams: Team }
+interface Player { id: string; name: string; role: "dad" | "mum" | "son"; team_id: string; is_composite?: boolean; teams: Team | null }
 interface TeeTimeRow { day_number: number; group_number: number; player_id: string }
 
 // ─── Day config ───────────────────────────────────────────────────────────────
@@ -111,11 +111,15 @@ function generateFriday(players: Player[]): string[][] {
  * Group 2 (10:20): 1st-place team + fourthPlayers[2]
  */
 async function generateSaturday(players: Player[]): Promise<string[][] | null> {
+  // Guard: need players with team assignments before running leaderboard ordering
+  const realPlayersCheck = players.filter(p => !p.is_composite && p.team_id)
+  if (realPlayersCheck.length === 0) return null
+
   const { data: leaderboard, error } = await supabase
     .from("leaderboard_summary")
     .select("team_id, total_team_points")
 
-  if (error || !leaderboard) return null
+  if (error || !leaderboard || leaderboard.length === 0) return null
 
   // Sum total_team_points per team across all rounds
   const teamPoints = new Map<string, number>()
@@ -179,6 +183,7 @@ async function saveGroups(day: number, groups: string[][]): Promise<void> {
     }))
   )
 
+  if (rows.length === 0) return
   const { error: insertError } = await supabase.from("tee_times").insert(rows)
   if (insertError) throw new Error(insertError.message)
 }
@@ -186,10 +191,11 @@ async function saveGroups(day: number, groups: string[][]): Promise<void> {
 // ─── Helper ───────────────────────────────────────────────────────────────────
 
 function majorityTeam(playerIds: string[], allPlayers: Player[]): Team | undefined {
+  if (!playerIds.length || !allPlayers.length) return undefined
   const teamCounts = new Map<string, number>()
   for (const pid of playerIds) {
     const p = allPlayers.find(pl => pl.id === pid)
-    if (!p) continue
+    if (!p || !p.team_id) continue
     teamCounts.set(p.team_id, (teamCounts.get(p.team_id) ?? 0) + 1)
   }
 
@@ -204,7 +210,7 @@ function majorityTeam(playerIds: string[], allPlayers: Player[]): Team | undefin
 
   if (!majorityTeamId) return undefined
   const player = allPlayers.find(p => p.team_id === majorityTeamId)
-  return player?.teams
+  return player?.teams ?? undefined
 }
 
 // ─── UI Sub-components ────────────────────────────────────────────────────────
@@ -219,21 +225,23 @@ function PlayerRow({ playerId, allPlayers }: { playerId: string; allPlayers: Pla
   return (
     <div className="flex items-stretch bg-[#0f2418] border-t border-[#1a3020] first:border-t-0">
       {/* Left color bar */}
-      <div className="w-[3px] flex-shrink-0" style={{ backgroundColor: team.color }} />
+      <div className="w-[3px] flex-shrink-0" style={{ backgroundColor: team?.color ?? "transparent" }} />
       <div className="flex items-center gap-3 px-4 py-3 flex-1 min-w-0">
         <span className="flex-1 text-sm text-white truncate">{player.name}</span>
         <span className="text-xs text-white/30 uppercase tracking-widest flex-shrink-0">
           {roleLabel}
         </span>
-        <span
-          className="text-xs px-2 py-0.5 rounded-sm flex-shrink-0"
-          style={{
-            backgroundColor: team.color + "38",
-            color: team.color,
-          }}
-        >
-          {team.name}
-        </span>
+        {team && (
+          <span
+            className="text-xs px-2 py-0.5 rounded-sm flex-shrink-0"
+            style={{
+              backgroundColor: team.color + "38",
+              color: team.color,
+            }}
+          >
+            {team.name}
+          </span>
+        )}
       </div>
     </div>
   )

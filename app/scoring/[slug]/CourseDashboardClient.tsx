@@ -73,6 +73,7 @@ export default function CourseDashboardClient({
   const [settingsFinaliseSession, setSettingsFinaliseSession] = useState(false)
   const [settingsVoidSession, setSettingsVoidSession]     = useState(false)
   const [settingsWorking, setSettingsWorking]             = useState(false)
+  const [settingsError, setSettingsError]                 = useState<string | null>(null)
 
   const nonComposite = players.filter(p => !p.is_composite)
 
@@ -277,22 +278,55 @@ export default function CourseDashboardClient({
 
   async function voidLiveSession() {
     setSettingsWorking(true)
-    const { data: allRounds } = await supabase
-      .from("live_rounds")
-      .select("id, round_id")
-      .eq("course_id", courseId)
-    const lrIds = (allRounds ?? []).map(r => r.id as string)
-    const rIds  = [...new Set((allRounds ?? []).map(r => r.round_id as string))]
-    await Promise.all([
-      lrIds.length > 0 ? supabase.from("live_player_locks").delete().in("live_round_id", lrIds) : Promise.resolve(),
-      rIds.length  > 0 ? supabase.from("live_scores").delete().in("round_id", rIds)            : Promise.resolve(),
-    ])
-    if (lrIds.length > 0) {
-      await supabase.from("live_rounds").delete().in("id", lrIds)
+    setSettingsError(null)
+    try {
+      const { data: allRounds, error: fetchErr } = await supabase
+        .from("live_rounds")
+        .select("id, round_id")
+        .eq("course_id", courseId)
+
+      if (fetchErr) throw fetchErr
+
+      const lrIds = (allRounds ?? []).map(r => r.id as string)
+      const rIds  = [...new Set((allRounds ?? []).map(r => r.round_id as string))]
+
+      if (lrIds.length > 0) {
+        // Collect player IDs from locks so we can remove their committed scores
+        const { data: lockData } = await supabase
+          .from("live_player_locks")
+          .select("player_id")
+          .in("live_round_id", lrIds)
+        const playerIds = [...new Set((lockData ?? []).map((l: any) => l.player_id as string))]
+
+        // Delete committed scores and handicaps from official tables (finalised scorecards)
+        if (playerIds.length > 0 && rIds.length > 0) {
+          const scoreDeletes = rIds.flatMap(rid => [
+            supabase.from("scores").delete().eq("round_id", rid).in("player_id", playerIds),
+            supabase.from("round_handicaps").delete().eq("round_id", rid).in("player_id", playerIds),
+          ])
+          await Promise.all(scoreDeletes)
+        }
+
+        // Delete live data
+        await Promise.all([
+          supabase.from("live_player_locks").delete().in("live_round_id", lrIds),
+          rIds.length > 0 ? supabase.from("live_scores").delete().in("round_id", rIds) : Promise.resolve(),
+        ])
+
+        const { error: deleteErr } = await supabase
+          .from("live_rounds")
+          .delete()
+          .in("id", lrIds)
+        if (deleteErr) throw deleteErr
+      }
+
+      setSettingsVoidSession(false)
+    } catch (e: any) {
+      setSettingsError(e?.message ?? "Void failed — please try again")
+    } finally {
+      setSettingsWorking(false)
+      fetchScorecards()
     }
-    setSettingsVoidSession(false)
-    setSettingsWorking(false)
-    fetchScorecards()
   }
 
   // ─── Header ───────────────────────────────────────────────
@@ -741,6 +775,10 @@ export default function CourseDashboardClient({
                     </div>
                   )}
                 </section>
+
+                {settingsError && (
+                  <p className="text-red-400 text-sm text-center pt-1">{settingsError}</p>
+                )}
 
               </div>
             )
