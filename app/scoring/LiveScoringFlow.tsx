@@ -1044,27 +1044,26 @@ export default function LiveScoringFlow({
 
           // Score symbol — number always legible inside the shape
           const scoreSymbol = (gross: number | null, ePar: number, isNR: boolean) => {
-            if (isNR) return <span className="text-orange-600 text-sm font-semibold" style={{ fontFamily: "Georgia, serif" }}>NR</span>
-            if (gross === null) return <span className="text-[#C8BFA8] text-base">—</span>
+            if (isNR) return <span className="text-orange-600 text-base font-semibold" style={{ fontFamily: "Georgia, serif" }}>NR</span>
+            if (gross === null) return <span className="text-[#A89880] text-base">—</span>
             const diff = gross - ePar
-            const n = <span className="text-sm font-bold leading-none">{gross}</span>
+            const n = <span className="text-base font-bold leading-none">{gross}</span>
             if (diff <= -2) return <span className="w-8 h-8 rounded-full bg-[#2C5F2E] flex items-center justify-center text-white">{n}</span>
             if (diff === -1) return <span className="w-8 h-8 rounded-full border-[2.5px] border-[#2C5F2E] flex items-center justify-center text-[#2C5F2E]">{n}</span>
             if (diff === 0)  return <span className="text-[#3A3A2E] text-base font-semibold" style={{ fontFamily: "Georgia, serif" }}>{gross}</span>
-            if (diff === 1)  return <span className="w-8 h-8 border-[2.5px] border-[#8B7355] flex items-center justify-center text-[#5A4F3A]">{n}</span>
-            return               <span className="w-8 h-8 bg-[#8B7355] flex items-center justify-center text-white">{n}</span>
+            if (diff === 1)  return <span className="w-8 h-8 border border-[#8B7355] rounded-lg flex items-center justify-center text-[#5A4F3A]">{n}</span>
+            return               <span className="w-8 h-8 bg-[#E8DCBC] rounded-lg flex items-center justify-center text-[#5A4F3A]">{n}</span>
           }
 
           const ptsColor = (pts: number | null) =>
-            pts === null ? "text-[#C8BFA8]" :
-            pts >= 3     ? "text-[#7B6C3E] font-bold" :
-            pts === 0    ? "text-[#C8BFA8]" :
-                           "text-[#3A3A2E]"
+            pts === null ? "text-[#A89880]" :
+            pts === 0    ? "text-[#A89880] opacity-50" :
+                           "text-[#7B6C3E] font-bold"
 
           // fr columns fill full card width; Score gets extra space for symbol
           const grid  = "grid grid-cols-[2fr_3fr_2fr_2fr_3fr_2fr] w-full"
           const sf    = { fontFamily: "Georgia, serif" }
-          const muted = "text-[#B8AE9C]"
+          const muted = "text-[#7A7060]"
           const dark  = "text-[#3A3A2E]"
 
           return (
@@ -1085,8 +1084,8 @@ export default function LiveScoringFlow({
 
               {/* Column headers */}
               <div className={`${grid} px-3 py-2 border-b border-[#D4CBBA]`} style={{ background: "#EAE4D5" }}>
-                {(["H","Yds","Par","SI","Score","Pts"] as const).map((h, i) => (
-                  <span key={h} className={`text-[11px] tracking-[0.15em] uppercase font-semibold ${muted} ${i === 4 ? "text-center" : i === 5 ? "text-right" : ""}`} style={sf}>{h}</span>
+                {(["","Yds","Par","SI","Score","Pts"] as const).map((h, i) => (
+                  <span key={i} className={`text-[11px] tracking-[0.15em] uppercase font-semibold ${muted} ${i === 4 ? "text-center" : i === 5 ? "text-right" : ""}`} style={sf}>{h}</span>
                 ))}
               </div>
 
@@ -1105,7 +1104,7 @@ export default function LiveScoringFlow({
               {/* Out subtotal */}
               <div className={`${grid} px-3 py-3 items-center border-b border-[#C8BFA8]`} style={{ background: "#EAE4D5" }}>
                 <span className={`text-xs tracking-widest uppercase font-bold ${muted}`} style={sf}>Out</span>
-                <span className={`text-sm ${muted}`} style={sf}>{front9Yards > 0 ? front9Yards : "—"}</span>
+                <span />
                 <span className={`text-sm font-semibold ${dark}`} style={sf}>{front9Par}</span>
                 <span />
                 <span className={`text-center text-sm font-semibold ${dark}`} style={sf}>{front9Gross > 0 ? front9Gross : "—"}</span>
@@ -1127,7 +1126,7 @@ export default function LiveScoringFlow({
               {/* In subtotal */}
               <div className={`${grid} px-3 py-3 items-center border-b border-[#C8BFA8]`} style={{ background: "#EAE4D5" }}>
                 <span className={`text-xs tracking-widest uppercase font-bold ${muted}`} style={sf}>In</span>
-                <span className={`text-sm ${muted}`} style={sf}>{back9Yards > 0 ? back9Yards : "—"}</span>
+                <span />
                 <span className={`text-sm font-semibold ${dark}`} style={sf}>{back9Par}</span>
                 <span />
                 <span className={`text-center text-sm font-semibold ${dark}`} style={sf}>{back9Gross > 0 ? back9Gross : "—"}</span>
@@ -1137,7 +1136,7 @@ export default function LiveScoringFlow({
               {/* Total */}
               <div className={`${grid} px-3 py-4 items-center`} style={{ background: "#EAE4D5" }}>
                 <span className={`text-xs tracking-widest uppercase font-bold ${muted}`} style={sf}>Total</span>
-                <span className={`text-sm ${muted}`} style={sf}>{totalYards > 0 ? totalYards : "—"}</span>
+                <span />
                 <span className={`text-sm font-semibold ${dark}`} style={sf}>{totalPar}</span>
                 <span />
                 <span className={`text-center text-sm font-semibold ${dark}`} style={sf}>{hasAnyScore && totalGross > 0 ? totalGross : "—"}</span>
