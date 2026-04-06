@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
+import { useState, useEffect, useCallback, Fragment } from "react"
 import { supabase } from "@/lib/supabase"
 
 // ─── Types ────────────────────────────────────────────────
@@ -50,6 +50,12 @@ function effectivePar(hole: Hole, gender: string, courseId: string) {
   return gender === "F" && courseId === ST_PATRICKS_COURSE_ID && hole.par_ladies
     ? hole.par_ladies
     : hole.par
+}
+
+function effectiveSI(hole: Hole, gender: string, courseId: string) {
+  return gender === "F" && courseId === ST_PATRICKS_COURSE_ID && hole.stroke_index_ladies
+    ? hole.stroke_index_ladies
+    : hole.stroke_index
 }
 
 function fmtRelative(rel: number): string {
@@ -106,6 +112,143 @@ function compareRows(a: PlayerRow, b: PlayerRow, mode: Mode, sv: StrokesView): n
   return a.holesCompleted - b.holesCompleted
 }
 
+// ─── Inline Scorecard ─────────────────────────────────────
+
+function InlineScorecard({
+  player, playingHcp, courseHoles, playerScores, courseId,
+}: {
+  player: Player
+  playingHcp: number
+  courseHoles: Hole[]
+  playerScores: LiveScoreRow[]
+  courseId: string
+}) {
+  const sf    = { fontFamily: "Georgia, serif" }
+  const muted = "text-[#7A7060]"
+  const dark  = "text-[#3A3A2E]"
+  const grid  = "grid grid-cols-[2fr_2fr_2fr_3fr_2fr] w-full"
+
+  const scoreByHole = new Map(playerScores.map(ls => [ls.hole_number, ls]))
+
+  const scoreSymbol = (gross: number | null, ePar: number) => {
+    if (gross === null) return <span className={`${muted} text-sm`} style={sf}>—</span>
+    const diff = gross - ePar
+    const n = <span className="text-sm font-semibold leading-none">{gross}</span>
+    if (diff <= -2) return <span className="w-6 h-6 rounded-full bg-[#D4EDDA] border border-[#2C5F2E] flex items-center justify-center text-[#1A4A1C]">{n}</span>
+    if (diff === -1) return <span className="w-6 h-6 rounded-full border border-[#2C5F2E] flex items-center justify-center text-[#2C5F2E]">{n}</span>
+    if (diff === 0)  return <span className={`${dark} text-sm font-semibold`} style={sf}>{gross}</span>
+    if (diff === 1)  return <span className="w-6 h-6 border border-[#8B7355] rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
+    return               <span className="w-6 h-6 bg-[#E8DCBC] rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
+  }
+
+  const ptsColor = (pts: number | null) =>
+    pts === null ? muted :
+    pts === 0    ? "text-[#A89880] opacity-50" :
+                   "text-[#7B6C3E] font-bold"
+
+  // Build rows
+  const rows = courseHoles.map((hole, idx) => {
+    const ls     = scoreByHole.get(hole.hole_number)
+    const ePar   = effectivePar(hole, player.gender, courseId)
+    const eSI    = effectiveSI(hole, player.gender, courseId)
+    const gross  = ls?.gross_score ?? null
+    const pts    = ls?.stableford_points ?? null
+    return { hole, idx, ePar, eSI, gross, pts }
+  })
+
+  // Front 9 subtotals
+  const front9 = rows.slice(0, 9)
+  const front9Par   = front9.reduce((s, r) => s + r.ePar, 0)
+  const front9Gross = front9.reduce((s, r) => s + (r.gross ?? 0), 0)
+  const front9Pts   = front9.reduce((s, r) => s + (r.pts ?? 0), 0)
+  const front9HasScores = front9.some(r => r.gross !== null)
+
+  // Back 9 subtotals
+  const back9 = rows.slice(9)
+  const back9Par   = back9.reduce((s, r) => s + r.ePar, 0)
+  const back9Gross = back9.reduce((s, r) => s + (r.gross ?? 0), 0)
+  const back9Pts   = back9.reduce((s, r) => s + (r.pts ?? 0), 0)
+  const back9HasScores = back9.some(r => r.gross !== null)
+
+  const totalPar   = front9Par + back9Par
+  const totalGross = front9Gross + back9Gross
+  const totalPts   = front9Pts + back9Pts
+
+  return (
+    <div style={{ background: "#F5F0E8" }}>
+
+      {/* Player details */}
+      <div className="flex items-end gap-4 px-3 py-2 border-b border-[#D4CBBA]" style={{ background: "#EAE4D5" }}>
+        <div className="flex flex-col flex-1 min-w-0">
+          <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>Player</span>
+          <span className="font-[family-name:var(--font-playfair)] text-lg text-[#2C2C1E] font-semibold leading-tight truncate">{player.name}</span>
+        </div>
+        <div className="flex flex-col items-end flex-shrink-0">
+          <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>PH</span>
+          <span className={`text-sm font-semibold ${dark}`} style={sf}>{playingHcp}</span>
+        </div>
+      </div>
+
+      {/* Column headers */}
+      <div className={`${grid} px-3 py-1.5 border-b border-[#D4CBBA]`} style={{ background: "#EAE4D5" }}>
+        {(["Hole", "Par", "SI", "Score", "Pts"] as const).map((h, i) => (
+          <span key={h} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${muted} ${i === 3 ? "text-center" : i === 4 ? "text-right" : ""}`} style={sf}>{h}</span>
+        ))}
+      </div>
+
+      {/* Front 9 */}
+      {front9.map(({ hole, idx, ePar, eSI, gross, pts }) => (
+        <div key={hole.hole_number} className={`${grid} px-3 py-1.5 items-center border-b border-[#E2DAC8] ${idx % 2 === 1 ? "bg-[#EEE8D6]" : ""}`}>
+          <span className={`text-sm font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
+          <span className={`text-sm ${muted}`} style={sf}>{ePar}</span>
+          <span className={`text-sm ${muted}`} style={sf}>{eSI}</span>
+          <span className="flex justify-center">{scoreSymbol(gross, ePar)}</span>
+          <span className={`text-right text-sm ${ptsColor(pts)}`} style={sf}>{pts ?? "—"}</span>
+        </div>
+      ))}
+
+      {/* Out subtotal */}
+      <div className={`${grid} px-3 py-2 items-center border-b border-[#C9A84C]/20`} style={{ background: "rgba(201,168,76,0.16)" }}>
+        <span className="text-xs font-bold tracking-widest uppercase text-[#5C4520]" style={sf}>Out</span>
+        <span className={`text-sm font-bold text-[#5C4520]`} style={sf}>{front9Par}</span>
+        <span />
+        <span className="text-center text-sm font-bold text-[#5C4520]" style={sf}>{front9HasScores ? front9Gross : "—"}</span>
+        <span className={`text-right text-sm font-bold text-[#7B6C3E]`} style={sf}>{front9HasScores ? front9Pts : "—"}</span>
+      </div>
+
+      {/* Back 9 */}
+      {back9.map(({ hole, idx, ePar, eSI, gross, pts }) => (
+        <div key={hole.hole_number} className={`${grid} px-3 py-1.5 items-center border-b border-[#E2DAC8] ${idx % 2 === 0 ? "bg-[#EEE8D6]" : ""}`}>
+          <span className={`text-sm font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
+          <span className={`text-sm ${muted}`} style={sf}>{ePar}</span>
+          <span className={`text-sm ${muted}`} style={sf}>{eSI}</span>
+          <span className="flex justify-center">{scoreSymbol(gross, ePar)}</span>
+          <span className={`text-right text-sm ${ptsColor(pts)}`} style={sf}>{pts ?? "—"}</span>
+        </div>
+      ))}
+
+      {/* In subtotal */}
+      <div className={`${grid} px-3 py-2 items-center border-b border-[#C9A84C]/20`} style={{ background: "rgba(201,168,76,0.16)" }}>
+        <span className="text-xs font-bold tracking-widest uppercase text-[#5C4520]" style={sf}>In</span>
+        <span className={`text-sm font-bold text-[#5C4520]`} style={sf}>{back9Par}</span>
+        <span />
+        <span className="text-center text-sm font-bold text-[#5C4520]" style={sf}>{back9HasScores ? back9Gross : "—"}</span>
+        <span className={`text-right text-sm font-bold text-[#7B6C3E]`} style={sf}>{back9HasScores ? back9Pts : "—"}</span>
+      </div>
+
+      {/* Tot row */}
+      <div className={`${grid} px-3 py-2.5 items-center`} style={{ background: "rgba(201,168,76,0.35)" }}>
+        <span className="text-xs font-bold tracking-widest uppercase text-[#4A3810]" style={sf}>Tot</span>
+        <span className={`text-sm font-bold text-[#4A3810]`} style={sf}>{totalPar}</span>
+        <span />
+        <span className="text-center text-sm font-bold text-[#4A3810]" style={sf}>{totalGross || "—"}</span>
+        <span className="text-right text-base font-extrabold text-[#5C4520] font-[family-name:var(--font-playfair)]">{totalPts}</span>
+      </div>
+
+    </div>
+  )
+}
+
 // ─── Props ────────────────────────────────────────────────
 
 interface Props {
@@ -127,6 +270,7 @@ export default function LiveLeaderboardPanel({
   const [mode, setMode]                 = useState<Mode>("stableford")
   const [strokesView, setStrokesView]   = useState<StrokesView>("nett")
   const [lastFetch, setLastFetch]       = useState<Date | null>(null)
+  const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null)
 
   const courseHoles = holes
     .filter(h => h.course_id === liveRound.course_id)
@@ -295,12 +439,15 @@ export default function LiveLeaderboardPanel({
           <div className="text-white/10 text-xs mt-1">Scores appear as holes are completed</div>
         </div>
       ) : (
-        <div className="border border-[#1e3d28] divide-y divide-[#1e3d28]">
+        <div className="border border-[#1e3d28]">
           {sortedRows.map((row, idx) => {
             const { player, holesCompleted, isFinalised,
                     totalStableford, stablefordRelative,
                     totalGross, grossRelative,
                     totalNett, nettRelative } = row
+
+            const isExpanded = expandedPlayerId === player.id
+            const isLast = idx === sortedRows.length - 1
 
             // ── Col 3: relative score ──────────────────────
             let relativeValue: number
@@ -337,38 +484,61 @@ export default function LiveLeaderboardPanel({
               col4 = `${totalNett}`
             }
 
+            const playingHcp = roundHandicaps.find(
+              rh => rh.player_id === player.id && rh.round_id === liveRound.round_id
+            )?.playing_handicap ?? 0
+
             return (
-              <div key={player.id} className="flex items-center gap-3 px-4 py-3">
+              <Fragment key={player.id}>
+                <div className={`flex items-center gap-3 px-4 py-3 ${!isLast || isExpanded ? "border-b border-[#1e3d28]" : ""}`}>
 
-                {/* Col 1: position */}
-                <span className="text-white/40 text-base font-semibold w-6 flex-shrink-0 tabular-nums">
-                  {positions[idx]}
-                </span>
+                  {/* Col 1: position */}
+                  <span className="text-white/40 text-base font-semibold w-6 flex-shrink-0 tabular-nums">
+                    {positions[idx]}
+                  </span>
 
-                {/* Col 2: team dot + name */}
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  {player.teams && (
-                    <span
-                      className="w-2 h-2 rounded-full flex-shrink-0"
-                      style={{ backgroundColor: player.teams.color }}
-                    />
-                  )}
-                  <span className="text-base text-white/80 truncate">{player.name}</span>
+                  {/* Col 2: team dot + name (tappable) */}
+                  <div className="flex items-center gap-2 flex-1 min-w-0">
+                    {player.teams && (
+                      <span
+                        className="w-2 h-2 rounded-full flex-shrink-0"
+                        style={{ backgroundColor: player.teams.color }}
+                      />
+                    )}
+                    <button
+                      onClick={() => setExpandedPlayerId(isExpanded ? null : player.id)}
+                      className="text-base text-white/80 truncate text-left hover:text-white transition-colors"
+                    >
+                      {player.name}
+                    </button>
+                  </div>
+
+                  {/* Col 3: relative score pill */}
+                  <span className={`flex-shrink-0 inline-flex items-center justify-center
+                    px-2 py-0.5 rounded-sm text-lg font-bold tabular-nums min-w-[3.5rem] ${scorePillClass}`}>
+                    {scoreDisplay}
+                  </span>
+
+                  {/* Col 4: holes or finalised total */}
+                  <span className={`flex-shrink-0 w-9 text-right tabular-nums text-base
+                    ${isFinalised ? "text-white/60 font-semibold" : "text-white/30"}`}>
+                    {col4}
+                  </span>
+
                 </div>
 
-                {/* Col 3: relative score pill */}
-                <span className={`flex-shrink-0 inline-flex items-center justify-center
-                  px-2 py-0.5 rounded-sm text-lg font-bold tabular-nums min-w-[3.5rem] ${scorePillClass}`}>
-                  {scoreDisplay}
-                </span>
-
-                {/* Col 4: holes or finalised total */}
-                <span className={`flex-shrink-0 w-9 text-right tabular-nums text-base
-                  ${isFinalised ? "text-white/60 font-semibold" : "text-white/30"}`}>
-                  {col4}
-                </span>
-
-              </div>
+                {isExpanded && (
+                  <div className={!isLast ? "border-b border-[#1e3d28]" : ""}>
+                    <InlineScorecard
+                      player={player}
+                      playingHcp={playingHcp}
+                      courseHoles={courseHoles}
+                      playerScores={liveScores.filter(ls => ls.player_id === player.id)}
+                      courseId={liveRound.course_id}
+                    />
+                  </div>
+                )}
+              </Fragment>
             )
           })}
         </div>
