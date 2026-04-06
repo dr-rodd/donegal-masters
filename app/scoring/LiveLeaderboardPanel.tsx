@@ -393,7 +393,7 @@ export default function LiveLeaderboardPanel({
   return (
     <div className="max-w-lg mx-auto w-full px-4 py-6 flex flex-col gap-4">
 
-      {/* Header */}
+      {/* Header — scrolls away */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
@@ -447,6 +447,14 @@ export default function LiveLeaderboardPanel({
         </div>
       ) : (
         <div className="border border-[#1e3d28]">
+          {/* Column headers — sticky below main nav */}
+          <div className="sticky top-[57px] z-10 flex items-center gap-3 px-4 py-2 bg-[#0a1a0e] border-b border-[#1e3d28]">
+            <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 w-6 flex-shrink-0">Pos</span>
+            <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 flex-1 min-w-0">Player</span>
+            <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 flex-shrink-0 min-w-[3.5rem] text-center">Score</span>
+            <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 flex-shrink-0 w-9 text-right">Thru</span>
+          </div>
+
           {sortedRows.map((row, idx) => {
             const { player, holesCompleted, isFinalised,
                     totalStableford, stablefordRelative,
@@ -465,9 +473,9 @@ export default function LiveLeaderboardPanel({
               relativeValue = stablefordRelative
               scoreDisplay  = fmtRelative(relativeValue)
               scorePillClass = relativeValue > 0
-                ? "bg-[#C9A84C]/15 text-[#C9A84C]"
+                ? "bg-green-900/25 text-green-400"
                 : relativeValue < 0
-                  ? "bg-red-900/25 text-red-400/90"
+                  ? "bg-[#C9A84C]/15 text-[#C9A84C]"
                   : "bg-white/5 text-white/45"
             } else {
               relativeValue  = strokesView === "gross" ? grossRelative : nettRelative
@@ -475,21 +483,23 @@ export default function LiveLeaderboardPanel({
               scorePillClass = relativeValue < 0
                 ? "bg-green-900/25 text-green-400"
                 : relativeValue > 0
-                  ? "bg-red-900/25 text-red-400/90"
+                  ? "bg-[#C9A84C]/15 text-[#C9A84C]"
                   : "bg-white/5 text-white/45"
             }
 
-            // ── Col 4: holes or finalised total ───────────
-            let col4: string
-            if (!isFinalised) {
-              col4 = `${holesCompleted}`
-            } else if (mode === "stableford") {
-              col4 = `${totalStableford}`
-            } else if (strokesView === "gross") {
-              col4 = `${totalGross}`
-            } else {
-              col4 = `${totalNett}`
+            // ── Col 3 override for finalised: show absolute total ─
+            if (isFinalised) {
+              if (mode === "stableford") {
+                scoreDisplay = `${totalStableford}`
+              } else if (strokesView === "gross") {
+                scoreDisplay = `${totalGross}`
+              } else {
+                scoreDisplay = `${totalNett}`
+              }
             }
+
+            // ── Col 4: holes through or F ─────────────────
+            const col4 = isFinalised ? "F" : `${holesCompleted}`
 
             const playingHcp = roundHandicaps.find(
               rh => rh.player_id === player.id && rh.round_id === liveRound.round_id
