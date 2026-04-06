@@ -34,7 +34,7 @@ export default async function LeaderboardPage() {
           <h1 className="font-[family-name:var(--font-playfair)] text-xl sm:text-2xl text-white tracking-wide">
             The Donegal Masters
           </h1>
-          <Link href="/leaderboard/individual" className="text-white/40 text-sm tracking-[0.2em] uppercase hover:text-[#C9A84C] transition-colors">
+          <Link href="/leaderboard/individual" className="text-white/40 text-xs tracking-[0.2em] uppercase hover:text-[#C9A84C] transition-colors">
             Individual →
           </Link>
         </div>

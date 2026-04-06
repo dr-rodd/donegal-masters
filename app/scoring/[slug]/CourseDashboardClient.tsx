@@ -332,31 +332,23 @@ export default function CourseDashboardClient({
   // ─── Header ───────────────────────────────────────────────
 
   const headerLeft = view === "dashboard"
-    ? <Link href="/scoring" className="text-[#C9A84C] text-sm tracking-[0.2em] uppercase hover:text-white transition-colors">← Courses</Link>
-    : <button onClick={goBack} className="text-[#C9A84C] text-sm tracking-[0.2em] uppercase hover:text-white transition-colors">← Back</button>
+    ? <Link href="/scoring" className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">← Courses</Link>
+    : <button onClick={goBack} className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">← Back</button>
 
   const headerRight = view === "scoring" && showLiveLeaderboard
     ? <button
         onClick={() => setShowLiveLeaderboard(false)}
-        className="text-[#C9A84C] text-sm tracking-[0.2em] uppercase transition-colors w-[80px] text-right hover:text-white"
+        className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase transition-colors w-[80px] text-right hover:text-white"
       >
-        ← Scores
+        ← Card
       </button>
     : view === "scoring"
       ? <button
           onClick={() => setShowLiveLeaderboard(true)}
           aria-label="Live leaderboard"
-          className="w-[80px] flex flex-col items-end gap-0.5 active:opacity-70 transition-opacity"
+          className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors w-[80px] text-right"
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src="/leaderboard.png"
-            alt=""
-            width={26}
-            height={26}
-            style={{ filter: "brightness(0) saturate(100%) invert(72%) sepia(40%) saturate(600%) hue-rotate(5deg) brightness(0.95)" }}
-          />
-          <span className="text-[9px] tracking-[0.18em] uppercase text-[#C9A84C]/70">Live</span>
+          Live
         </button>
       : view === "dashboard"
         ? <button
