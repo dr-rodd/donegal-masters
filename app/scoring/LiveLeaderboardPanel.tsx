@@ -271,6 +271,7 @@ export default function LiveLeaderboardPanel({
   const [strokesView, setStrokesView]   = useState<StrokesView>("nett")
   const [lastFetch, setLastFetch]       = useState<Date | null>(null)
   const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null)
+  const [finalisedPlayerIds, setFinalisedPlayerIds] = useState<Set<string>>(new Set())
 
   const courseHoles = holes
     .filter(h => h.course_id === liveRound.course_id)
@@ -284,22 +285,28 @@ export default function LiveLeaderboardPanel({
         .eq("round_id", liveRound.round_id),
       supabase
         .from("live_rounds")
-        .select("id")
+        .select("id, status")
         .eq("round_id", liveRound.round_id)
         .in("status", ["active", "finalised"]),
     ])
 
     if (scoresRes.data) setLiveScores(scoresRes.data as LiveScoreRow[])
 
-    const liveRoundIds = (liveRoundsRes.data ?? []).map((lr: any) => lr.id as string)
+    const liveRoundsData = (liveRoundsRes.data ?? []) as { id: string; status: string }[]
+    const liveRoundIds = liveRoundsData.map(lr => lr.id)
+    const finalisedRoundIds = new Set(liveRoundsData.filter(lr => lr.status === "finalised").map(lr => lr.id))
+
     if (liveRoundIds.length > 0) {
       const { data: locks } = await supabase
         .from("live_player_locks")
-        .select("player_id")
+        .select("player_id, live_round_id")
         .in("live_round_id", liveRoundIds)
-      setValidPlayerIds(new Set(locks?.map(l => l.player_id as string) ?? []))
+      const allLocks = locks ?? []
+      setValidPlayerIds(new Set(allLocks.map(l => l.player_id as string)))
+      setFinalisedPlayerIds(new Set(allLocks.filter(l => finalisedRoundIds.has(l.live_round_id as string)).map(l => l.player_id as string)))
     } else {
       setValidPlayerIds(new Set())
+      setFinalisedPlayerIds(new Set())
     }
 
     setLastFetch(new Date())
@@ -352,7 +359,7 @@ export default function LiveLeaderboardPanel({
       return [{
         player,
         holesCompleted,
-        isFinalised: holesCompleted === courseHoles.length,
+        isFinalised: finalisedPlayerIds.has(player.id),
         totalStableford,
         stablefordRelative: totalStableford - holesCompleted * 2,
         totalGross,
@@ -490,14 +497,17 @@ export default function LiveLeaderboardPanel({
 
             return (
               <Fragment key={player.id}>
-                <div className={`flex items-center gap-3 px-4 py-3 ${!isLast || isExpanded ? "border-b border-[#1e3d28]" : ""}`}>
+                <button
+                  onClick={() => setExpandedPlayerId(isExpanded ? null : player.id)}
+                  className={`w-full flex items-center gap-3 px-4 py-3 text-left active:bg-white/5 transition-colors ${!isLast || isExpanded ? "border-b border-[#1e3d28]" : ""}`}
+                >
 
                   {/* Col 1: position */}
                   <span className="text-white/40 text-base font-semibold w-6 flex-shrink-0 tabular-nums">
                     {positions[idx]}
                   </span>
 
-                  {/* Col 2: team dot + name (tappable) */}
+                  {/* Col 2: team dot + name */}
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     {player.teams && (
                       <span
@@ -505,12 +515,7 @@ export default function LiveLeaderboardPanel({
                         style={{ backgroundColor: player.teams.color }}
                       />
                     )}
-                    <button
-                      onClick={() => setExpandedPlayerId(isExpanded ? null : player.id)}
-                      className="text-base text-white/80 truncate text-left hover:text-white transition-colors"
-                    >
-                      {player.name}
-                    </button>
+                    <span className="text-base text-white/80 truncate">{player.name}</span>
                   </div>
 
                   {/* Col 3: relative score pill */}
@@ -525,7 +530,7 @@ export default function LiveLeaderboardPanel({
                     {col4}
                   </span>
 
-                </div>
+                </button>
 
                 {isExpanded && (
                   <div className={!isLast ? "border-b border-[#1e3d28]" : ""}>

@@ -162,3 +162,46 @@ Stored in `.env.local` (gitignored).
 | `app/layout.tsx` | Root layout |
 | `lib/supabase.ts` | Supabase client |
 | `supabase/schema.sql` | Database schema (does NOT include live_rounds/live_scores/live_player_locks — those exist only in Supabase) |
+
+## Player States (Live Scoring)
+
+Players in a live session exist in exactly one state at all times:
+
+| State | Description |
+|-------|-------------|
+| Available | Not yet assigned to any scorecard in this session |
+| Active | Currently assigned to an in-progress scorecard |
+| Finalised | Scorecard completed and committed |
+
+A player cannot appear in more than one state simultaneously. Finalised players are not available for reselection unless manually unfinalised via the course dashboard settings tab.
+
+A live session is only marked complete when every available player has a finalised scorecard, or an admin manually triggers Finalise Session in settings.
+
+## Scoring Display Conventions
+
+- Stableford display: running total vs 2pts per hole baseline — show as +/- relative to that baseline, higher is better
+- Gross display: score vs par at holes played — lower is better
+- Nett display: (course par + 36 - stableford points) for finalised rounds. For rounds in progress, scale baseline to holes completed. Show as +/- relative to par, lower is better.
+- Colour treatment: gold for better than baseline, green for better than par nett, standard for worse
+- Live leaderboard colour treatment: gold for over par or behind handicap (replaces red — most amateur scores will be in this range so it should not read as negative); green for stableford better than handicap; green nett for better than par nett (unchanged). Avoid red as a score indicator throughout the app.
+
+## Design Principles
+
+- Mobile-first app used by older users — prioritise large, legible text and generous touch targets
+- Numbers conveying key information (scores, points, positions) must be immediately readable at a glance on a phone screen
+- Paper scorecard style for review screens: parchment cream background, ink-style symbols
+- Score symbols: solid circle (eagle), thin ring (birdie), blank (par), thin rounded square ring (bogey), light gold fill in rounded square (double bogey or worse)
+- Claude.ai leads all design decisions before prompting Claude Code — clarify requirements first, then issue structured prompts
+
+## Prompting Guidelines for Claude Code
+
+- Prompts must be succinct and robust — avoid over-specifying logic the codebase already handles
+- Target specific files or components where possible
+- Avoid unnecessary token usage — do not run broad sitewide audits when a targeted fix will do
+- Build in chunks with testing between dependent steps
+- Prefer automated/CLI approaches over manual dashboard steps
+- User is not a coder — prompts should be clear and copiable without modification
+
+## Site Config
+
+Competition name and branding live in `config/site.ts` to allow easy spinout for future competitions. Do not hardcode competition name in components — import from config.
