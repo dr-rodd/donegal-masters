@@ -1104,7 +1104,7 @@ export default function LiveScoringFlow({
               {/* Out subtotal */}
               <div className={`${grid} px-3 py-3 items-center border-b border-[#C8BFA8]`} style={{ background: "#EAE4D5" }}>
                 <span className={`text-xs tracking-widest uppercase font-bold ${muted}`} style={sf}>Out</span>
-                <span />
+                <span className={`text-sm ${muted}`} style={sf}>{front9Yards > 0 ? front9Yards : "—"}</span>
                 <span className={`text-sm font-semibold ${dark}`} style={sf}>{front9Par}</span>
                 <span />
                 <span className={`text-center text-sm font-semibold ${dark}`} style={sf}>{front9Gross > 0 ? front9Gross : "—"}</span>
@@ -1126,7 +1126,7 @@ export default function LiveScoringFlow({
               {/* In subtotal */}
               <div className={`${grid} px-3 py-3 items-center border-b border-[#C8BFA8]`} style={{ background: "#EAE4D5" }}>
                 <span className={`text-xs tracking-widest uppercase font-bold ${muted}`} style={sf}>In</span>
-                <span />
+                <span className={`text-sm ${muted}`} style={sf}>{back9Yards > 0 ? back9Yards : "—"}</span>
                 <span className={`text-sm font-semibold ${dark}`} style={sf}>{back9Par}</span>
                 <span />
                 <span className={`text-center text-sm font-semibold ${dark}`} style={sf}>{back9Gross > 0 ? back9Gross : "—"}</span>
@@ -1135,8 +1135,8 @@ export default function LiveScoringFlow({
 
               {/* Total */}
               <div className={`${grid} px-3 py-4 items-center`} style={{ background: "#EAE4D5" }}>
-                <span className={`text-xs tracking-widest uppercase font-bold ${muted}`} style={sf}>Total</span>
                 <span />
+                <span className={`text-sm ${muted}`} style={sf}>{totalYards > 0 ? totalYards : "—"}</span>
                 <span className={`text-sm font-semibold ${dark}`} style={sf}>{totalPar}</span>
                 <span />
                 <span className={`text-center text-sm font-semibold ${dark}`} style={sf}>{hasAnyScore && totalGross > 0 ? totalGross : "—"}</span>
