@@ -4,7 +4,6 @@ import React, { useState, useEffect, useRef } from "react"
 import { supabase } from "@/lib/supabase"
 import type { ActiveLiveRound } from "./ScoringClient"
 import LiveLeaderboardPanel from "./LiveLeaderboardPanel"
-import { SITE } from "@/config/site"
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -1068,36 +1067,38 @@ export default function LiveScoringFlow({
           const dark  = "text-[#3A3A2E]"
 
           return (
-            <div className="rounded-xl overflow-hidden shadow-[0_4px_24px_rgba(0,0,0,0.22)]" style={{ background: "#F5F0E8" }}>
+            <div className="rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.22)] relative" style={{ background: "#F5F0E8" }}>
 
-              {/* Header */}
-              <div className="px-4 pt-4 pb-3 border-b border-[#D4CBBA]" style={{ background: "#EAE4D5" }}>
-                <p className={`font-[family-name:var(--font-playfair)] text-base font-bold text-center mb-3 ${dark}`}>
-                  {SITE.competitionName}
-                </p>
-                {/* Row 1: Course */}
-                <p className={`text-base font-semibold ${dark} mb-2`} style={sf}>{courseNameLabel}</p>
-                {/* Row 2: Player · Tee · PH */}
-                <div className="flex items-center justify-between">
-                  <span className="font-[family-name:var(--font-playfair)] text-xl text-[#2C2C1E] font-semibold leading-tight">
-                    {player.name}
-                  </span>
-                  <span className="flex items-center gap-1.5">
-                    <span className={`w-3 h-3 rounded-full flex-shrink-0 ${TEE_STYLES[tee.name]?.dot ?? "bg-white/40"}`} />
-                    <span className={`text-base font-semibold ${dark}`} style={sf}>{tee.name}</span>
-                  </span>
-                  <span className="flex flex-col items-end">
-                    <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>PH</span>
-                    <span className={`text-base font-semibold ${dark}`} style={sf}>{playingHcp}</span>
-                  </span>
-                </div>
+              {/* Course banner — scrolls with page, does not stick */}
+              <div className="rounded-t-xl px-4 py-3 border-b border-[#2a5540]" style={{ background: "#1C3E2A" }}>
+                <p className="text-white text-base font-semibold" style={sf}>{courseNameLabel}</p>
               </div>
 
-              {/* Column headers */}
-              <div className={`${grid} px-3 py-2 border-b border-[#D4CBBA]`} style={{ background: "#EAE4D5" }}>
-                {(["","Yds","Par","SI","Score","Pts"] as const).map((h, i) => (
-                  <span key={i} className={`text-[11px] tracking-[0.15em] uppercase font-semibold ${muted} ${i === 4 ? "text-center" : i === 5 ? "text-right" : ""}`} style={sf}>{h}</span>
-                ))}
+              {/* Sticky: player details row + column header row */}
+              <div className="sticky top-[57px] z-10">
+
+                {/* Player details row */}
+                <div className="flex items-end gap-4 px-4 py-2.5 border-b border-[#D4CBBA]" style={{ background: "#EAE4D5" }}>
+                  <div className="flex flex-col flex-1 min-w-0">
+                    <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>Player</span>
+                    <span className="font-[family-name:var(--font-playfair)] text-xl text-[#2C2C1E] font-semibold leading-tight truncate">{player.name}</span>
+                  </div>
+                  <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
+                    <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>Tee</span>
+                    <span className={`w-4 h-4 rounded-full ${TEE_STYLES[tee.name]?.dot ?? "bg-white/40"}`} />
+                  </div>
+                  <div className="flex flex-col items-end flex-shrink-0">
+                    <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>PH</span>
+                    <span className={`text-base font-semibold ${dark}`} style={sf}>{playingHcp}</span>
+                  </div>
+                </div>
+
+                {/* Column headers */}
+                <div className={`${grid} px-3 py-2 border-b border-[#D4CBBA]`} style={{ background: "#EAE4D5" }}>
+                  {(["Hole","Yds","Par","SI","Score","Pts"] as const).map((h, i) => (
+                    <span key={h} className={`text-[11px] tracking-[0.15em] uppercase font-semibold ${muted} ${i === 4 ? "text-center" : i === 5 ? "text-right" : ""}`} style={sf}>{h}</span>
+                  ))}
+                </div>
               </div>
 
               {/* Front 9 */}
@@ -1145,7 +1146,7 @@ export default function LiveScoringFlow({
               </div>
 
               {/* Total — deepest gold, heaviest weight */}
-              <div className={`${grid} px-3 py-3 items-center border-t border-[#C9A84C]/35`} style={{ background: "rgba(201,168,76,0.35)" }}>
+              <div className={`${grid} px-3 py-3 items-center border-t border-[#C9A84C]/35 rounded-b-xl`} style={{ background: "rgba(201,168,76,0.35)" }}>
                 <span className="text-sm font-bold tracking-widest uppercase text-[#4A3810]" style={sf}>Tot</span>
                 <span className={`text-sm font-semibold ${muted}`} style={sf}>{totalYards > 0 ? totalYards : "—"}</span>
                 <span className={`text-sm font-bold ${dark}`} style={sf}>{totalPar}</span>
