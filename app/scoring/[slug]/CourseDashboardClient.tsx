@@ -364,22 +364,9 @@ export default function CourseDashboardClient({
     ? <Link href="/scoring" className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">← Courses</Link>
     : <button onClick={goBack} className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">← Back</button>
 
-  const headerRight = view === "scoring" && showLiveLeaderboard
-    ? <button
-        onClick={() => setShowLiveLeaderboard(false)}
-        className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase transition-colors w-[80px] text-right hover:text-white"
-      >
-        ← Card
-      </button>
-    : view === "scoring"
-      ? <button
-          onClick={() => setShowLiveLeaderboard(true)}
-          aria-label="Live leaderboard"
-          className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors w-[80px] text-right"
-        >
-          Live
-        </button>
-      : view === "dashboard"
+  const headerRight = view === "scoring"
+    ? <div className="w-[80px]" />
+    : view === "dashboard"
         ? <button
             onClick={() => setView("settings")}
             aria-label="Settings"
@@ -420,16 +407,29 @@ export default function CourseDashboardClient({
                   />
                 ))}
               </div>
-              {!showLiveLeaderboard && (
-                <button
-                  onClick={() => setShowLiveLeaderboard(true)}
-                  aria-label="Live leaderboard"
-                  className="flex-shrink-0 w-5 h-5 flex items-center justify-center"
-                >
-                  <span className="w-2.5 h-2.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_3px_rgba(34,197,94,0.55)]" />
-                </button>
-              )}
             </div>
+          </div>
+        )}
+
+        {/* Leaderboard / Scorecard banner — shown during score entry */}
+        {view === "scoring" && (
+          <div className="max-w-lg mx-auto px-4 pb-3">
+            {showLiveLeaderboard ? (
+              <button
+                onClick={() => setShowLiveLeaderboard(false)}
+                className="w-full py-2.5 flex items-center justify-center gap-2.5 border border-[#C9A84C]/25 bg-[#C9A84C]/5 hover:bg-[#C9A84C]/10 transition-colors rounded-sm"
+              >
+                <span className="text-[#C9A84C] text-sm tracking-[0.2em] uppercase">← Scorecard</span>
+              </button>
+            ) : (
+              <button
+                onClick={() => setShowLiveLeaderboard(true)}
+                className="w-full py-2.5 flex items-center justify-center gap-2.5 border border-green-600/25 bg-green-900/10 hover:bg-green-900/20 transition-colors rounded-sm"
+              >
+                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_3px_rgba(34,197,94,0.5)]" />
+                <span className="text-green-400 text-sm tracking-[0.2em] uppercase">Live Leaderboard</span>
+              </button>
+            )}
           </div>
         )}
       </div>
