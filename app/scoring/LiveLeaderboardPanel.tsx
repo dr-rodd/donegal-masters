@@ -423,23 +423,23 @@ export default function LiveLeaderboardPanel({
         ))}
       </div>
 
-      {/* Strokes sub-toggle */}
+      {/* Leaderboard table */}
       {mode === "strokes" && (
-        <div className="flex border border-[#1e3d28]">
-          {(["nett", "gross"] as StrokesView[]).map(sv => (
-            <button
-              key={sv}
-              onClick={() => setStrokesView(sv)}
-              className={`flex-1 py-2 text-sm tracking-[0.15em] uppercase transition-colors
-                ${strokesView === sv ? "bg-[#1e3d28] text-white/80" : "text-white/30 hover:text-white/50"}`}
-            >
-              {sv}
-            </button>
-          ))}
+        <div className="flex justify-end -mb-2">
+          <div className="flex rounded-full border border-[#1e3d28] overflow-hidden">
+            {(["nett", "gross"] as StrokesView[]).map(sv => (
+              <button
+                key={sv}
+                onClick={() => setStrokesView(sv)}
+                className={`px-3 py-1 text-[10px] tracking-[0.12em] uppercase transition-colors
+                  ${strokesView === sv ? "bg-[#1e3d28] text-white/70" : "text-white/30 hover:text-white/50"}`}
+              >
+                {sv}
+              </button>
+            ))}
+          </div>
         </div>
       )}
-
-      {/* Leaderboard table */}
       {sortedRows.length === 0 ? (
         <div className="border border-[#1e3d28] px-4 py-10 text-center">
           <div className="text-white/20 text-sm">No scores yet</div>
