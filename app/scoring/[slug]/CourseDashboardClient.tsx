@@ -345,9 +345,13 @@ export default function CourseDashboardClient({
     : view === "dashboard"
       ? <button
           onClick={() => setView("settings")}
-          className="text-white/25 text-sm tracking-[0.2em] uppercase hover:text-white/50 transition-colors w-[80px] text-right"
+          aria-label="Settings"
+          className="text-white/30 hover:text-white/60 transition-colors w-[80px] flex justify-end"
         >
-          Settings
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">
+            <circle cx="12" cy="12" r="3" />
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z" />
+          </svg>
         </button>
       : <div className="w-[80px]" />
 
@@ -397,6 +401,17 @@ export default function CourseDashboardClient({
       {view === "dashboard" && (
         <div className="max-w-lg mx-auto">
           <div className="px-4 py-6 space-y-5">
+
+          {/* Live Leaderboard — top of dashboard */}
+          {firstLiveRound && (
+            <button
+              onClick={() => setView("live-board")}
+              className="w-full py-3 flex items-center justify-center gap-2.5 border border-green-600/25 bg-green-900/10 hover:bg-green-900/20 transition-colors rounded-sm"
+            >
+              <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_3px_rgba(34,197,94,0.5)]" />
+              <span className="text-green-400 text-sm tracking-[0.2em] uppercase">Live Leaderboard</span>
+            </button>
+          )}
 
           {/* Scorecards */}
           <section>
@@ -502,16 +517,6 @@ export default function CourseDashboardClient({
             </button>
             {startError && (
               <p className="text-red-400/80 text-sm text-center">{startError}</p>
-            )}
-
-            {firstLiveRound && (
-              <button
-                onClick={() => setView("live-board")}
-                className="w-full py-3 flex items-center justify-center gap-2.5 border border-green-600/25 bg-green-900/10 hover:bg-green-900/20 transition-colors rounded-sm"
-              >
-                <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_3px_rgba(34,197,94,0.5)]" />
-                <span className="text-green-400 text-sm tracking-[0.2em] uppercase">Live Board</span>
-              </button>
             )}
           </div>
 
