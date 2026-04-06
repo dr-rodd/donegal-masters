@@ -1,9 +1,10 @@
 "use client"
 
-import { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef } from "react"
 import { supabase } from "@/lib/supabase"
 import type { ActiveLiveRound } from "./ScoringClient"
 import LiveLeaderboardPanel from "./LiveLeaderboardPanel"
+import { SITE } from "@/config/site"
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -1044,15 +1045,15 @@ export default function LiveScoringFlow({
 
           // Score symbol — number always legible inside the shape
           const scoreSymbol = (gross: number | null, ePar: number, isNR: boolean) => {
-            if (isNR) return <span className="text-orange-600 text-base font-semibold" style={{ fontFamily: "Georgia, serif" }}>NR</span>
-            if (gross === null) return <span className="text-[#A89880] text-base">—</span>
+            if (isNR) return <span className="text-orange-600 text-lg font-semibold" style={{ fontFamily: "Georgia, serif" }}>NR</span>
+            if (gross === null) return <span className="text-[#A89880] text-lg">—</span>
             const diff = gross - ePar
-            const n = <span className="text-base font-bold leading-none">{gross}</span>
-            if (diff <= -2) return <span className="w-8 h-8 rounded-full bg-[#2C5F2E] flex items-center justify-center text-white">{n}</span>
-            if (diff === -1) return <span className="w-8 h-8 rounded-full border-[2.5px] border-[#2C5F2E] flex items-center justify-center text-[#2C5F2E]">{n}</span>
-            if (diff === 0)  return <span className="text-[#3A3A2E] text-base font-semibold" style={{ fontFamily: "Georgia, serif" }}>{gross}</span>
-            if (diff === 1)  return <span className="w-8 h-8 border border-[#8B7355] rounded-lg flex items-center justify-center text-[#5A4F3A]">{n}</span>
-            return               <span className="w-8 h-8 bg-[#E8DCBC] rounded-lg flex items-center justify-center text-[#5A4F3A]">{n}</span>
+            const n = <span className="text-lg font-semibold leading-none">{gross}</span>
+            if (diff <= -2) return <span className="w-9 h-9 rounded-full bg-[#2C5F2E] flex items-center justify-center text-white">{n}</span>
+            if (diff === -1) return <span className="w-9 h-9 rounded-full border-[2.5px] border-[#2C5F2E] flex items-center justify-center text-[#2C5F2E]">{n}</span>
+            if (diff === 0)  return <span className="text-[#3A3A2E] text-lg font-semibold" style={{ fontFamily: "Georgia, serif" }}>{gross}</span>
+            if (diff === 1)  return <span className="w-9 h-9 border border-[#8B7355] rounded-lg flex items-center justify-center text-[#5A4F3A]">{n}</span>
+            return               <span className="w-9 h-9 bg-[#E8DCBC] rounded-lg flex items-center justify-center text-[#5A4F3A]">{n}</span>
           }
 
           const ptsColor = (pts: number | null) =>
@@ -1069,16 +1070,34 @@ export default function LiveScoringFlow({
           return (
             <div className="rounded-xl overflow-hidden shadow-[0_4px_24px_rgba(0,0,0,0.22)]" style={{ background: "#F5F0E8" }}>
 
-              {/* Header */}
-              <div className="px-4 pt-5 pb-4 border-b border-[#D4CBBA]" style={{ background: "#EAE4D5" }}>
-                <p className={`text-xs tracking-[0.15em] uppercase ${muted}`} style={sf}>
-                  {[courseNameLabel, tee.name + " Tees", dateLabel].filter(Boolean).join("  ·  ")}
-                </p>
-                <div className="flex items-baseline gap-3 mt-2 flex-wrap">
-                  <span className="font-[family-name:var(--font-playfair)] text-2xl text-[#2C2C1E] font-semibold leading-tight">
-                    {player.name}
-                  </span>
-                  <span className={`text-sm ${muted}`} style={sf}>HCI {player.handicap} · PH {playingHcp}</span>
+              {/* Header — form-style filled scorecard */}
+              <div className="border-b border-[#D4CBBA]" style={{ background: "#EAE4D5" }}>
+                {[
+                  { label: "Competition", value: <span className={`text-base font-semibold ${dark}`} style={sf}>{SITE.competitionName}</span> },
+                  { label: "Course",      value: <span className={`text-base font-semibold ${dark}`} style={sf}>{courseNameLabel}</span> },
+                  { label: "Player",      value: <span className="font-[family-name:var(--font-playfair)] text-xl text-[#2C2C1E] font-semibold leading-tight">{player.name}</span> },
+                ].map(({ label, value }) => (
+                  <div key={label} className="flex items-center justify-between px-4 py-2 border-b border-[#E2DAC8]">
+                    <span className={`text-[11px] tracking-[0.15em] uppercase font-semibold ${muted}`} style={sf}>{label}</span>
+                    {value}
+                  </div>
+                ))}
+                <div className="flex px-4 py-2.5 gap-6">
+                  {([
+                    { label: "HCP", value: <span className={`text-base font-semibold ${dark}`} style={sf}>{player.handicap}</span> },
+                    { label: "PH",  value: <span className={`text-base font-semibold ${dark}`} style={sf}>{playingHcp}</span> },
+                    { label: "Tee", value: (
+                      <span className="flex items-center gap-1.5">
+                        <span className={`w-3 h-3 rounded-full flex-shrink-0 ${TEE_STYLES[tee.name]?.dot ?? "bg-white/40"}`} />
+                        <span className={`text-base font-semibold ${dark}`} style={sf}>{tee.name}</span>
+                      </span>
+                    )},
+                  ] as { label: string; value: React.ReactNode }[]).map(({ label, value }) => (
+                    <div key={label} className="flex flex-col gap-0.5">
+                      <span className={`text-[11px] tracking-[0.15em] uppercase font-semibold ${muted}`} style={sf}>{label}</span>
+                      {value}
+                    </div>
+                  ))}
                 </div>
               </div>
 
@@ -1097,7 +1116,7 @@ export default function LiveScoringFlow({
                   <span className={`text-base ${dark}`} style={sf}>{ePar}</span>
                   <span className={`text-base ${muted}`} style={sf}>{eSI}</span>
                   <span className="flex items-center justify-center">{scoreSymbol(gross, ePar, isNR)}</span>
-                  <span className={`text-right text-base ${ptsColor(pts)}`} style={sf}>{pts ?? "—"}</span>
+                  <span className={`text-right text-lg ${ptsColor(pts)}`} style={sf}>{pts ?? "—"}</span>
                 </div>
               ))}
 
@@ -1107,8 +1126,8 @@ export default function LiveScoringFlow({
                 <span className={`text-sm ${muted}`} style={sf}>{front9Yards > 0 ? front9Yards : "—"}</span>
                 <span className={`text-sm font-semibold ${dark}`} style={sf}>{front9Par}</span>
                 <span />
-                <span className={`text-center text-sm font-semibold ${dark}`} style={sf}>{front9Gross > 0 ? front9Gross : "—"}</span>
-                <span className="text-right text-base font-bold text-[#7B6C3E]" style={sf}>{front9Pts}</span>
+                <span className={`text-center text-xl font-bold ${dark}`} style={sf}>{front9Gross > 0 ? front9Gross : "—"}</span>
+                <span className={`text-right text-lg font-bold text-[#7B6C3E]`} style={sf}>{front9Pts}</span>
               </div>
 
               {/* Back 9 */}
@@ -1119,7 +1138,7 @@ export default function LiveScoringFlow({
                   <span className={`text-base ${dark}`} style={sf}>{ePar}</span>
                   <span className={`text-base ${muted}`} style={sf}>{eSI}</span>
                   <span className="flex items-center justify-center">{scoreSymbol(gross, ePar, isNR)}</span>
-                  <span className={`text-right text-base ${ptsColor(pts)}`} style={sf}>{pts ?? "—"}</span>
+                  <span className={`text-right text-lg ${ptsColor(pts)}`} style={sf}>{pts ?? "—"}</span>
                 </div>
               ))}
 
@@ -1129,17 +1148,17 @@ export default function LiveScoringFlow({
                 <span className={`text-sm ${muted}`} style={sf}>{back9Yards > 0 ? back9Yards : "—"}</span>
                 <span className={`text-sm font-semibold ${dark}`} style={sf}>{back9Par}</span>
                 <span />
-                <span className={`text-center text-sm font-semibold ${dark}`} style={sf}>{back9Gross > 0 ? back9Gross : "—"}</span>
-                <span className="text-right text-base font-bold text-[#7B6C3E]" style={sf}>{back9Pts}</span>
+                <span className={`text-center text-xl font-bold ${dark}`} style={sf}>{back9Gross > 0 ? back9Gross : "—"}</span>
+                <span className={`text-right text-lg font-bold text-[#7B6C3E]`} style={sf}>{back9Pts}</span>
               </div>
 
               {/* Total */}
               <div className={`${grid} px-3 py-4 items-center`} style={{ background: "#EAE4D5" }}>
-                <span />
+                <span className={`text-xs tracking-widest uppercase font-bold ${muted}`} style={sf}>Tot</span>
                 <span className={`text-sm ${muted}`} style={sf}>{totalYards > 0 ? totalYards : "—"}</span>
                 <span className={`text-sm font-semibold ${dark}`} style={sf}>{totalPar}</span>
                 <span />
-                <span className={`text-center text-sm font-semibold ${dark}`} style={sf}>{hasAnyScore && totalGross > 0 ? totalGross : "—"}</span>
+                <span className={`text-center text-xl font-bold ${dark}`} style={sf}>{hasAnyScore && totalGross > 0 ? totalGross : "—"}</span>
                 <span className="text-right text-xl font-bold text-[#7B6C3E] font-[family-name:var(--font-playfair)]">{totalPts}</span>
               </div>
 
