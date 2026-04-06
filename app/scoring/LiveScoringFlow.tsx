@@ -1043,17 +1043,17 @@ export default function LiveScoringFlow({
           const back9Yards = totalYards - front9Yards
           const back9Par   = totalPar   - front9Par
 
-          // Score symbol — number always legible inside the shape
+          // Score symbol — tight fit, number fills most of symbol, uniform row height
           const scoreSymbol = (gross: number | null, ePar: number, isNR: boolean) => {
-            if (isNR) return <span className="text-orange-600 text-xl font-semibold" style={{ fontFamily: "Georgia, serif" }}>NR</span>
-            if (gross === null) return <span className="text-[#A89880] text-xl">—</span>
+            if (isNR) return <span className="text-orange-600 text-base font-semibold" style={{ fontFamily: "Georgia, serif" }}>NR</span>
+            if (gross === null) return <span className="text-[#A89880] text-base">—</span>
             const diff = gross - ePar
-            const n = <span className="text-xl font-semibold leading-none">{gross}</span>
-            if (diff <= -2) return <span className="w-12 h-12 rounded-full bg-[#D4EDDA] border border-[#2C5F2E] flex items-center justify-center text-[#1A4A1C]">{n}</span>
-            if (diff === -1) return <span className="w-12 h-12 rounded-full border border-[#2C5F2E] flex items-center justify-center text-[#2C5F2E]">{n}</span>
-            if (diff === 0)  return <span className="text-[#3A3A2E] text-xl font-semibold" style={{ fontFamily: "Georgia, serif" }}>{gross}</span>
-            if (diff === 1)  return <span className="w-12 h-12 border border-[#8B7355] rounded-lg flex items-center justify-center text-[#5A4F3A]">{n}</span>
-            return               <span className="w-12 h-12 bg-[#E8DCBC] rounded-lg flex items-center justify-center text-[#5A4F3A]">{n}</span>
+            const n = <span className="text-base font-semibold leading-none">{gross}</span>
+            if (diff <= -2) return <span className="w-7 h-7 rounded-full bg-[#D4EDDA] border border-[#2C5F2E] flex items-center justify-center text-[#1A4A1C]">{n}</span>
+            if (diff === -1) return <span className="w-7 h-7 rounded-full border border-[#2C5F2E] flex items-center justify-center text-[#2C5F2E]">{n}</span>
+            if (diff === 0)  return <span className="text-[#3A3A2E] text-base font-semibold" style={{ fontFamily: "Georgia, serif" }}>{gross}</span>
+            if (diff === 1)  return <span className="w-7 h-7 border border-[#8B7355] rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
+            return               <span className="w-7 h-7 bg-[#E8DCBC] rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
           }
 
           const ptsColor = (pts: number | null) =>
@@ -1102,7 +1102,7 @@ export default function LiveScoringFlow({
 
               {/* Front 9 */}
               {rows.slice(0, 9).map(({ hole, idx, isNR, gross, pts, ePar, eSI, yardage }) => (
-                <div key={hole.id} className={`${grid} px-3 py-2.5 items-center border-b border-[#E2DAC8] ${idx % 2 === 1 ? "bg-[#EEE8D6]" : ""}`}>
+                <div key={hole.id} className={`${grid} px-3 py-2 items-center border-b border-[#E2DAC8] ${idx % 2 === 1 ? "bg-[#EEE8D6]" : ""}`}>
                   <span className={`text-base font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
                   <span className={`text-base ${muted}`} style={sf}>{yardage ?? "—"}</span>
                   <span className={`text-base ${dark}`} style={sf}>{ePar}</span>
@@ -1112,11 +1112,11 @@ export default function LiveScoringFlow({
                 </div>
               ))}
 
-              {/* Out subtotal — pos 9 (odd) → darker alternating tone */}
-              <div className={`${grid} px-3 py-3 items-center border-b border-[#E2DAC8] bg-[#EEE8D6]`}>
-                <span className={`text-xs tracking-widest uppercase font-bold ${muted}`} style={sf}>Out</span>
+              {/* Out subtotal — gold fill, bolder text */}
+              <div className={`${grid} px-3 py-2.5 items-center border-b border-[#C9A84C]/20`} style={{ background: "rgba(201,168,76,0.16)" }}>
+                <span className="text-sm font-bold tracking-widest uppercase text-[#5C4520]" style={sf}>Out</span>
                 <span className={`text-sm ${muted}`} style={sf}>{front9Yards > 0 ? front9Yards : "—"}</span>
-                <span className={`text-sm font-semibold ${dark}`} style={sf}>{front9Par}</span>
+                <span className={`text-sm font-bold ${dark}`} style={sf}>{front9Par}</span>
                 <span />
                 <span className={`text-center text-xl font-bold ${dark}`} style={sf}>{front9Gross > 0 ? front9Gross : "—"}</span>
                 <span className={`text-right text-lg font-bold text-[#7B6C3E]`} style={sf}>{front9Pts}</span>
@@ -1124,7 +1124,7 @@ export default function LiveScoringFlow({
 
               {/* Back 9 — pos = idx+1; bg when idx is even (pos is odd) */}
               {rows.slice(9).map(({ hole, idx, isNR, gross, pts, ePar, eSI, yardage }) => (
-                <div key={hole.id} className={`${grid} px-3 py-2.5 items-center border-b border-[#E2DAC8] ${idx % 2 === 0 ? "bg-[#EEE8D6]" : ""}`}>
+                <div key={hole.id} className={`${grid} px-3 py-2 items-center border-b border-[#E2DAC8] ${idx % 2 === 0 ? "bg-[#EEE8D6]" : ""}`}>
                   <span className={`text-base font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
                   <span className={`text-base ${muted}`} style={sf}>{yardage ?? "—"}</span>
                   <span className={`text-base ${dark}`} style={sf}>{ePar}</span>
@@ -1134,24 +1134,24 @@ export default function LiveScoringFlow({
                 </div>
               ))}
 
-              {/* In subtotal — pos 19 (odd) → darker alternating tone */}
-              <div className={`${grid} px-3 py-3 items-center border-b border-[#E2DAC8] bg-[#EEE8D6]`}>
-                <span className={`text-xs tracking-widest uppercase font-bold ${muted}`} style={sf}>In</span>
+              {/* In subtotal — gold fill, bolder text */}
+              <div className={`${grid} px-3 py-2.5 items-center border-b border-[#C9A84C]/20`} style={{ background: "rgba(201,168,76,0.16)" }}>
+                <span className="text-sm font-bold tracking-widest uppercase text-[#5C4520]" style={sf}>In</span>
                 <span className={`text-sm ${muted}`} style={sf}>{back9Yards > 0 ? back9Yards : "—"}</span>
-                <span className={`text-sm font-semibold ${dark}`} style={sf}>{back9Par}</span>
+                <span className={`text-sm font-bold ${dark}`} style={sf}>{back9Par}</span>
                 <span />
                 <span className={`text-center text-xl font-bold ${dark}`} style={sf}>{back9Gross > 0 ? back9Gross : "—"}</span>
                 <span className={`text-right text-lg font-bold text-[#7B6C3E]`} style={sf}>{back9Pts}</span>
               </div>
 
-              {/* Total — distinct tone */}
-              <div className={`${grid} px-3 py-4 items-center`} style={{ background: "#EAE4D5" }}>
-                <span className={`text-xs tracking-widest uppercase font-bold ${muted}`} style={sf}>Tot</span>
-                <span className={`text-sm ${muted}`} style={sf}>{totalYards > 0 ? totalYards : "—"}</span>
-                <span className={`text-sm font-semibold ${dark}`} style={sf}>{totalPar}</span>
+              {/* Total — deepest gold, heaviest weight */}
+              <div className={`${grid} px-3 py-3 items-center border-t border-[#C9A84C]/35`} style={{ background: "rgba(201,168,76,0.35)" }}>
+                <span className="text-sm font-bold tracking-widest uppercase text-[#4A3810]" style={sf}>Tot</span>
+                <span className={`text-sm font-semibold ${muted}`} style={sf}>{totalYards > 0 ? totalYards : "—"}</span>
+                <span className={`text-sm font-bold ${dark}`} style={sf}>{totalPar}</span>
                 <span />
-                <span className={`text-center text-xl font-bold ${dark}`} style={sf}>{hasAnyScore && totalGross > 0 ? totalGross : "—"}</span>
-                <span className="text-right text-xl font-bold text-[#7B6C3E] font-[family-name:var(--font-playfair)]">{totalPts}</span>
+                <span className={`text-center text-xl font-extrabold ${dark}`} style={sf}>{hasAnyScore && totalGross > 0 ? totalGross : "—"}</span>
+                <span className="text-right text-xl font-extrabold text-[#5C4520] font-[family-name:var(--font-playfair)]">{totalPts}</span>
               </div>
 
             </div>
