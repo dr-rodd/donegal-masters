@@ -58,7 +58,7 @@ export default function CoursePortalClient({ courseIds, totalPlayers }: { course
     }
 
     setCards(COURSES.map(c => {
-      const cid = courseIds[c.name] ?? ""
+      const cid = courseIds[c.slug] ?? ""
       const courseRounds = liveRounds.filter(lr => lr.course_id === cid)
 
       const activeIds    = new Set(courseRounds.filter(lr => lr.status === "active").map(lr => lr.id))

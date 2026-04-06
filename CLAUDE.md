@@ -190,7 +190,7 @@ A live session is only marked complete when every available player has a finalis
 - Mobile-first app used by older users — prioritise large, legible text and generous touch targets
 - Numbers conveying key information (scores, points, positions) must be immediately readable at a glance on a phone screen
 - Paper scorecard style for review screens: parchment cream background, ink-style symbols
-- Score symbols: solid circle (eagle), thin ring (birdie), blank (par), thin rounded square ring (bogey), light gold fill in rounded square (double bogey or worse)
+- Score symbols: solid gold circle (eagle), thin gold ring circle (birdie), blank (par), light matt brown fill in rounded square (bogey), full matt brown fill in rounded square (double bogey or worse — reference style)
 - Claude.ai leads all design decisions before prompting Claude Code — clarify requirements first, then issue structured prompts
 
 ## Prompting Guidelines for Claude Code

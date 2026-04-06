@@ -1048,10 +1048,10 @@ export default function LiveScoringFlow({
             if (gross === null) return <span className="text-[#A89880] text-base">—</span>
             const diff = gross - ePar
             const n = <span className="text-base font-semibold leading-none">{gross}</span>
-            if (diff <= -2) return <span className="w-7 h-7 rounded-full bg-[#D4EDDA] border border-[#2C5F2E] flex items-center justify-center text-[#1A4A1C]">{n}</span>
-            if (diff === -1) return <span className="w-7 h-7 rounded-full border border-[#2C5F2E] flex items-center justify-center text-[#2C5F2E]">{n}</span>
+            if (diff <= -2) return <span className="w-7 h-7 rounded-full bg-[#C9A84C] flex items-center justify-center text-[#3A3A2E]">{n}</span>
+            if (diff === -1) return <span className="w-7 h-7 rounded-full border border-[#C9A84C] flex items-center justify-center text-[#5A4F3A]">{n}</span>
             if (diff === 0)  return <span className="text-[#3A3A2E] text-base font-semibold" style={{ fontFamily: "Georgia, serif" }}>{gross}</span>
-            if (diff === 1)  return <span className="w-7 h-7 border border-[#8B7355] rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
+            if (diff === 1)  return <span className="w-7 h-7 bg-[#E8DCBC]/50 rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
             return               <span className="w-7 h-7 bg-[#E8DCBC] rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
           }
 
@@ -1083,9 +1083,12 @@ export default function LiveScoringFlow({
                     <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>Player</span>
                     <span className="font-[family-name:var(--font-playfair)] text-xl text-[#2C2C1E] font-semibold leading-tight truncate">{player.name}</span>
                   </div>
-                  <div className="flex flex-col items-center gap-0.5 flex-shrink-0">
+                  <div className="flex flex-col items-end flex-shrink-0">
                     <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>Tee</span>
-                    <span className={`w-4 h-4 rounded-full ${TEE_STYLES[tee.name]?.dot ?? "bg-white/40"}`} />
+                    <div className="flex items-center gap-1.5">
+                      <span className={`w-3 h-3 rounded-full flex-shrink-0 ${TEE_STYLES[tee.name]?.dot ?? "bg-white/40"}`} />
+                      <span className={`text-base font-semibold ${dark}`} style={sf}>{tee.name}</span>
+                    </div>
                   </div>
                   <div className="flex flex-col items-end flex-shrink-0">
                     <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>PH</span>

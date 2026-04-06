@@ -134,10 +134,10 @@ function InlineScorecard({
     if (gross === null) return <span className={`${muted} text-sm`} style={sf}>—</span>
     const diff = gross - ePar
     const n = <span className="text-sm font-semibold leading-none">{gross}</span>
-    if (diff <= -2) return <span className="w-6 h-6 rounded-full bg-[#D4EDDA] border border-[#2C5F2E] flex items-center justify-center text-[#1A4A1C]">{n}</span>
-    if (diff === -1) return <span className="w-6 h-6 rounded-full border border-[#2C5F2E] flex items-center justify-center text-[#2C5F2E]">{n}</span>
+    if (diff <= -2) return <span className="w-6 h-6 rounded-full bg-[#C9A84C] flex items-center justify-center text-[#3A3A2E]">{n}</span>
+    if (diff === -1) return <span className="w-6 h-6 rounded-full border border-[#C9A84C] flex items-center justify-center text-[#5A4F3A]">{n}</span>
     if (diff === 0)  return <span className={`${dark} text-sm font-semibold`} style={sf}>{gross}</span>
-    if (diff === 1)  return <span className="w-6 h-6 border border-[#8B7355] rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
+    if (diff === 1)  return <span className="w-6 h-6 bg-[#E8DCBC]/50 rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
     return               <span className="w-6 h-6 bg-[#E8DCBC] rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
   }
 
@@ -473,17 +473,17 @@ export default function LiveLeaderboardPanel({
               relativeValue = stablefordRelative
               scoreDisplay  = fmtRelative(relativeValue)
               scorePillClass = relativeValue > 0
-                ? "bg-green-900/25 text-green-400"
+                ? "bg-[#C9A84C]/15 text-[#C9A84C]"
                 : relativeValue < 0
-                  ? "bg-[#C9A84C]/15 text-[#C9A84C]"
+                  ? "bg-green-900/25 text-green-400"
                   : "bg-white/5 text-white/45"
             } else {
               relativeValue  = strokesView === "gross" ? grossRelative : nettRelative
               scoreDisplay   = fmtRelative(relativeValue)
               scorePillClass = relativeValue < 0
-                ? "bg-green-900/25 text-green-400"
+                ? "bg-[#C9A84C]/15 text-[#C9A84C]"
                 : relativeValue > 0
-                  ? "bg-[#C9A84C]/15 text-[#C9A84C]"
+                  ? "bg-green-900/25 text-green-400"
                   : "bg-white/5 text-white/45"
             }
 

@@ -10,9 +10,18 @@ export default async function ScoringPage() {
     supabase.from("players").select("id", { count: "exact", head: true }).eq("is_composite", false),
   ])
 
+  // Key by slug using candidate name matching — avoids fragile exact-name lookups
+  const SLUG_NAMES: Record<string, string[]> = {
+    "old-tom-morris":    ["Old Tom Morris"],
+    "st-patricks-links": ["St Patrick Links", "St Patricks Links", "St Patrick's Links"],
+    "sandy-hills":       ["Sandy Hills", "Sandy Hills Links"],
+  }
   const courseIds: Record<string, string> = {}
-  for (const c of courses ?? []) {
-    courseIds[c.name] = c.id
+  for (const [slug, candidates] of Object.entries(SLUG_NAMES)) {
+    const match = (courses ?? []).find(c =>
+      candidates.some(n => c.name.toLowerCase() === n.toLowerCase())
+    )
+    if (match) courseIds[slug] = match.id
   }
 
   return (
