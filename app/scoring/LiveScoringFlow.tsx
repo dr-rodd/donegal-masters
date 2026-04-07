@@ -529,7 +529,6 @@ export default function LiveScoringFlow({
         holes={holes}
         roundHandicaps={roundHandicaps}
         onClose={() => onLeaderboardChange(false)}
-        showBackButton={true}
       />
     )
   }
