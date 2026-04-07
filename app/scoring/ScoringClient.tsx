@@ -134,7 +134,6 @@ export default function ScoringClient({ players, rounds, holes, tees, roundHandi
           holes={holes}
           roundHandicaps={roundHandicaps}
           onClose={() => setView("landing")}
-          showBackButton={true}
         />
       )}
     </div>
