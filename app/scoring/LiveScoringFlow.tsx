@@ -107,6 +107,104 @@ function scoreToPar(gross: number, par: number): { label: string; color: string 
   return { label: `+${d}`, color: "text-red-400/70" }
 }
 
+// ─── Composite generation ─────────────────────────────────
+
+function shuffle<T>(arr: T[]): T[] {
+  const a = [...arr]
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1))
+    ;[a[i], a[j]] = [a[j], a[i]]
+  }
+  return a
+}
+
+/** Divide holeIds into equal contiguous blocks, one per source player.
+ *  Sources are shuffled independently on each call so two composites
+ *  in the same class will likely receive different allocations. */
+function allocateHolesToSources(holeIds: string[], sourceIds: string[]): Map<string, string> {
+  const m = new Map<string, string>()
+  const shuffled = shuffle(sourceIds)
+  const n = shuffled.length
+  const blockSize = Math.floor(holeIds.length / n)
+  shuffled.forEach((sourceId, i) => {
+    const start = i * blockSize
+    const end = i === n - 1 ? holeIds.length : start + blockSize
+    holeIds.slice(start, end).forEach(h => m.set(h, sourceId))
+  })
+  return m
+}
+
+/** Called after the last real player of a role finalises their live scorecard.
+ *  Queries committed scores, checks all real players in that role have 18,
+ *  then generates an independent composite card for each composite player. */
+async function generateCompositeScores(
+  finalisedRole: string,
+  roundId: string,
+  allPlayers: Player[],
+  courseHoles: Hole[],
+) {
+  const realSameRole = allPlayers.filter(p => !p.is_composite && p.role === finalisedRole)
+  const compositeSameRole = allPlayers.filter(p => p.is_composite && p.role === finalisedRole)
+  if (!compositeSameRole.length) return
+
+  // All real players of this role must have 18 committed scores
+  const { data: existingScores } = await supabase
+    .from("scores")
+    .select("player_id, hole_id, gross_score, stableford_points, no_return")
+    .eq("round_id", roundId)
+    .in("player_id", realSameRole.map(p => p.id))
+  if (!existingScores) return
+
+  const counts = new Map<string, number>()
+  for (const s of existingScores) counts.set(s.player_id, (counts.get(s.player_id) ?? 0) + 1)
+  if (!realSameRole.every(p => (counts.get(p.id) ?? 0) >= 18)) return
+
+  const holeIds = courseHoles.map(h => h.id)
+  const sourceIds = realSameRole.map(p => p.id)
+
+  for (const compositePlayer of compositeSameRole) {
+    // Each composite gets its own independent random block allocation
+    const allocation = allocateHolesToSources(holeIds, sourceIds)
+
+    const compositeHoleRows = holeIds.map(holeId => {
+      const sourceId = allocation.get(holeId)!
+      const sourcePlayer = realSameRole.find(p => p.id === sourceId)!
+      return {
+        composite_player_id: compositePlayer.id,
+        round_id: roundId,
+        hole_id: holeId,
+        source_player_id: sourceId,
+        source_player_name: sourcePlayer.name,
+      }
+    })
+
+    const compositeScoreRows = holeIds.map(holeId => {
+      const sourceId = allocation.get(holeId)!
+      const s = existingScores.find(sc => sc.player_id === sourceId && sc.hole_id === holeId)
+      const hole = courseHoles.find(h => h.id === holeId)!
+      return {
+        round_id: roundId,
+        player_id: compositePlayer.id,
+        hole_id: holeId,
+        gross_score: s?.gross_score ?? (hole.par + 2),
+        stableford_points: s?.stableford_points ?? 0,
+        no_return: s?.no_return ?? false,
+      }
+    })
+
+    await supabase.from("composite_holes").upsert(compositeHoleRows, {
+      onConflict: "composite_player_id,round_id,hole_id",
+    })
+    await supabase.from("scores").upsert(compositeScoreRows, {
+      onConflict: "round_id,player_id,hole_id",
+    })
+    await supabase.from("round_handicaps").upsert(
+      { round_id: roundId, player_id: compositePlayer.id, playing_handicap: 0 },
+      { onConflict: "round_id,player_id" },
+    )
+  }
+}
+
 // ─── Main component ───────────────────────────────────────
 
 export default function LiveScoringFlow({
@@ -477,13 +575,19 @@ export default function LiveScoringFlow({
         if (scoreErr) throw scoreErr
       }
 
-      // 4. Mark live_scores committed
+      // 4. Generate composite scores for each role completed by this finalisation
+      const roles = [...new Set(playerSetups.map(s => s.player.role))]
+      roles.forEach(role => {
+        generateCompositeScores(role, roundId, players, courseHoles).catch(() => {})
+      })
+
+      // 5. Mark live_scores committed
       await supabase.from("live_scores")
         .update({ committed: true })
         .in("player_id", playerSetups.map(p => p.player.id))
         .eq("round_id", roundId)
 
-      // 5. Finalise the live round and return to the course portal
+      // 6. Finalise the live round and return to the course portal
       // Note: player locks are intentionally kept so the live leaderboard
       // continues to display finalised players. Locks are only removed on discard.
       await supabase

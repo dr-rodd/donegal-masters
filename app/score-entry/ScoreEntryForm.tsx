@@ -532,33 +532,6 @@ function HoleCard({
   )
 }
 
-// ─── Composite helpers ────────────────────────────────────
-
-function shuffle<T>(arr: T[]): T[] {
-  const a = [...arr]
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]]
-  }
-  return a
-}
-
-function allocateHolesToSources(holeIds: string[], sourceIds: string[]): Map<string, string> {
-  const m = new Map<string, string>()
-  const sources = shuffle(sourceIds)
-  if (sources.length === 1) {
-    holeIds.forEach(h => m.set(h, sources[0]))
-  } else if (sources.length === 2) {
-    holeIds.slice(0, 9).forEach(h => m.set(h, sources[0]))
-    holeIds.slice(9).forEach(h => m.set(h, sources[1]))
-  } else {
-    holeIds.slice(0, 6).forEach(h => m.set(h, sources[0]))
-    holeIds.slice(6, 12).forEach(h => m.set(h, sources[1]))
-    holeIds.slice(12).forEach(h => m.set(h, sources[2]))
-  }
-  return m
-}
-
 // ─── Main form ────────────────────────────────────────────
 
 export default function ScoreEntryForm({ players, courses }: { players: Player[]; courses: Course[] }) {
@@ -666,100 +639,6 @@ export default function ScoreEntryForm({ players, courses }: { players: Player[]
     setNRs(prev => prev.map((v, j) => j === i ? !v : v))
   }
 
-  // ── Composite generation ──────────────────────────────────
-  async function triggerCompositeGeneration(
-    submittedPlayer: Player,
-    rId: string,
-    submittedRows: { hole_id: string; gross_score: number; no_return: boolean }[],
-  ) {
-    const sameRole = nonCompositePlayers.filter(p => p.role === submittedPlayer.role)
-    const compositePlayers = players.filter(p => p.is_composite && p.role === submittedPlayer.role)
-    if (!compositePlayers.length) return
-
-    // Check all same-role non-composite players have 18 scores in this round
-    const otherIds = sameRole.filter(p => p.id !== submittedPlayer.id).map(p => p.id)
-    let allSubmitted = true
-    if (otherIds.length > 0) {
-      const { data: otherScores } = await supabase
-        .from("scores")
-        .select("player_id")
-        .eq("round_id", rId)
-        .in("player_id", otherIds)
-      const counts = new Map<string, number>()
-      for (const s of otherScores ?? []) {
-        counts.set(s.player_id, (counts.get(s.player_id) ?? 0) + 1)
-      }
-      allSubmitted = otherIds.every(id => (counts.get(id) ?? 0) >= 18)
-    }
-    if (!allSubmitted) return
-
-    // Fetch all source scores for this round
-    const { data: allSourceScores } = await supabase
-      .from("scores")
-      .select("player_id, hole_id, gross_score, stableford_points, no_return")
-      .eq("round_id", rId)
-      .in("player_id", sameRole.map(p => p.id))
-    if (!allSourceScores) return
-
-    // Merge the just-submitted player's scores (may not be committed yet)
-    const merged = [...allSourceScores]
-    for (const row of submittedRows) {
-      const existing = merged.find(s => s.player_id === submittedPlayer.id && s.hole_id === row.hole_id)
-      if (!existing) {
-        merged.push({
-          player_id: submittedPlayer.id,
-          hole_id: row.hole_id,
-          gross_score: row.gross_score,
-          stableford_points: 0, // will be overwritten from DB eventually
-          no_return: row.no_return,
-        })
-      }
-    }
-
-    const holeIds = holes.map(h => h.id)
-    const sourceIds = sameRole.map(p => p.id)
-    const allocation = allocateHolesToSources(holeIds, sourceIds)
-
-    for (const compositePlayer of compositePlayers) {
-      const compositeHoleRows = holeIds.map(holeId => {
-        const sourcePlayerId = allocation.get(holeId)!
-        const sourcePlayer = sameRole.find(p => p.id === sourcePlayerId)!
-        return {
-          composite_player_id: compositePlayer.id,
-          round_id: rId,
-          hole_id: holeId,
-          source_player_id: sourcePlayerId,
-          source_player_name: sourcePlayer.name,
-        }
-      })
-
-      const compositeScoreRows = holeIds.map(holeId => {
-        const sourcePlayerId = allocation.get(holeId)!
-        const s = merged.find(sc => sc.player_id === sourcePlayerId && sc.hole_id === holeId)
-        const hole = holes.find(h => h.id === holeId)!
-        return {
-          round_id: rId,
-          player_id: compositePlayer.id,
-          hole_id: holeId,
-          gross_score: s?.gross_score ?? (hole.par + 2),
-          stableford_points: s?.stableford_points ?? 0,
-          no_return: s?.no_return ?? false,
-        }
-      })
-
-      await supabase.from("composite_holes").upsert(compositeHoleRows, {
-        onConflict: "composite_player_id,round_id,hole_id",
-      })
-      await supabase.from("scores").upsert(compositeScoreRows, {
-        onConflict: "round_id,player_id,hole_id",
-      })
-      await supabase.from("round_handicaps").upsert(
-        { round_id: rId, player_id: compositePlayer.id, playing_handicap: 0 },
-        { onConflict: "round_id,player_id" },
-      )
-    }
-  }
-
   // ── Submit ────────────────────────────────────────────────
   async function handleSubmit() {
     if (!player || !roundId) return
@@ -787,9 +666,6 @@ export default function ScoreEntryForm({ players, courses }: { players: Player[]
       .upsert(rows, { onConflict: "round_id,player_id,hole_id" })
 
     if (error) { setError(error.message); setPhase("entering"); return }
-
-    // Attempt composite generation (fire-and-forget, errors silently ignored)
-    triggerCompositeGeneration(player, roundId, rows).catch(() => {})
 
     setSnapshot({
       playerName:    player.name,
