@@ -100,7 +100,11 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
       return s ? Math.max(max, s.stableford_points) : max
     }, 0)
     const hasScores = players.some((_, pi) => playerScoreMaps[pi].has(hole.hole_number))
-    return { hole, idx, grossScores, bestPts, hasScores }
+    const contributors = players.map((_, pi) => {
+      const s = playerScoreMaps[pi].get(hole.hole_number)
+      return bestPts > 0 && s != null && s.stableford_points === bestPts
+    })
+    return { hole, idx, grossScores, bestPts, hasScores, contributors }
   })
 
   const front9 = rows.slice(0, 9)
@@ -150,17 +154,19 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
         {[1, 2, 3].map(n => (
           <span key={n} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${muted} text-center`} style={sf}>{n}</span>
         ))}
-        <span className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${muted} text-right`} style={sf}>Pts</span>
+        <span className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${muted} text-right`} style={sf}>TOT</span>
       </div>
 
       {/* Front 9 */}
-      {front9.map(({ hole, idx, grossScores, bestPts, hasScores }) => (
+      {front9.map(({ hole, idx, grossScores, bestPts, hasScores, contributors }) => (
         <div key={hole.hole_number} className={`${grid} px-3 py-1.5 items-center border-b border-[#E2DAC8] ${idx % 2 === 1 ? "bg-[#EEE8D6]" : ""}`}>
           <span className={`text-sm font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
           <span className={`text-sm ${muted}`} style={sf}>{hole.par}</span>
           <span className={`text-sm ${muted}`} style={sf}>{hole.stroke_index}</span>
           {grossScores.map((gross, pi) => (
-            <span key={pi} className="flex justify-center">{scoreSymbol(gross, hole.par)}</span>
+            <span key={pi} className={`flex justify-center -my-1.5 py-1.5 ${contributors[pi] ? "bg-[#C9A84C]/25" : ""}`}>
+              {scoreSymbol(gross, hole.par)}
+            </span>
           ))}
           <span className={`text-right text-sm ${ptsColor(hasScores ? bestPts : null)}`} style={sf}>{hasScores ? bestPts : "—"}</span>
         </div>
@@ -180,13 +186,15 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
       </div>
 
       {/* Back 9 */}
-      {back9.map(({ hole, idx, grossScores, bestPts, hasScores }) => (
+      {back9.map(({ hole, idx, grossScores, bestPts, hasScores, contributors }) => (
         <div key={hole.hole_number} className={`${grid} px-3 py-1.5 items-center border-b border-[#E2DAC8] ${idx % 2 === 0 ? "bg-[#EEE8D6]" : ""}`}>
           <span className={`text-sm font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
           <span className={`text-sm ${muted}`} style={sf}>{hole.par}</span>
           <span className={`text-sm ${muted}`} style={sf}>{hole.stroke_index}</span>
           {grossScores.map((gross, pi) => (
-            <span key={pi} className="flex justify-center">{scoreSymbol(gross, hole.par)}</span>
+            <span key={pi} className={`flex justify-center -my-1.5 py-1.5 ${contributors[pi] ? "bg-[#C9A84C]/25" : ""}`}>
+              {scoreSymbol(gross, hole.par)}
+            </span>
           ))}
           <span className={`text-right text-sm ${ptsColor(hasScores ? bestPts : null)}`} style={sf}>{hasScores ? bestPts : "—"}</span>
         </div>
