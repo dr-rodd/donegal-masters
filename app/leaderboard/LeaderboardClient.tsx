@@ -91,13 +91,40 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
   }
 
   return (
-    <InlineScorecard
-      player={player}
-      playingHcp={playingHcp}
-      courseHoles={courseHoles}
-      playerScores={playerScores}
-      courseId={courseId}
-    />
+    <>
+      {/* Numbered player tiles */}
+      <div className="flex gap-2 overflow-x-auto pb-0.5 mb-3">
+        {players.map((p, i) => {
+          const hcp = roundHandicaps.find(rh => rh.player_id === p.id && rh.round_id === round.id)?.playing_handicap
+          const isSel = p.id === bestPlayer.id
+          return (
+            <div
+              key={p.id}
+              className={`flex-shrink-0 flex flex-col items-start px-3.5 py-2.5 rounded-sm border min-w-[100px]
+                ${isSel ? "border-[#C9A84C] bg-[#C9A84C]/10" : "border-[#1e3d28] bg-[#0f2418]"}`}
+            >
+              <div className="flex items-center gap-1.5 mb-1">
+                <span className="font-[family-name:var(--font-playfair)] text-[#C9A84C] text-sm font-bold leading-none">{i + 1}</span>
+                <span className={`text-base font-medium leading-tight ${isSel ? "text-white" : "text-white/55"}`}>
+                  {p.name.split(" ")[0]}
+                </span>
+              </div>
+              <span className={`text-sm ${isSel ? "text-[#C9A84C]" : "text-white/25"}`}>
+                {hcp != null ? `HC ${hcp}` : "—"}
+              </span>
+            </div>
+          )
+        })}
+      </div>
+
+      <InlineScorecard
+        player={player}
+        playingHcp={playingHcp}
+        courseHoles={courseHoles}
+        playerScores={playerScores}
+        courseId={courseId}
+      />
+    </>
   )
 }
 
