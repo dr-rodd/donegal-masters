@@ -62,14 +62,14 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
   const grid  = "grid grid-cols-[2fr_2fr_3fr_3fr_3fr_2fr] w-full"
 
   const scoreSymbol = (gross: number | null, par: number) => {
-    if (gross === null) return <span className={`${muted} text-sm`} style={sf}>—</span>
+    if (gross === null) return <span className={`${muted} text-base`} style={sf}>—</span>
     const diff = gross - par
-    const n = <span className="text-sm font-semibold leading-none">{gross}</span>
-    if (diff <= -2) return <span className="w-6 h-6 rounded-full bg-[#C9A84C] flex items-center justify-center text-[#3A3A2E]">{n}</span>
-    if (diff === -1) return <span className="w-6 h-6 rounded-full border border-[#C9A84C] flex items-center justify-center text-[#5A4F3A]">{n}</span>
-    if (diff === 0)  return <span className={`${dark} text-sm font-semibold`} style={sf}>{gross}</span>
-    if (diff === 1)  return <span className="w-6 h-6 bg-[#E8DCBC]/50 rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
-    return               <span className="w-6 h-6 bg-[#E8DCBC] rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
+    const n = <span className="text-base font-semibold leading-none">{gross}</span>
+    if (diff <= -2) return <span className="w-8 h-8 rounded-full bg-[#C9A84C] flex items-center justify-center text-[#3A3A2E]">{n}</span>
+    if (diff === -1) return <span className="w-8 h-8 rounded-full border border-[#C9A84C] flex items-center justify-center text-[#5A4F3A]">{n}</span>
+    if (diff === 0)  return <span className={`${dark} text-base font-semibold`} style={sf}>{gross}</span>
+    if (diff === 1)  return <span className="w-8 h-8 bg-[#E8DCBC]/50 rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
+    return               <span className="w-8 h-8 bg-[#E8DCBC] rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
   }
 
   const ptsColor = (pts: number | null) =>
@@ -159,72 +159,72 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
 
       {/* Front 9 */}
       {front9.map(({ hole, idx, grossScores, stablefordScores, bestPts, hasScores }) => (
-        <div key={hole.hole_number} className={`${grid} px-3 py-1.5 items-center border-b border-[#E2DAC8] ${idx % 2 === 1 ? "bg-[#EEE8D6]" : ""}`}>
-          <span className={`text-sm font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
-          <span className={`text-sm ${muted}`} style={sf}>{hole.par}</span>
+        <div key={hole.hole_number} className={`${grid} px-3 py-2 items-center border-b border-[#E2DAC8] ${idx % 2 === 1 ? "bg-[#EEE8D6]" : ""}`}>
+          <span className={`text-base font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
+          <span className={`text-base ${muted}`} style={sf}>{hole.par}</span>
           {grossScores.map((gross, pi) => (
             <span key={pi} className="flex justify-center items-center gap-0.5">
               {scoreSymbol(gross, hole.par)}
               {stablefordScores[pi] !== null && (
-                <sup className={`text-[9px] leading-none ${muted}`} style={sf}>{stablefordScores[pi]}</sup>
+                <sup className={`text-[11px] leading-none ${muted}`} style={sf}>{stablefordScores[pi]}</sup>
               )}
             </span>
           ))}
-          <span className={`text-right text-sm ${ptsColor(hasScores ? bestPts : null)}`} style={sf}>{hasScores ? bestPts : "—"}</span>
+          <span className={`text-right text-base ${ptsColor(hasScores ? bestPts : null)}`} style={sf}>{hasScores ? bestPts : "—"}</span>
         </div>
       ))}
 
       {/* Out subtotal */}
       <div className={`${grid} px-3 py-2 items-center border-b border-[#C9A84C]/20`} style={{ background: "rgba(201,168,76,0.16)" }}>
-        <span className="text-xs font-bold tracking-widest uppercase text-[#5C4520]" style={sf}>Out</span>
-        <span className="text-sm font-bold text-[#5C4520]" style={sf}>{front9Par}</span>
+        <span className="text-sm font-bold tracking-widest uppercase text-[#5C4520]" style={sf}>Out</span>
+        <span className="text-base font-bold text-[#5C4520]" style={sf}>{front9Par}</span>
         {players.map((_, pi) => (
-          <span key={pi} className="text-center text-sm font-bold text-[#5C4520]" style={sf}>
+          <span key={pi} className="text-center text-base font-bold text-[#5C4520]" style={sf}>
             {front9HasScores && front9Gross[pi] > 0 ? front9Gross[pi] : "—"}
           </span>
         ))}
-        <span className="text-right text-sm font-bold text-[#7B6C3E]" style={sf}>{front9HasScores ? front9Pts : "—"}</span>
+        <span className="text-right text-base font-bold text-[#7B6C3E]" style={sf}>{front9HasScores ? front9Pts : "—"}</span>
       </div>
 
       {/* Back 9 */}
       {back9.map(({ hole, idx, grossScores, stablefordScores, bestPts, hasScores }) => (
-        <div key={hole.hole_number} className={`${grid} px-3 py-1.5 items-center border-b border-[#E2DAC8] ${idx % 2 === 0 ? "bg-[#EEE8D6]" : ""}`}>
-          <span className={`text-sm font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
-          <span className={`text-sm ${muted}`} style={sf}>{hole.par}</span>
+        <div key={hole.hole_number} className={`${grid} px-3 py-2 items-center border-b border-[#E2DAC8] ${idx % 2 === 0 ? "bg-[#EEE8D6]" : ""}`}>
+          <span className={`text-base font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
+          <span className={`text-base ${muted}`} style={sf}>{hole.par}</span>
           {grossScores.map((gross, pi) => (
             <span key={pi} className="flex justify-center items-center gap-0.5">
               {scoreSymbol(gross, hole.par)}
               {stablefordScores[pi] !== null && (
-                <sup className={`text-[9px] leading-none ${muted}`} style={sf}>{stablefordScores[pi]}</sup>
+                <sup className={`text-[11px] leading-none ${muted}`} style={sf}>{stablefordScores[pi]}</sup>
               )}
             </span>
           ))}
-          <span className={`text-right text-sm ${ptsColor(hasScores ? bestPts : null)}`} style={sf}>{hasScores ? bestPts : "—"}</span>
+          <span className={`text-right text-base ${ptsColor(hasScores ? bestPts : null)}`} style={sf}>{hasScores ? bestPts : "—"}</span>
         </div>
       ))}
 
       {/* In subtotal */}
       <div className={`${grid} px-3 py-2 items-center border-b border-[#C9A84C]/20`} style={{ background: "rgba(201,168,76,0.16)" }}>
-        <span className="text-xs font-bold tracking-widest uppercase text-[#5C4520]" style={sf}>In</span>
-        <span className="text-sm font-bold text-[#5C4520]" style={sf}>{back9Par}</span>
+        <span className="text-sm font-bold tracking-widest uppercase text-[#5C4520]" style={sf}>In</span>
+        <span className="text-base font-bold text-[#5C4520]" style={sf}>{back9Par}</span>
         {players.map((_, pi) => (
-          <span key={pi} className="text-center text-sm font-bold text-[#5C4520]" style={sf}>
+          <span key={pi} className="text-center text-base font-bold text-[#5C4520]" style={sf}>
             {back9HasScores && back9Gross[pi] > 0 ? back9Gross[pi] : "—"}
           </span>
         ))}
-        <span className="text-right text-sm font-bold text-[#7B6C3E]" style={sf}>{back9HasScores ? back9Pts : "—"}</span>
+        <span className="text-right text-base font-bold text-[#7B6C3E]" style={sf}>{back9HasScores ? back9Pts : "—"}</span>
       </div>
 
       {/* Tot row */}
       <div className={`${grid} px-3 py-2.5 items-center`} style={{ background: "rgba(201,168,76,0.35)" }}>
-        <span className="text-xs font-bold tracking-widest uppercase text-[#4A3810]" style={sf}>Tot</span>
-        <span className="text-sm font-bold text-[#4A3810]" style={sf}>{front9Par + back9Par}</span>
+        <span className="text-sm font-bold tracking-widest uppercase text-[#4A3810]" style={sf}>Tot</span>
+        <span className="text-base font-bold text-[#4A3810]" style={sf}>{front9Par + back9Par}</span>
         {players.map((_, pi) => (
-          <span key={pi} className="text-center text-sm font-bold text-[#4A3810]" style={sf}>
+          <span key={pi} className="text-center text-base font-bold text-[#4A3810]" style={sf}>
             {totalGross[pi] > 0 ? totalGross[pi] : "—"}
           </span>
         ))}
-        <span className="text-right text-base font-extrabold text-[#5C4520] font-[family-name:var(--font-playfair)]">{totalPts}</span>
+        <span className="text-right text-xl font-extrabold text-[#5C4520] font-[family-name:var(--font-playfair)]">{totalPts}</span>
       </div>
 
     </div>
