@@ -114,7 +114,7 @@ function compareRows(a: PlayerRow, b: PlayerRow, mode: Mode, sv: StrokesView): n
 
 // ─── Inline Scorecard ─────────────────────────────────────
 
-function InlineScorecard({
+export function InlineScorecard({
   player, playingHcp, courseHoles, playerScores, courseId,
 }: {
   player: Player

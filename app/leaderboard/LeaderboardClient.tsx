@@ -2,7 +2,7 @@
 
 import { useState, Fragment } from "react"
 import { features } from "@/lib/features"
-import ScoreShape from "@/app/components/ScoreShape"
+import { InlineScorecard } from "@/app/scoring/LiveLeaderboardPanel"
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -13,15 +13,13 @@ type Team     = { id: string; name: string; color: string; players: Player[] }
 type Hole     = { id: string; hole_number: number; par: number; stroke_index: number; course_id: string }
 type Score    = { player_id: string; hole_id: string; gross_score: number; stableford_points: number; no_return: boolean; round_id: string }
 type RoundHcp = { round_id: string; player_id: string; playing_handicap: number }
-type Tee      = { id: string; course_id: string; name: string; gender: string; par: number }
-
 interface Props {
   rounds: Round[]
   teams: Team[]
   holes: Hole[]
   scores: Score[]
   roundHandicaps: RoundHcp[]
-  tees: Tee[]
+  tees: unknown[]
 }
 
 // ─── Player helpers ────────────────────────────────────────────
@@ -32,21 +30,6 @@ function sortedPlayers(players: Player[]) {
 }
 const displayName = (p: Player) =>
   (p.is_composite ? p.name.replace(/^Composite\s+/i, "") : p.name).split(" ")[0]
-
-// ─── Tee helpers (copied from ScorecardClient) ─────────────────
-
-const TEE_PREF_M = ["blue", "white", "black", "sandstone", "slate", "granite", "claret", "red"]
-const TEE_PREF_F = ["red", "sandstone", "claret", "white", "blue", "black"]
-
-function defaultTee(tees: Tee[], courseId: string, gender: string): Tee | null {
-  const ct = tees.filter(t => t.course_id === courseId)
-  const prefs = gender === "F" ? TEE_PREF_F : TEE_PREF_M
-  for (const p of prefs) {
-    const t = ct.find(x => x.name.toLowerCase() === p)
-    if (t) return t
-  }
-  return ct[0] ?? null
-}
 
 // ─── Team scoring ──────────────────────────────────────────────
 
@@ -60,218 +43,68 @@ function teamRoundPts(team: Team, holes: Hole[], scores: Score[], roundId: strin
   }, 0)
 }
 
-// ─── Paper composite scorecard ─────────────────────────────────
+// ─── Composite scorecard (reuses InlineScorecard) ──────────────
 
-function CompositeScorecard({ team, round, holes, scores, roundHandicaps, tees }: {
-  team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]; tees: Tee[]
+function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
+  team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]
 }) {
-  const courseId    = round.courses?.id ?? ""
-  const courseName  = round.courses?.name ?? ""
+  const courseId   = round.courses?.id ?? ""
   const courseHoles = holes
     .filter(h => h.course_id === courseId)
     .sort((a, b) => a.hole_number - b.hole_number)
-  const front   = courseHoles.slice(0, 9)
-  const back    = courseHoles.slice(9, 18)
-  const crimson = "font-[family-name:var(--font-crimson)]"
+
+  // Pick the highest stableford scorer on this team for this round
   const players = sortedPlayers(team.players)
+  const bestPlayer = players.reduce((best, p) => {
+    const pts = scores.filter(s => s.player_id === p.id && s.round_id === round.id)
+      .reduce((sum, s) => sum + s.stableford_points, 0)
+    const bestPts = scores.filter(s => s.player_id === best.id && s.round_id === round.id)
+      .reduce((sum, s) => sum + s.stableford_points, 0)
+    return pts > bestPts ? p : best
+  }, players[0])
 
-  function playerScore(player: Player, hole: Hole): Score | null {
-    return scores.find(s => s.player_id === player.id && s.hole_id === hole.id && s.round_id === round.id) ?? null
-  }
+  if (!bestPlayer) return null
 
-  function playerHcp(player: Player): number | null {
-    return roundHandicaps.find(rh => rh.player_id === player.id && rh.round_id === round.id)?.playing_handicap ?? null
-  }
+  const playingHcp = roundHandicaps.find(
+    rh => rh.player_id === bestPlayer.id && rh.round_id === round.id
+  )?.playing_handicap ?? 0
 
-  function playerNrGross(player: Player, hole: Hole): number {
-    const ph    = playerHcp(player) ?? 0
-    const shots = Math.floor(ph / 18) + (hole.stroke_index <= ph % 18 ? 1 : 0)
-    return hole.par + 2 + shots
-  }
+  // Adapt Score[] → InlineScorecard's LiveScoreRow[] (hole_id → hole_number)
+  const playerScores = scores
+    .filter(s => s.player_id === bestPlayer.id && s.round_id === round.id)
+    .flatMap(s => {
+      const hole = holes.find(h => h.id === s.hole_id)
+      if (!hole) return []
+      return [{
+        player_id: s.player_id,
+        hole_number: hole.hole_number,
+        gross_score: s.no_return ? null : s.gross_score,
+        stableford_points: s.stableford_points,
+      }]
+    })
 
-  function bestPts(hole: Hole): number {
-    return players.reduce((best, p) => Math.max(best, playerScore(p, hole)?.stableford_points ?? 0), 0)
-  }
-
-  function playerSumGross(player: Player, hs: Hole[]): number {
-    return hs.reduce((sum, h) => {
-      const s = playerScore(player, h)
-      if (!s) return sum
-      return sum + (s.no_return ? playerNrGross(player, h) : Number(s.gross_score))
-    }, 0)
-  }
-
-  function totalBestPts(hs: Hole[]): number {
-    return hs.reduce((sum, h) => sum + bestPts(h), 0)
-  }
-
-  function sumPar(hs: Hole[]): number {
-    return hs.reduce((sum, h) => sum + h.par, 0)
-  }
-
-  const hasScores = courseHoles.some(h => players.some(p => playerScore(p, h) !== null))
-
-  function SubtotalRow({ label, hs, isTotal }: { label: string; hs: Hole[]; isTotal?: boolean }) {
-    const bg        = isTotal ? "bg-[#1a3a22]"    : "bg-gray-100"
-    const border    = isTotal ? "border-[#1e3a22]" : "border-gray-200"
-    const textLabel = isTotal ? "text-white/70"    : "text-gray-500"
-    const textData  = isTotal ? "text-white"       : "text-gray-700"
-    const textPts   = isTotal ? "text-[#C9A84C] font-semibold" : "text-[#2d6a4f] font-semibold"
-    const sz        = isTotal ? "text-lg"          : "text-base"
-    return (
-      <tr className={`border-t-2 ${border} ${bg}`}>
-        <td className={`py-2 px-3 text-sm uppercase tracking-wider font-semibold ${textLabel} font-[family-name:var(--font-playfair)]`}>{label}</td>
-        <td className={`text-center py-2 px-2 ${sz} font-semibold ${textData} ${crimson}`}>{sumPar(hs)}</td>
-        {players.map(p => {
-          const gross   = playerSumGross(p, hs)
-          const hasNR   = hs.some(h => playerScore(p, h)?.no_return)
-          const hasAny  = hs.some(h => playerScore(p, h) !== null)
-          return (
-            <td key={p.id} className={`text-center py-2 px-1 ${sz} font-semibold ${textData} ${crimson}`}>
-              {hasAny
-                ? <>{gross > 0 ? gross : "—"}{hasNR && <span className="text-orange-500 text-[9px] ml-0.5">NR</span>}</>
-                : "—"
-              }
-            </td>
-          )
-        })}
-        <td className={`text-center py-2 px-2 ${sz} ${isTotal ? "font-bold" : ""} ${textPts} ${crimson}`}>
-          {hasScores ? totalBestPts(hs) : "—"}
-        </td>
-      </tr>
-    )
+  const player = {
+    id: bestPlayer.id,
+    name: bestPlayer.name,
+    gender: bestPlayer.gender ?? "M",
+    teams: { name: team.name, color: team.color },
   }
 
   return (
-    <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
-
-      {/* Header */}
-      <div className="bg-[#1a3a22] px-4 py-3 flex items-center justify-between">
-        <span className="font-[family-name:var(--font-playfair)] text-white text-lg">{courseName}</span>
-        <span className={`text-white/40 text-sm ${crimson}`}>Best ball</span>
-      </div>
-
-      {/* Player legend */}
-      <div className="flex divide-x divide-gray-200 border-b border-gray-200 bg-gray-50">
-        {players.map((p, i) => (
-          <div key={p.id} className="flex-1 px-2 py-2 text-center">
-            <span className="text-[#C9A84C] text-xs font-bold font-[family-name:var(--font-playfair)]">{i + 1}</span>
-            <span className={`block text-gray-700 text-xs font-medium truncate ${crimson}`}>{displayName(p)}</span>
-            {playerHcp(p) != null && (
-              <span className={`text-gray-400 text-[10px] ${crimson}`}>hcp {playerHcp(p)}</span>
-            )}
-          </div>
-        ))}
-      </div>
-
-      {courseHoles.length === 0 ? (
-        <p className="text-gray-300 text-sm text-center py-10">Course data unavailable</p>
-      ) : (
-        <table className="w-full border-collapse">
-          <thead>
-            <tr className="border-b-2 border-gray-200 bg-gray-50">
-              <th className="text-left py-2 px-3 text-sm font-semibold text-gray-400 uppercase tracking-wide font-[family-name:var(--font-playfair)] w-10">Hole</th>
-              <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-8">Par</th>
-              {players.map((_, i) => (
-                <th key={i} className="text-center py-2 px-1 text-sm font-bold text-[#C9A84C] uppercase tracking-wide w-9">{i + 1}</th>
-              ))}
-              <th className="text-center py-2 px-2 text-sm font-semibold text-[#C9A84C] uppercase tracking-wide w-10">Tot</th>
-            </tr>
-          </thead>
-          <tbody>
-            {/* Front 9 */}
-            {front.map((hole, i) => {
-              const best         = bestPts(hole)
-              const holeHasScore = players.some(p => playerScore(p, hole) !== null)
-              const isOdd        = i % 2 === 0
-              const rowBg        = isOdd ? "bg-white" : "bg-gray-50/40"
-              return (
-                <tr key={hole.id} className="border-t border-gray-100">
-                  <td className={`${rowBg} py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
-                  <td className={`${rowBg} text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
-                  {players.map(p => {
-                    const s      = playerScore(p, hole)
-                    const isBest = best > 0 && (s?.stableford_points ?? 0) === best
-                    return (
-                      <td key={p.id} className={`${isBest ? "bg-[#fef3c7]" : rowBg} text-center py-1.5 px-1`}>
-                        {s
-                          ? s.no_return
-                            ? <span className={`text-orange-500 text-xs font-semibold ${crimson}`}>NR</span>
-                            : <ScoreShape gross={Number(s.gross_score)} par={Number(hole.par)} />
-                          : <span className="text-gray-200 text-sm">—</span>
-                        }
-                      </td>
-                    )
-                  })}
-                  <td className={`${rowBg} text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
-                    !holeHasScore ? "text-gray-200"
-                    : best >= 3   ? "text-[#2d6a4f]"
-                    : best === 0  ? "text-gray-300"
-                    :               "text-gray-500"
-                  }`}>
-                    {holeHasScore ? best : "—"}
-                  </td>
-                </tr>
-              )
-            })}
-
-            <SubtotalRow label="Out" hs={front} />
-
-            {/* Back 9 */}
-            {back.map((hole, i) => {
-              const best         = bestPts(hole)
-              const holeHasScore = players.some(p => playerScore(p, hole) !== null)
-              const isOdd        = i % 2 === 0
-              const rowBg        = isOdd ? "bg-white" : "bg-gray-50/40"
-              return (
-                <tr key={hole.id} className="border-t border-gray-100">
-                  <td className={`${rowBg} py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
-                  <td className={`${rowBg} text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
-                  {players.map(p => {
-                    const s      = playerScore(p, hole)
-                    const isBest = best > 0 && (s?.stableford_points ?? 0) === best
-                    return (
-                      <td key={p.id} className={`${isBest ? "bg-[#fef3c7]" : rowBg} text-center py-1.5 px-1`}>
-                        {s
-                          ? s.no_return
-                            ? <span className={`text-orange-500 text-xs font-semibold ${crimson}`}>NR</span>
-                            : <ScoreShape gross={Number(s.gross_score)} par={Number(hole.par)} />
-                          : <span className="text-gray-200 text-sm">—</span>
-                        }
-                      </td>
-                    )
-                  })}
-                  <td className={`${rowBg} text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
-                    !holeHasScore ? "text-gray-200"
-                    : best >= 3   ? "text-[#2d6a4f]"
-                    : best === 0  ? "text-gray-300"
-                    :               "text-gray-500"
-                  }`}>
-                    {holeHasScore ? best : "—"}
-                  </td>
-                </tr>
-              )
-            })}
-
-            <SubtotalRow label="In" hs={back} />
-            <SubtotalRow label="Total" hs={courseHoles} isTotal />
-          </tbody>
-        </table>
-      )}
-
-      {!hasScores && courseHoles.length > 0 && (
-        <p className={`text-center text-gray-300 text-sm py-4 border-t border-gray-100 ${crimson}`}>
-          No scores recorded yet
-        </p>
-      )}
-    </div>
+    <InlineScorecard
+      player={player}
+      playingHcp={playingHcp}
+      courseHoles={courseHoles}
+      playerScores={playerScores}
+      courseId={courseId}
+    />
   )
 }
 
 // ─── Scorecard modal ───────────────────────────────────────────
 
-function ScorecardModal({ team, round, holes, scores, roundHandicaps, tees, onClose }: {
-  team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]; tees: Tee[]; onClose: () => void
+function ScorecardModal({ team, round, holes, scores, roundHandicaps, onClose }: {
+  team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]; onClose: () => void
 }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
@@ -296,7 +129,6 @@ function ScorecardModal({ team, round, holes, scores, roundHandicaps, tees, onCl
             holes={holes}
             scores={scores}
             roundHandicaps={roundHandicaps}
-            tees={tees}
           />
         </div>
       </div>
@@ -495,7 +327,6 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
           holes={holes}
           scores={scores}
           roundHandicaps={roundHandicaps}
-          tees={tees}
           onClose={() => setModal(null)}
         />
       )}
