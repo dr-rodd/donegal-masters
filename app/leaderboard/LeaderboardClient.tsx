@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, Fragment } from "react"
-import Link from "next/link"
 import { features } from "@/lib/features"
 
 // ─── Types ─────────────────────────────────────────────────────
@@ -31,7 +30,7 @@ function sortedPlayers(players: Player[]) {
 const displayName = (p: Player) =>
   (p.is_composite ? p.name.replace(/^Composite\s+/i, "") : p.name).split(" ")[0]
 
-// ─── Scoring helpers ───────────────────────────────────────────
+// ─── Team scoring ──────────────────────────────────────────────
 
 function teamRoundPts(team: Team, holes: Hole[], scores: Score[], roundId: string): number {
   return holes.reduce((total, hole) => {
@@ -43,42 +42,30 @@ function teamRoundPts(team: Team, holes: Hole[], scores: Score[], roundId: strin
   }, 0)
 }
 
-// ─── Score shape with pts superscript (paper card style) ───────
+// ─── Score shape — matches ScorecardClient exactly ─────────────
 
-function CompScore({ gross, par, pts, nr }: { gross: number; par: number; pts: number; nr: boolean }) {
-  const f = "font-[family-name:var(--font-crimson)]"
-  if (nr) return <span className={`text-orange-500 text-xs font-semibold ${f}`}>NR</span>
+function ScoreShape({ gross, par }: { gross: number; par: number }) {
   const diff = gross - par
-  const sup = <sup className={`text-[9px] text-gray-400 leading-none ${f}`}>{pts}</sup>
-
+  const f = "font-[family-name:var(--font-crimson)] leading-none"
   if (diff <= -2) return (
-    <span className="inline-flex items-start">
-      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#C9A84C] ${f} text-sm font-semibold text-[#1a0a00]`}>{gross}</span>
-      {sup}
+    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#C9A84C]">
+      <span className={`${f} text-lg font-semibold text-[#1a0a00]`}>{gross}</span>
     </span>
   )
   if (diff === -1) return (
-    <span className="inline-flex items-start">
-      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full border-2 border-[#2d6a4f] ${f} text-sm text-[#1a5235]`}>{gross}</span>
-      {sup}
+    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full border-2 border-[#2d6a4f]">
+      <span className={`${f} text-lg text-[#1a5235]`}>{gross}</span>
     </span>
   )
-  if (diff === 0) return (
-    <span className="inline-flex items-start gap-0.5">
-      <span className={`${f} text-base text-gray-700`}>{gross}</span>
-      {sup}
-    </span>
-  )
+  if (diff === 0) return <span className={`${f} text-lg text-gray-700`}>{gross}</span>
   if (diff === 1) return (
-    <span className="inline-flex items-start">
-      <span className={`inline-flex items-center justify-center w-6 h-6 border border-gray-400 ${f} text-sm text-gray-500`}>{gross}</span>
-      {sup}
+    <span className="inline-flex items-center justify-center w-7 h-7 border border-gray-400">
+      <span className={`${f} text-base text-gray-500`}>{gross}</span>
     </span>
   )
   return (
-    <span className="inline-flex items-start">
-      <span className={`inline-flex items-center justify-center w-6 h-6 bg-gray-300 ${f} text-sm text-gray-600`}>{gross}</span>
-      {sup}
+    <span className="inline-flex items-center justify-center w-7 h-7 bg-gray-300">
+      <span className={`${f} text-base text-gray-600`}>{gross}</span>
     </span>
   )
 }
@@ -137,20 +124,22 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
     const anyScore = pScores.some(x => x.score)
     return (
       <tr className={`border-t border-gray-100 ${odd ? "bg-white" : "bg-gray-50/40"}`}>
-        <td className={`py-2.5 px-2 text-base font-semibold text-gray-700 ${f}`}>{hole.hole_number}</td>
+        <td className={`py-2.5 px-2 text-lg font-semibold text-gray-700 ${f}`}>{hole.hole_number}</td>
         <td className={`text-center py-2.5 px-1 text-base text-gray-500 ${f}`}>{hole.par}</td>
-        {pScores.map(({ player, score }) => (
-          <td
-            key={player.id}
-            className={`text-center py-2 px-1 ${contributors.has(player.id) ? "bg-amber-50" : ""}`}
-          >
-            {score
-              ? <CompScore gross={score.gross_score} par={hole.par} pts={score.stableford_points} nr={score.no_return} />
-              : <span className="text-gray-200 text-sm">—</span>
-            }
-          </td>
-        ))}
-        <td className={`text-center py-2.5 px-2 text-base font-semibold ${f} ${
+        {pScores.map(({ player, score }) => {
+          const highlighted = contributors.has(player.id)
+          return (
+            <td key={player.id} className={`text-center py-1.5 px-1 ${highlighted ? "bg-[#fef3c7]" : ""}`}>
+              {score
+                ? score.no_return
+                  ? <span className={`text-orange-500 text-sm font-semibold ${f}`}>NR</span>
+                  : <ScoreShape gross={score.gross_score} par={hole.par} />
+                : <span className="text-gray-200 text-sm">—</span>
+              }
+            </td>
+          )
+        })}
+        <td className={`text-center py-2.5 px-2 text-lg font-semibold ${f} ${
           !anyScore     ? "text-gray-200"
           : maxPts >= 3 ? "text-[#2d6a4f]"
           : maxPts === 0 ? "text-gray-300"
@@ -168,16 +157,17 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
     const tData  = isTotal ? "text-white"    : "text-gray-700"
     const tPts   = isTotal ? "text-[#C9A84C] font-bold" : "text-[#2d6a4f] font-semibold"
     const border = isTotal ? "border-[#1e3a22]" : "border-gray-200"
+    const sz     = isTotal ? "text-lg" : "text-base"
     return (
       <tr className={`border-t-2 ${border} ${bg}`}>
-        <td className={`py-2 px-2 text-xs uppercase tracking-wider font-semibold ${tLabel} font-[family-name:var(--font-playfair)]`}>{label}</td>
-        <td className={`text-center py-2 px-1 text-sm font-semibold ${tData} ${f}`}>{sub.par}</td>
+        <td className={`py-2 px-2 text-sm uppercase tracking-wider font-semibold ${tLabel} font-[family-name:var(--font-playfair)]`}>{label}</td>
+        <td className={`text-center py-2 px-1 ${sz} font-semibold ${tData} ${f}`}>{sub.par}</td>
         {sub.playerGross.map((g, i) => (
-          <td key={i} className={`text-center py-2 px-1 text-sm ${tData} ${f}`}>
+          <td key={i} className={`text-center py-2 px-1 ${sz} ${tData} ${f}`}>
             {hasAny && g > 0 ? g : "—"}
           </td>
         ))}
-        <td className={`text-center py-2 px-2 text-sm ${tPts} ${f}`}>
+        <td className={`text-center py-2 px-2 ${sz} ${tPts} ${f}`}>
           {hasAny ? sub.bestPts : "—"}
         </td>
       </tr>
@@ -186,13 +176,36 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
 
   return (
     <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
-      {/* Green header */}
+      {/* Dark green header — team + course */}
       <div className="bg-[#1a3a22] px-4 py-3">
         <div className="flex items-center gap-2 mb-0.5">
           <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
           <span className="font-[family-name:var(--font-playfair)] text-white text-lg">{team.name}</span>
         </div>
         <p className="text-white/40 text-sm pl-4">{round.courses?.name}</p>
+      </div>
+
+      {/* Player tiles — numbered to match column headers */}
+      <div className="bg-[#f5f0e8] border-b-2 border-gray-200 px-4 py-3">
+        <div className="grid gap-x-4 gap-y-2" style={{ gridTemplateColumns: `repeat(${players.length}, 1fr)` }}>
+          {players.map((p, i) => {
+            const hcp = roundHandicaps.find(rh => rh.player_id === p.id && rh.round_id === round.id)
+            return (
+              <div key={p.id} className="flex flex-col gap-0.5 min-w-0">
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <span className={`font-[family-name:var(--font-crimson)] text-base font-bold text-[#2d6a4f] flex-shrink-0`}>{i + 1}</span>
+                  <span className="font-[family-name:var(--font-playfair)] text-gray-700 text-sm font-semibold truncate">{displayName(p)}</span>
+                  {p.is_composite && (
+                    <span className="text-[8px] font-bold text-[#C9A84C] border border-[#C9A84C]/60 px-0.5 rounded-sm leading-tight flex-shrink-0">C</span>
+                  )}
+                </div>
+                <span className={`font-[family-name:var(--font-crimson)] text-xs text-gray-400`}>
+                  {hcp ? `hcp ${hcp.playing_handicap}` : "—"}
+                </span>
+              </div>
+            )
+          })}
+        </div>
       </div>
 
       {courseHoles.length === 0 ? (
@@ -203,25 +216,20 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
             <col style={{ width: "34px" }} />
             <col style={{ width: "30px" }} />
             {players.map(p => <col key={p.id} />)}
-            <col style={{ width: "38px" }} />
+            <col style={{ width: "40px" }} />
           </colgroup>
           <thead>
             <tr className="border-b-2 border-gray-200 bg-gray-50">
-              <th className="text-left py-2.5 px-2 text-xs font-semibold text-gray-400 uppercase tracking-wide font-[family-name:var(--font-playfair)]">
+              <th className="text-left py-2 px-2 text-sm font-semibold text-gray-400 uppercase tracking-wide font-[family-name:var(--font-playfair)]">
                 Hole
               </th>
-              <th className="text-center py-2.5 px-1 text-xs font-normal text-gray-400 uppercase tracking-wide">Par</th>
-              {players.map(p => (
-                <th key={p.id} className="text-center py-2.5 px-1">
-                  <span className="font-[family-name:var(--font-playfair)] text-xs font-semibold text-gray-500 truncate block">
-                    {displayName(p)}
-                  </span>
-                  {p.is_composite && (
-                    <span className="inline-block text-[8px] font-bold text-[#C9A84C] border border-[#C9A84C]/60 px-0.5 rounded-sm leading-tight mt-0.5">C</span>
-                  )}
+              <th className="text-center py-2 px-1 text-sm font-normal text-gray-400 uppercase tracking-wide">Par</th>
+              {players.map((_, i) => (
+                <th key={i} className={`text-center py-2 px-1 font-[family-name:var(--font-crimson)] text-lg font-bold text-[#2d6a4f]`}>
+                  {i + 1}
                 </th>
               ))}
-              <th className="text-center py-2.5 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tot</th>
+              <th className="text-center py-2 px-2 text-sm font-semibold text-gray-500 uppercase tracking-wide">Tot</th>
             </tr>
           </thead>
           <tbody>
@@ -365,7 +373,7 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
   return (
     <>
       <div className="border border-[#1e3d28]">
-        {/* Sticky column headers — match live leaderboard exactly */}
+        {/* Sticky column headers */}
         <div className="sticky top-[69px] z-10 flex items-center gap-3 px-4 py-2 bg-[#0a1a0e] border-b border-[#1e3d28]">
           <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 w-6 flex-shrink-0">Pos</span>
           <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 flex-1 min-w-0">Team</span>
@@ -376,8 +384,9 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
         {/* Team rows */}
         {rows.map(({ team, total, roundsWithScores }, i) => {
           const isExpanded = expandedTeamId === team.id
-          const isLast = i === rows.length - 1
-          const allDone = totalRounds > 0 && roundsWithScores === totalRounds
+          const isLast     = i === rows.length - 1
+          const allDone    = totalRounds > 0 && roundsWithScores === totalRounds
+          const members    = sortedPlayers(team.players)
 
           // Score pill
           const baseline = 36 * roundsWithScores
@@ -391,23 +400,18 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
             scoreDisplay   = `${total}`
             scorePillClass = rel > 0
               ? "bg-[#C9A84C]/15 text-[#C9A84C]"
-              : rel < 0
-                ? "bg-green-900/25 text-green-400"
-                : "bg-white/5 text-white/45"
+              : rel < 0 ? "bg-green-900/25 text-green-400"
+              : "bg-white/5 text-white/45"
           } else {
             scoreDisplay   = rel > 0 ? `+${rel}` : rel < 0 ? `${rel}` : "E"
             scorePillClass = rel > 0
               ? "bg-[#C9A84C]/15 text-[#C9A84C]"
-              : rel < 0
-                ? "bg-green-900/25 text-green-400"
-                : "bg-white/5 text-white/45"
+              : rel < 0 ? "bg-green-900/25 text-green-400"
+              : "bg-white/5 text-white/45"
           }
 
-          // Thru
           const thruDisplay = allDone ? "F" : roundsWithScores > 0 ? `${roundsWithScores}` : "—"
-          const thruClass = allDone
-            ? "text-white/60 font-semibold"
-            : roundsWithScores > 0 ? "text-white/30" : "text-white/15"
+          const thruClass   = allDone ? "text-white/60 font-semibold" : roundsWithScores > 0 ? "text-white/30" : "text-white/15"
 
           return (
             <Fragment key={team.id}>
@@ -417,26 +421,33 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
                   ${!isLast || isExpanded ? "border-b border-[#1e3d28]" : ""}`}
               >
                 {/* Pos */}
-                <span className="text-white/40 text-base font-semibold w-6 flex-shrink-0 tabular-nums">
+                <span className="text-white/40 text-base font-semibold w-6 flex-shrink-0 tabular-nums self-start pt-0.5">
                   {i + 1}
                 </span>
 
-                {/* Team dot + name */}
-                <div className="flex items-center gap-2 flex-1 min-w-0">
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
-                  <span className="font-[family-name:var(--font-playfair)] text-base text-white truncate">
-                    {team.name}
-                  </span>
+                {/* Team name + member names */}
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
+                    <span className="font-[family-name:var(--font-playfair)] text-base text-white truncate">
+                      {team.name}
+                    </span>
+                  </div>
+                  <div className="flex gap-2 mt-0.5 pl-4 flex-wrap">
+                    {members.map(p => (
+                      <span key={p.id} className="text-white/35 text-xs truncate">{displayName(p)}</span>
+                    ))}
+                  </div>
                 </div>
 
                 {/* Score pill */}
-                <span className={`flex-shrink-0 inline-flex items-center justify-center
+                <span className={`flex-shrink-0 inline-flex items-center justify-center self-start mt-0.5
                   px-2 py-0.5 rounded-sm text-lg font-bold tabular-nums min-w-[3.5rem] ${scorePillClass}`}>
                   {scoreDisplay}
                 </span>
 
                 {/* Thru */}
-                <span className={`flex-shrink-0 w-9 text-right tabular-nums text-base ${thruClass}`}>
+                <span className={`flex-shrink-0 w-9 text-right tabular-nums text-base self-start pt-0.5 ${thruClass}`}>
                   {thruDisplay}
                 </span>
               </button>
