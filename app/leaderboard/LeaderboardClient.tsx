@@ -100,11 +100,7 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
       return s ? Math.max(max, s.stableford_points) : max
     }, 0)
     const hasScores = players.some((_, pi) => playerScoreMaps[pi].has(hole.hole_number))
-    const contributors = players.map((_, pi) => {
-      const s = playerScoreMaps[pi].get(hole.hole_number)
-      return bestPts > 0 && s != null && s.stableford_points === bestPts
-    })
-    return { hole, idx, grossScores, bestPts, hasScores, contributors }
+    return { hole, idx, grossScores, bestPts, hasScores }
   })
 
   const front9 = rows.slice(0, 9)
@@ -158,12 +154,12 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
       </div>
 
       {/* Front 9 */}
-      {front9.map(({ hole, idx, grossScores, bestPts, hasScores, contributors }) => (
+      {front9.map(({ hole, idx, grossScores, bestPts, hasScores }) => (
         <div key={hole.hole_number} className={`${grid} px-3 py-1.5 items-center border-b border-[#E2DAC8] ${idx % 2 === 1 ? "bg-[#EEE8D6]" : ""}`}>
           <span className={`text-sm font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
           <span className={`text-sm ${muted}`} style={sf}>{hole.par}</span>
           {grossScores.map((gross, pi) => (
-            <span key={pi} className={`flex justify-center -my-1.5 py-1.5 ${contributors[pi] ? "bg-[#C9A84C]/25" : ""}`}>
+            <span key={pi} className="flex justify-center">
               {scoreSymbol(gross, hole.par)}
             </span>
           ))}
@@ -184,12 +180,12 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
       </div>
 
       {/* Back 9 */}
-      {back9.map(({ hole, idx, grossScores, bestPts, hasScores, contributors }) => (
+      {back9.map(({ hole, idx, grossScores, bestPts, hasScores }) => (
         <div key={hole.hole_number} className={`${grid} px-3 py-1.5 items-center border-b border-[#E2DAC8] ${idx % 2 === 0 ? "bg-[#EEE8D6]" : ""}`}>
           <span className={`text-sm font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
           <span className={`text-sm ${muted}`} style={sf}>{hole.par}</span>
           {grossScores.map((gross, pi) => (
-            <span key={pi} className={`flex justify-center -my-1.5 py-1.5 ${contributors[pi] ? "bg-[#C9A84C]/25" : ""}`}>
+            <span key={pi} className="flex justify-center">
               {scoreSymbol(gross, hole.par)}
             </span>
           ))}
