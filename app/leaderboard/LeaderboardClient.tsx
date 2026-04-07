@@ -66,7 +66,7 @@ function CompositeScorecard({ team, round, holes }: {
           <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
           <span className="font-[family-name:var(--font-playfair)] text-white text-lg">{team.name}</span>
         </div>
-        <span className="text-white/40 text-sm">{round.courses?.name}</span>
+        <span className={`text-white/40 text-sm ${crimson}`}>{round.courses?.name}</span>
       </div>
 
       {courseHoles.length === 0 ? (
