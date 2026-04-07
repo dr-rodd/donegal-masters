@@ -8,11 +8,12 @@ import ScoreShape from "@/app/components/ScoreShape"
 
 type Course   = { id: string; name: string }
 type Round    = { id: string; round_number: number; status?: string; courses: Course | null }
-type Player   = { id: string; name: string; role: string; handicap: number; is_composite?: boolean }
+type Player   = { id: string; name: string; role: string; handicap: number; is_composite?: boolean; gender?: string }
 type Team     = { id: string; name: string; color: string; players: Player[] }
 type Hole     = { id: string; hole_number: number; par: number; stroke_index: number; course_id: string }
 type Score    = { player_id: string; hole_id: string; gross_score: number; stableford_points: number; no_return: boolean; round_id: string }
 type RoundHcp = { round_id: string; player_id: string; playing_handicap: number }
+type Tee      = { id: string; course_id: string; name: string; gender: string; par: number }
 
 interface Props {
   rounds: Round[]
@@ -20,6 +21,7 @@ interface Props {
   holes: Hole[]
   scores: Score[]
   roundHandicaps: RoundHcp[]
+  tees: Tee[]
 }
 
 // ─── Player helpers ────────────────────────────────────────────
@@ -30,6 +32,21 @@ function sortedPlayers(players: Player[]) {
 }
 const displayName = (p: Player) =>
   (p.is_composite ? p.name.replace(/^Composite\s+/i, "") : p.name).split(" ")[0]
+
+// ─── Tee helpers (copied from ScorecardClient) ─────────────────
+
+const TEE_PREF_M = ["blue", "white", "black", "sandstone", "slate", "granite", "claret", "red"]
+const TEE_PREF_F = ["red", "sandstone", "claret", "white", "blue", "black"]
+
+function defaultTee(tees: Tee[], courseId: string, gender: string): Tee | null {
+  const ct = tees.filter(t => t.course_id === courseId)
+  const prefs = gender === "F" ? TEE_PREF_F : TEE_PREF_M
+  for (const p of prefs) {
+    const t = ct.find(x => x.name.toLowerCase() === p)
+    if (t) return t
+  }
+  return ct[0] ?? null
+}
 
 // ─── Team scoring ──────────────────────────────────────────────
 
@@ -45,42 +62,82 @@ function teamRoundPts(team: Team, holes: Hole[], scores: Score[], roundId: strin
 
 // ─── Paper composite scorecard ─────────────────────────────────
 
-function CompositeScorecard({ team, round, holes, scores }: {
-  team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]
+function CompositeScorecard({ team, round, holes, scores, roundHandicaps, tees }: {
+  team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]; tees: Tee[]
 }) {
+  const courseId   = round.courses?.id ?? ""
+  const courseName = round.courses?.name ?? ""
   const courseHoles = holes
-    .filter(h => h.course_id === round.courses?.id)
+    .filter(h => h.course_id === courseId)
     .sort((a, b) => a.hole_number - b.hole_number)
   const front   = courseHoles.slice(0, 9)
   const back    = courseHoles.slice(9, 18)
   const crimson = "font-[family-name:var(--font-crimson)]"
-  const player1 = sortedPlayers(team.players)[0] ?? null
 
-  function p1Score(holeId: string) {
+  const player1    = sortedPlayers(team.players)[0] ?? null
+  const playingHcp = roundHandicaps.find(rh => rh.player_id === player1?.id && rh.round_id === round.id)?.playing_handicap ?? null
+  const tee        = player1 ? defaultTee(tees, courseId, player1.gender ?? "M") : null
+  const hasScores  = courseHoles.some(h => holeScore(h) !== null)
+  const hasNR      = courseHoles.some(h => holeScore(h)?.no_return)
+
+  function holeScore(hole: Hole): Score | null {
     if (!player1) return null
-    return scores.find(s => s.player_id === player1.id && s.hole_id === holeId && s.round_id === round.id) ?? null
+    return scores.find(s => s.player_id === player1.id && s.hole_id === hole.id && s.round_id === round.id) ?? null
   }
-  function sumPar(hs: Hole[])   { return hs.reduce((s, h) => s + h.par, 0) }
-  function sumGross(hs: Hole[]) {
-    return hs.reduce((s, h) => {
-      const sc = p1Score(h.id)
-      return s + (sc && !sc.no_return ? sc.gross_score : 0)
+
+  function nrGross(hole: Hole): number {
+    const ph = playingHcp ?? 0
+    const shots = Math.floor(ph / 18) + (hole.stroke_index <= ph % 18 ? 1 : 0)
+    return hole.par + 2 + shots
+  }
+
+  function sumGross(hs: Hole[]): number {
+    return hs.reduce((sum, h) => {
+      const s = holeScore(h)
+      if (!s) return sum
+      return sum + (s.no_return ? nrGross(h) : Number(s.gross_score))
     }, 0)
   }
-  function sumPts(hs: Hole[])   { return hs.reduce((s, h) => s + (p1Score(h.id)?.stableford_points ?? 0), 0) }
+  function sumPts(hs: Hole[]) { return hs.reduce((sum, h) => sum + (holeScore(h)?.stableford_points ?? 0), 0) }
+  function sumPar(hs: Hole[]) { return hs.reduce((sum, h) => sum + h.par, 0) }
 
-  const hasScores = courseHoles.some(h => p1Score(h.id) !== null)
+  // SubtotalRow — matches ScorecardClient exactly, SI and yardage columns omitted
+  function SubtotalRow({ label, par, gross, pts, rowHasNR, isTotal }: {
+    label: string; par: number; gross: number; pts: number; rowHasNR?: boolean; isTotal?: boolean
+  }) {
+    const bg        = isTotal ? "bg-[#1a3a22]"   : "bg-gray-100"
+    const border    = isTotal ? "border-[#1e3a22]" : "border-gray-200"
+    const textLabel = isTotal ? "text-white/70"   : "text-gray-500"
+    const textData  = isTotal ? "text-white"      : "text-gray-700"
+    const textPts   = isTotal ? "text-[#C9A84C] font-semibold" : "text-[#2d6a4f] font-semibold"
+    const sz        = isTotal ? "text-lg"         : "text-base"
+    return (
+      <tr className={`border-t-2 ${border} ${bg}`}>
+        <td className={`py-2 px-3 text-sm uppercase tracking-wider font-semibold ${textLabel} font-[family-name:var(--font-playfair)]`}>{label}</td>
+        <td className={`text-center py-2 px-2 ${sz} font-semibold ${textData} ${crimson}`}>{par}</td>
+        <td className={`text-center py-2 px-2 ${sz} font-semibold ${textData} ${crimson}`}>
+          {hasScores
+            ? <>{gross > 0 ? gross : "—"}{rowHasNR && <span className="text-orange-500 text-[9px] ml-0.5">NR</span>}</>
+            : "—"
+          }
+        </td>
+        <td className={`text-center py-2 px-2 ${sz} ${isTotal ? "font-bold" : ""} ${textPts} ${crimson}`}>
+          {hasScores ? pts : "—"}
+        </td>
+      </tr>
+    )
+  }
 
   return (
     <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
 
-      {/* Dark green header */}
+      {/* Header — matches ScorecardClient */}
       <div className="bg-[#1a3a22] px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
-          <span className="font-[family-name:var(--font-playfair)] text-white text-lg">{team.name}</span>
+        <span className="font-[family-name:var(--font-playfair)] text-white text-lg">{courseName}</span>
+        <div className={`flex items-center gap-3 text-sm ${crimson}`}>
+          {tee && <span className="text-[#C9A84C]/80 capitalize">{tee.name.toLowerCase()} tees</span>}
+          {playingHcp != null && <span className="text-white/40">hcp {playingHcp}</span>}
         </div>
-        <span className={`text-white/40 text-sm ${crimson}`}>{round.courses?.name}</span>
       </div>
 
       {courseHoles.length === 0 ? (
@@ -98,15 +155,14 @@ function CompositeScorecard({ team, round, holes, scores }: {
           <tbody>
             {/* Front 9 */}
             {front.map((hole, i) => {
-              const s   = p1Score(hole.id)
+              const s   = holeScore(hole)
               const pts = s?.stableford_points ?? null
-              if (s) console.log(`[composite h${hole.hole_number}]`, { gross: s.gross_score, par: hole.par, diff: Number(s.gross_score) - Number(hole.par) })
-              const rowBg = i % 2 === 0 ? "bg-white" : "bg-gray-50/40"
+              const isOdd = i % 2 === 0
               return (
                 <tr key={hole.id} className="border-t border-gray-100">
-                  <td className={`${rowBg} py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
-                  <td className={`${rowBg} text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
-                  <td className={`${rowBg} text-center py-1.5 px-2`}>
+                  <td className={`${isOdd ? "bg-white" : "bg-gray-50/40"} py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
+                  <td className={`${isOdd ? "bg-white" : "bg-gray-50/40"} text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
+                  <td className={`${isOdd ? "bg-white" : "bg-gray-50/40"} text-center py-1.5 px-2`}>
                     {s
                       ? s.no_return
                         ? <span className={`text-orange-500 text-sm font-semibold ${crimson}`}>NR</span>
@@ -114,10 +170,10 @@ function CompositeScorecard({ team, round, holes, scores }: {
                       : <span className="text-gray-200 text-sm">—</span>
                     }
                   </td>
-                  <td className={`${rowBg} text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
-                    pts == null   ? "text-gray-200"
-                    : pts >= 3   ? "text-[#2d6a4f]"
-                    : pts === 0  ? "text-gray-300"
+                  <td className={`${isOdd ? "bg-white" : "bg-gray-50/40"} text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
+                    pts == null  ? "text-gray-200"
+                    : pts >= 3  ? "text-[#2d6a4f]"
+                    : pts === 0 ? "text-gray-300"
                     : "text-gray-500"
                   }`}>
                     {pts != null ? pts : "—"}
@@ -126,29 +182,18 @@ function CompositeScorecard({ team, round, holes, scores }: {
               )
             })}
 
-            {/* Out subtotal */}
-            <tr className="border-t-2 border-gray-200 bg-gray-100">
-              <td className="py-2 px-3 text-sm uppercase tracking-wider font-semibold text-gray-500 font-[family-name:var(--font-playfair)]">Out</td>
-              <td className={`text-center py-2 px-2 text-base font-semibold text-gray-700 ${crimson}`}>{sumPar(front)}</td>
-              <td className={`text-center py-2 px-2 text-base font-semibold text-gray-700 ${crimson}`}>
-                {hasScores && sumGross(front) > 0 ? sumGross(front) : "—"}
-              </td>
-              <td className={`text-center py-2 px-2 text-base text-[#2d6a4f] font-semibold ${crimson}`}>
-                {hasScores ? sumPts(front) : "—"}
-              </td>
-            </tr>
+            <SubtotalRow label="Out" par={sumPar(front)} gross={sumGross(front)} pts={sumPts(front)} />
 
             {/* Back 9 */}
             {back.map((hole, i) => {
-              const s   = p1Score(hole.id)
+              const s   = holeScore(hole)
               const pts = s?.stableford_points ?? null
-              if (s) console.log(`[composite h${hole.hole_number}]`, { gross: s.gross_score, par: hole.par, diff: Number(s.gross_score) - Number(hole.par) })
-              const rowBg = i % 2 === 0 ? "bg-white" : "bg-gray-50/40"
+              const isOdd = i % 2 === 0
               return (
                 <tr key={hole.id} className="border-t border-gray-100">
-                  <td className={`${rowBg} py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
-                  <td className={`${rowBg} text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
-                  <td className={`${rowBg} text-center py-1.5 px-2`}>
+                  <td className={`${isOdd ? "bg-white" : "bg-gray-50/40"} py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
+                  <td className={`${isOdd ? "bg-white" : "bg-gray-50/40"} text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
+                  <td className={`${isOdd ? "bg-white" : "bg-gray-50/40"} text-center py-1.5 px-2`}>
                     {s
                       ? s.no_return
                         ? <span className={`text-orange-500 text-sm font-semibold ${crimson}`}>NR</span>
@@ -156,10 +201,10 @@ function CompositeScorecard({ team, round, holes, scores }: {
                       : <span className="text-gray-200 text-sm">—</span>
                     }
                   </td>
-                  <td className={`${rowBg} text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
-                    pts == null   ? "text-gray-200"
-                    : pts >= 3   ? "text-[#2d6a4f]"
-                    : pts === 0  ? "text-gray-300"
+                  <td className={`${isOdd ? "bg-white" : "bg-gray-50/40"} text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
+                    pts == null  ? "text-gray-200"
+                    : pts >= 3  ? "text-[#2d6a4f]"
+                    : pts === 0 ? "text-gray-300"
                     : "text-gray-500"
                   }`}>
                     {pts != null ? pts : "—"}
@@ -168,29 +213,8 @@ function CompositeScorecard({ team, round, holes, scores }: {
               )
             })}
 
-            {/* In subtotal */}
-            <tr className="border-t-2 border-gray-200 bg-gray-100">
-              <td className="py-2 px-3 text-sm uppercase tracking-wider font-semibold text-gray-500 font-[family-name:var(--font-playfair)]">In</td>
-              <td className={`text-center py-2 px-2 text-base font-semibold text-gray-700 ${crimson}`}>{sumPar(back)}</td>
-              <td className={`text-center py-2 px-2 text-base font-semibold text-gray-700 ${crimson}`}>
-                {hasScores && sumGross(back) > 0 ? sumGross(back) : "—"}
-              </td>
-              <td className={`text-center py-2 px-2 text-base text-[#2d6a4f] font-semibold ${crimson}`}>
-                {hasScores ? sumPts(back) : "—"}
-              </td>
-            </tr>
-
-            {/* Total */}
-            <tr className="border-t-2 border-[#1e3a22] bg-[#1a3a22]">
-              <td className="py-2 px-3 text-sm uppercase tracking-wider font-semibold text-white/70 font-[family-name:var(--font-playfair)]">Total</td>
-              <td className={`text-center py-2 px-2 text-lg font-semibold text-white ${crimson}`}>{sumPar(courseHoles)}</td>
-              <td className={`text-center py-2 px-2 text-lg font-semibold text-white ${crimson}`}>
-                {hasScores && sumGross(courseHoles) > 0 ? sumGross(courseHoles) : "—"}
-              </td>
-              <td className={`text-center py-2 px-2 text-lg font-bold text-[#C9A84C] ${crimson}`}>
-                {hasScores ? sumPts(courseHoles) : "—"}
-              </td>
-            </tr>
+            <SubtotalRow label="In" par={sumPar(back)} gross={sumGross(back)} pts={sumPts(back)} />
+            <SubtotalRow label="Total" par={sumPar(courseHoles)} gross={sumGross(courseHoles)} pts={sumPts(courseHoles)} rowHasNR={hasNR} isTotal />
           </tbody>
         </table>
       )}
@@ -206,8 +230,8 @@ function CompositeScorecard({ team, round, holes, scores }: {
 
 // ─── Scorecard modal ───────────────────────────────────────────
 
-function ScorecardModal({ team, round, holes, scores, roundHandicaps, onClose }: {
-  team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]; onClose: () => void
+function ScorecardModal({ team, round, holes, scores, roundHandicaps, tees, onClose }: {
+  team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]; tees: Tee[]; onClose: () => void
 }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
@@ -232,6 +256,7 @@ function ScorecardModal({ team, round, holes, scores, roundHandicaps, onClose }:
             holes={holes}
             scores={scores}
             roundHandicaps={roundHandicaps}
+            tees={tees}
           />
         </div>
       </div>
@@ -298,7 +323,7 @@ function CourseTiles({ team, rounds, holes, scores, roundHandicaps, onTileClick 
 
 // ─── Main component ────────────────────────────────────────────
 
-export default function LeaderboardClient({ rounds, teams, holes, scores, roundHandicaps }: Props) {
+export default function LeaderboardClient({ rounds, teams, holes, scores, roundHandicaps, tees }: Props) {
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null)
   const [modal, setModal] = useState<{ team: Team; round: Round } | null>(null)
 
@@ -430,6 +455,7 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
           holes={holes}
           scores={scores}
           roundHandicaps={roundHandicaps}
+          tees={tees}
           onClose={() => setModal(null)}
         />
       )}
