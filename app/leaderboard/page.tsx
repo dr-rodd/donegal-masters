@@ -6,20 +6,21 @@ import Poller from "@/app/components/Poller"
 export const revalidate = 30
 
 export default async function LeaderboardPage() {
-  const [roundsRes, teamsRes, holesRes, scoresRes, hcpsRes, teesRes] = await Promise.all([
+  const [roundsRes, teamsRes, playersRes, holesRes, scoresRes, hcpsRes, teesRes] = await Promise.all([
     supabase.from("rounds").select("id, round_number, status, courses(id, name)").order("round_number"),
-    supabase.from("teams").select("id, name, color, players(id, name, role, handicap, is_composite, gender)").order("name"),
+    supabase.from("teams").select("id, name, color").order("name"),
+    supabase.from("players").select("id, name, role, handicap, is_composite, gender, team_id").order("name"),
     supabase.from("holes").select("id, hole_number, par, stroke_index, course_id").order("hole_number"),
     supabase.from("scores").select("player_id, hole_id, gross_score, stableford_points, no_return, round_id"),
     supabase.from("round_handicaps").select("round_id, player_id, playing_handicap"),
     supabase.from("tees").select("id, course_id, name, gender, par"),
   ])
-  console.log("[leaderboard] rounds:", roundsRes.data, "error:", roundsRes.error)
-  console.log("[leaderboard] teams:", teamsRes.data, "error:", teamsRes.error)
-  console.log("[leaderboard] holes count:", holesRes.data?.length, "error:", holesRes.error)
-  console.log("[leaderboard] scores count:", scoresRes.data?.length, "error:", scoresRes.error)
   const rounds = roundsRes.data
-  const teams = teamsRes.data
+  const allPlayers = playersRes.data ?? []
+  const teams = (teamsRes.data ?? []).map(team => ({
+    ...team,
+    players: allPlayers.filter(p => p.team_id === team.id),
+  }))
   const holes = holesRes.data
   const scores = scoresRes.data
   const roundHandicaps = hcpsRes.data
