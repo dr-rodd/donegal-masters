@@ -42,210 +42,79 @@ function teamRoundPts(team: Team, holes: Hole[], scores: Score[], roundId: strin
   }, 0)
 }
 
-// ─── Score shape — matches ScorecardClient exactly ─────────────
-
-function ScoreShape({ gross, par }: { gross: number; par: number }) {
-  const diff = gross - par
-  const f = "font-[family-name:var(--font-crimson)] leading-none"
-  if (diff <= -2) return (
-    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#C9A84C]">
-      <span className={`${f} text-lg font-semibold text-[#1a0a00]`}>{gross}</span>
-    </span>
-  )
-  if (diff === -1) return (
-    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full border-2 border-[#2d6a4f]">
-      <span className={`${f} text-lg text-[#1a5235]`}>{gross}</span>
-    </span>
-  )
-  if (diff === 0) return <span className={`${f} text-lg text-gray-700`}>{gross}</span>
-  if (diff === 1) return (
-    <span className="inline-flex items-center justify-center w-7 h-7 border border-gray-400">
-      <span className={`${f} text-base text-gray-500`}>{gross}</span>
-    </span>
-  )
-  return (
-    <span className="inline-flex items-center justify-center w-7 h-7 bg-gray-300">
-      <span className={`${f} text-base text-gray-600`}>{gross}</span>
-    </span>
-  )
-}
-
 // ─── Paper composite scorecard ─────────────────────────────────
 
-function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
+function CompositeScorecard({ team, round, holes }: {
   team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]
 }) {
   const courseHoles = holes
     .filter(h => h.course_id === round.courses?.id)
     .sort((a, b) => a.hole_number - b.hole_number)
-  const front   = courseHoles.slice(0, 9)
-  const back    = courseHoles.slice(9, 18)
-  const players = sortedPlayers(team.players)
-  const f       = "font-[family-name:var(--font-crimson)]"
-  const hasAny  = scores.some(s => s.round_id === round.id && players.some(p => p.id === s.player_id))
+  const front  = courseHoles.slice(0, 9)
+  const back   = courseHoles.slice(9, 18)
+  const crimson = "font-[family-name:var(--font-crimson)]"
 
-  function playerScore(playerId: string, holeId: string) {
-    return scores.find(s => s.player_id === playerId && s.hole_id === holeId && s.round_id === round.id) ?? null
-  }
-
-  function holeInfo(hole: Hole) {
-    const pScores = players.map(p => ({ player: p, score: playerScore(p.id, hole.id) }))
-    const maxPts  = Math.max(0, ...pScores.filter(x => x.score).map(x => x.score!.stableford_points))
-    const contributors = new Set(
-      maxPts > 0
-        ? pScores.filter(x => x.score?.stableford_points === maxPts).map(x => x.player.id)
-        : []
-    )
-    return { pScores, maxPts, contributors }
-  }
-
-  function subtotals(holeSet: Hole[]) {
-    const par = holeSet.reduce((s, h) => s + h.par, 0)
-    const playerGross = players.map(p =>
-      holeSet.reduce((s, h) => {
-        const sc = playerScore(p.id, h.id)
-        return s + (sc && !sc.no_return ? sc.gross_score : 0)
-      }, 0)
-    )
-    const bestPts = holeSet.reduce((s, h) => s + holeInfo(h).maxPts, 0)
-    return { par, playerGross, bestPts }
-  }
-
-  const outSub = subtotals(front)
-  const inSub  = subtotals(back)
-  const totSub = {
-    par:         outSub.par + inSub.par,
-    playerGross: players.map((_, i) => outSub.playerGross[i] + inSub.playerGross[i]),
-    bestPts:     outSub.bestPts + inSub.bestPts,
-  }
-
-  function HoleRow({ hole, odd }: { hole: Hole; odd: boolean }) {
-    const { pScores, maxPts, contributors } = holeInfo(hole)
-    const anyScore = pScores.some(x => x.score)
-    return (
-      <tr className={`border-t border-gray-100 ${odd ? "bg-white" : "bg-gray-50/40"}`}>
-        <td className={`py-2.5 px-3 text-lg font-semibold text-gray-700 ${f}`}>{hole.hole_number}</td>
-        <td className={`text-center py-2.5 px-2 text-base text-gray-500 ${f}`}>{hole.par}</td>
-        {pScores.map(({ player, score }) => {
-          const highlighted = contributors.has(player.id)
-          return (
-            <td key={player.id} className={`text-center py-1.5 px-2 ${highlighted ? "bg-[#fef3c7]" : ""}`}>
-              {score
-                ? score.no_return
-                  ? <span className={`text-orange-500 text-sm font-semibold ${f}`}>NR</span>
-                  : <ScoreShape gross={score.gross_score} par={hole.par} />
-                : <span className="text-gray-200 text-sm">—</span>
-              }
-            </td>
-          )
-        })}
-        <td className={`text-center py-2.5 px-2 text-lg font-semibold ${f} ${
-          !anyScore     ? "text-gray-200"
-          : maxPts >= 3 ? "text-[#2d6a4f]"
-          : maxPts === 0 ? "text-gray-300"
-          : "text-gray-500"
-        }`}>
-          {anyScore ? maxPts : "—"}
-        </td>
-      </tr>
-    )
-  }
-
-  function SubRow({ label, sub, isTotal }: { label: string; sub: typeof outSub; isTotal?: boolean }) {
-    const bg     = isTotal ? "bg-[#1a3a22]" : "bg-gray-100"
-    const tLabel = isTotal ? "text-white/70" : "text-gray-500"
-    const tData  = isTotal ? "text-white"    : "text-gray-700"
-    const tPts   = isTotal ? "text-[#C9A84C] font-bold" : "text-[#2d6a4f] font-semibold"
-    const border = isTotal ? "border-[#1e3a22]" : "border-gray-200"
-    const sz     = isTotal ? "text-lg" : "text-base"
-    return (
-      <tr className={`border-t-2 ${border} ${bg}`}>
-        <td className={`py-2 px-3 text-sm uppercase tracking-wider font-semibold ${tLabel} font-[family-name:var(--font-playfair)]`}>{label}</td>
-        <td className={`text-center py-2 px-2 ${sz} font-semibold ${tData} ${f}`}>{sub.par}</td>
-        {sub.playerGross.map((g, i) => (
-          <td key={i} className={`text-center py-2 px-2 ${sz} font-semibold ${tData} ${f}`}>
-            {hasAny && g > 0 ? g : "—"}
-          </td>
-        ))}
-        <td className={`text-center py-2 px-2 ${sz} ${tPts} ${f}`}>
-          {hasAny ? sub.bestPts : "—"}
-        </td>
-      </tr>
-    )
-  }
+  function outPar() { return front.reduce((s, h) => s + h.par, 0) }
+  function inPar()  { return back.reduce((s, h) => s + h.par, 0) }
 
   return (
     <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
-      {/* Dark green header — team + course */}
-      <div className="bg-[#1a3a22] px-4 py-3">
-        <div className="flex items-center gap-2 mb-0.5">
+
+      {/* Dark green header */}
+      <div className="bg-[#1a3a22] px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-2">
           <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
           <span className="font-[family-name:var(--font-playfair)] text-white text-lg">{team.name}</span>
         </div>
-        <p className="text-white/40 text-sm pl-4">{round.courses?.name}</p>
-      </div>
-
-      {/* Player tiles — numbered to match column headers */}
-      <div className="bg-[#f5f0e8] border-b-2 border-gray-200 px-4 py-3">
-        <div className="grid gap-x-4 gap-y-2" style={{ gridTemplateColumns: `repeat(${players.length}, 1fr)` }}>
-          {players.map((p, i) => {
-            const hcp = roundHandicaps.find(rh => rh.player_id === p.id && rh.round_id === round.id)
-            return (
-              <div key={p.id} className="flex flex-col gap-0.5 min-w-0">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <span className={`font-[family-name:var(--font-crimson)] text-base font-bold text-[#2d6a4f] flex-shrink-0`}>{i + 1}</span>
-                  <span className="font-[family-name:var(--font-playfair)] text-gray-700 text-sm font-semibold truncate">{displayName(p)}</span>
-                  {p.is_composite && (
-                    <span className="text-[8px] font-bold text-[#C9A84C] border border-[#C9A84C]/60 px-0.5 rounded-sm leading-tight flex-shrink-0">C</span>
-                  )}
-                </div>
-                <span className={`font-[family-name:var(--font-crimson)] text-xs text-gray-400`}>
-                  {hcp ? `hcp ${hcp.playing_handicap}` : "—"}
-                </span>
-              </div>
-            )
-          })}
-        </div>
+        <span className="text-white/40 text-sm">{round.courses?.name}</span>
       </div>
 
       {courseHoles.length === 0 ? (
         <p className="text-gray-300 text-sm text-center py-10">Course data unavailable</p>
       ) : (
-        <table className="border-collapse w-full table-fixed">
-          <colgroup>
-            <col style={{ width: "34px" }} />
-            <col style={{ width: "30px" }} />
-            {players.map(p => <col key={p.id} />)}
-            <col style={{ width: "40px" }} />
-          </colgroup>
+        <table className="w-full border-collapse">
           <thead>
             <tr className="border-b-2 border-gray-200 bg-gray-50">
-              <th className="text-left py-2 px-3 text-sm font-semibold text-gray-400 uppercase tracking-wide font-[family-name:var(--font-playfair)]">
-                Hole
-              </th>
-              <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide">Par</th>
-              {players.map((_, i) => (
-                <th key={i} className={`text-center py-2 px-2 font-[family-name:var(--font-crimson)] text-lg font-bold text-[#2d6a4f]`}>
-                  {i + 1}
-                </th>
-              ))}
-              <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide">Tot</th>
+              <th className="text-left py-2 px-3 text-sm font-semibold text-gray-400 uppercase tracking-wide font-[family-name:var(--font-playfair)] w-10">Hole</th>
+              <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-9">Par</th>
             </tr>
           </thead>
           <tbody>
-            {front.map((hole, i) => <HoleRow key={hole.id} hole={hole} odd={i % 2 === 0} />)}
-            <SubRow label="Out" sub={outSub} />
-            {back.map((hole, i) => <HoleRow key={hole.id} hole={hole} odd={i % 2 === 0} />)}
-            <SubRow label="In" sub={inSub} />
-            <SubRow label="Total" sub={totSub} isTotal />
+            {/* Front 9 */}
+            {front.map((hole, i) => (
+              <tr key={hole.id} className={`border-t border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50/40"}`}>
+                <td className={`py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
+                <td className={`text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
+              </tr>
+            ))}
+
+            {/* Out subtotal */}
+            <tr className="border-t-2 border-gray-200 bg-gray-100">
+              <td className="py-2 px-3 text-sm uppercase tracking-wider font-semibold text-gray-500 font-[family-name:var(--font-playfair)]">Out</td>
+              <td className={`text-center py-2 px-2 text-base font-semibold text-gray-700 ${crimson}`}>{outPar()}</td>
+            </tr>
+
+            {/* Back 9 */}
+            {back.map((hole, i) => (
+              <tr key={hole.id} className={`border-t border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50/40"}`}>
+                <td className={`py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
+                <td className={`text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
+              </tr>
+            ))}
+
+            {/* In subtotal */}
+            <tr className="border-t-2 border-gray-200 bg-gray-100">
+              <td className="py-2 px-3 text-sm uppercase tracking-wider font-semibold text-gray-500 font-[family-name:var(--font-playfair)]">In</td>
+              <td className={`text-center py-2 px-2 text-base font-semibold text-gray-700 ${crimson}`}>{inPar()}</td>
+            </tr>
+
+            {/* Total */}
+            <tr className="border-t-2 border-[#1e3a22] bg-[#1a3a22]">
+              <td className="py-2 px-3 text-sm uppercase tracking-wider font-semibold text-white/70 font-[family-name:var(--font-playfair)]">Total</td>
+              <td className={`text-center py-2 px-2 text-lg font-semibold text-white ${crimson}`}>{outPar() + inPar()}</td>
+            </tr>
           </tbody>
         </table>
-      )}
-
-      {!hasAny && courseHoles.length > 0 && (
-        <p className={`text-center text-gray-300 text-sm py-4 border-t border-gray-100 ${f}`}>
-          No scores recorded yet
-        </p>
       )}
     </div>
   )
