@@ -100,19 +100,21 @@ function CompositeScorecard({ team, round, holes, scores }: {
             {front.map((hole, i) => {
               const s   = p1Score(hole.id)
               const pts = s?.stableford_points ?? null
+              if (s) console.log(`[composite h${hole.hole_number}]`, { gross: s.gross_score, par: hole.par, diff: Number(s.gross_score) - Number(hole.par) })
+              const rowBg = i % 2 === 0 ? "bg-white" : "bg-gray-50/40"
               return (
-                <tr key={hole.id} className={`border-t border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50/40"}`}>
-                  <td className={`py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
-                  <td className={`text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
-                  <td className="text-center py-1.5 px-2">
+                <tr key={hole.id} className="border-t border-gray-100">
+                  <td className={`${rowBg} py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
+                  <td className={`${rowBg} text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
+                  <td className={`${rowBg} text-center py-1.5 px-2`}>
                     {s
                       ? s.no_return
                         ? <span className={`text-orange-500 text-sm font-semibold ${crimson}`}>NR</span>
-                        : <ScoreShape gross={s.gross_score} par={hole.par} />
+                        : <ScoreShape gross={Number(s.gross_score)} par={Number(hole.par)} />
                       : <span className="text-gray-200 text-sm">—</span>
                     }
                   </td>
-                  <td className={`text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
+                  <td className={`${rowBg} text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
                     pts == null   ? "text-gray-200"
                     : pts >= 3   ? "text-[#2d6a4f]"
                     : pts === 0  ? "text-gray-300"
@@ -140,19 +142,21 @@ function CompositeScorecard({ team, round, holes, scores }: {
             {back.map((hole, i) => {
               const s   = p1Score(hole.id)
               const pts = s?.stableford_points ?? null
+              if (s) console.log(`[composite h${hole.hole_number}]`, { gross: s.gross_score, par: hole.par, diff: Number(s.gross_score) - Number(hole.par) })
+              const rowBg = i % 2 === 0 ? "bg-white" : "bg-gray-50/40"
               return (
-                <tr key={hole.id} className={`border-t border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50/40"}`}>
-                  <td className={`py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
-                  <td className={`text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
-                  <td className="text-center py-1.5 px-2">
+                <tr key={hole.id} className="border-t border-gray-100">
+                  <td className={`${rowBg} py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
+                  <td className={`${rowBg} text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
+                  <td className={`${rowBg} text-center py-1.5 px-2`}>
                     {s
                       ? s.no_return
                         ? <span className={`text-orange-500 text-sm font-semibold ${crimson}`}>NR</span>
-                        : <ScoreShape gross={s.gross_score} par={hole.par} />
+                        : <ScoreShape gross={Number(s.gross_score)} par={Number(hole.par)} />
                       : <span className="text-gray-200 text-sm">—</span>
                     }
                   </td>
-                  <td className={`text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
+                  <td className={`${rowBg} text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
                     pts == null   ? "text-gray-200"
                     : pts >= 3   ? "text-[#2d6a4f]"
                     : pts === 0  ? "text-gray-300"

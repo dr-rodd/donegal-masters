@@ -1,5 +1,6 @@
 export default function ScoreShape({ gross, par }: { gross: number; par: number }) {
   const diff = gross - par
+  console.log("[ScoreShape]", { gross, par, diff })
   const f = "font-[family-name:var(--font-crimson)] leading-none"
 
   if (diff <= -2) {
