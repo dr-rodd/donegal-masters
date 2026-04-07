@@ -6,7 +6,7 @@ import Poller from "@/app/components/Poller"
 export const revalidate = 30
 
 export default async function LeaderboardPage() {
-  const [roundsRes, teamsRes, playersRes, holesRes, scoresRes, hcpsRes, teesRes] = await Promise.all([
+  const [roundsRes, teamsRes, playersRes, holesRes, scoresRes, hcpsRes, teesRes, compositeHolesRes] = await Promise.all([
     supabase.from("rounds").select("id, round_number, status, courses(id, name)").order("round_number"),
     supabase.from("teams").select("id, name, color").order("name"),
     supabase.from("players").select("id, name, role, handicap, is_composite, gender, team_id").order("name"),
@@ -14,6 +14,7 @@ export default async function LeaderboardPage() {
     supabase.from("scores").select("player_id, hole_id, gross_score, stableford_points, no_return, round_id"),
     supabase.from("round_handicaps").select("round_id, player_id, playing_handicap"),
     supabase.from("tees").select("id, course_id, name, gender, par"),
+    supabase.from("composite_holes").select("composite_player_id, round_id, hole_id, source_player_id"),
   ])
   const rounds = roundsRes.data
   const allPlayers = playersRes.data ?? []
@@ -25,6 +26,7 @@ export default async function LeaderboardPage() {
   const scores = scoresRes.data
   const roundHandicaps = hcpsRes.data
   const tees = teesRes.data
+  const compositeHoles = compositeHolesRes.data ?? []
   const hasActiveRound = rounds?.some((r: any) => r.status === "active") ?? false
 
   return (
@@ -52,6 +54,7 @@ export default async function LeaderboardPage() {
           scores={scores ?? []}
           roundHandicaps={roundHandicaps ?? []}
           tees={(tees ?? []) as any}
+          compositeHoles={compositeHoles as any}
         />
       </div>
     </div>

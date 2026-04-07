@@ -11,7 +11,8 @@ type Player   = { id: string; name: string; role: string; handicap: number; is_c
 type Team     = { id: string; name: string; color: string; players: Player[] }
 type Hole     = { id: string; hole_number: number; par: number; stroke_index: number; course_id: string }
 type Score    = { player_id: string; hole_id: string; gross_score: number; stableford_points: number; no_return: boolean; round_id: string }
-type RoundHcp = { round_id: string; player_id: string; playing_handicap: number }
+type RoundHcp       = { round_id: string; player_id: string; playing_handicap: number }
+type CompositeHole  = { composite_player_id: string; round_id: string; hole_id: string; source_player_id: string }
 interface Props {
   rounds: Round[]
   teams: Team[]
@@ -19,6 +20,7 @@ interface Props {
   scores: Score[]
   roundHandicaps: RoundHcp[]
   tees: unknown[]
+  compositeHoles: CompositeHole[]
 }
 
 // ─── Player helpers ────────────────────────────────────────────
@@ -44,8 +46,9 @@ function teamRoundPts(team: Team, holes: Hole[], scores: Score[], roundId: strin
 
 // ─── Composite scorecard ───────────────────────────────────────
 
-function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
+function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compositeHoles, allTeams }: {
   team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]
+  compositeHoles: CompositeHole[]; allTeams: Team[]
 }) {
   const courseId   = round.courses?.id ?? ""
   const courseHoles = holes
@@ -89,6 +92,14 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
     )
   )
 
+  // Lookup maps for composite source colours
+  const compositeHoleMap = new Map(
+    compositeHoles.map(ch => [`${ch.composite_player_id}:${ch.round_id}:${ch.hole_id}`, ch.source_player_id])
+  )
+  const sourcePlayerColorMap = new Map(
+    allTeams.flatMap(t => t.players.map(p => [p.id, t.color] as [string, string]))
+  )
+
   // Build rows
   const rows = courseHoles.map((hole, idx) => {
     const grossScores = players.map((_, pi) => {
@@ -108,7 +119,12 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
       const s = playerScoreMaps[pi].get(hole.hole_number)
       return bestPts > 0 && s != null && s.stableford_points === bestPts
     })
-    return { hole, idx, grossScores, stablefordScores, bestPts, hasScores, contributors }
+    const sourceColors = players.map(p => {
+      if (!p.is_composite) return null
+      const sourceId = compositeHoleMap.get(`${p.id}:${round.id}:${hole.id}`)
+      return sourceId ? (sourcePlayerColorMap.get(sourceId) ?? null) : null
+    })
+    return { hole, idx, grossScores, stablefordScores, bestPts, hasScores, contributors, sourceColors }
   })
 
   const front9 = rows.slice(0, 9)
@@ -162,16 +178,19 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
       </div>
 
       {/* Front 9 */}
-      {front9.map(({ hole, idx, grossScores, stablefordScores, bestPts, hasScores, contributors }) => (
+      {front9.map(({ hole, idx, grossScores, stablefordScores, bestPts, hasScores, contributors, sourceColors }) => (
         <div key={hole.hole_number} className={`${grid} px-3 py-3 items-center border-b border-[#E2DAC8] ${idx % 2 === 1 ? "bg-[#EEE8D6]" : ""}`}>
           <span className={`text-lg font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
           <span className={`text-lg ${muted}`} style={sf}>{hole.par}</span>
           {grossScores.map((gross, pi) => (
-            <span key={pi} className={`flex justify-center items-center gap-0.5 -my-3 py-3 ${contributors[pi] ? "bg-[#C9A84C]/10" : ""}`}>
-              {scoreSymbol(gross, hole.par)}
-              {stablefordScores[pi] !== null && (
-                <sup className={`text-sm leading-none ${muted}`} style={sf}>{stablefordScores[pi]}</sup>
-              )}
+            <span key={pi} className={`flex flex-col items-center justify-center -my-3 py-3 gap-0.5 ${contributors[pi] ? "bg-[#C9A84C]/10" : ""}`}>
+              <span className="flex items-center gap-0.5">
+                {scoreSymbol(gross, hole.par)}
+                {stablefordScores[pi] !== null && (
+                  <sup className={`text-sm leading-none ${muted}`} style={sf}>{stablefordScores[pi]}</sup>
+                )}
+              </span>
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: sourceColors[pi] ?? "transparent" }} />
             </span>
           ))}
           <span className={`text-right text-lg ${ptsColor(hasScores ? bestPts : null)}`} style={sf}>{hasScores ? bestPts : "—"}</span>
@@ -191,16 +210,19 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
       </div>
 
       {/* Back 9 */}
-      {back9.map(({ hole, idx, grossScores, stablefordScores, bestPts, hasScores, contributors }) => (
+      {back9.map(({ hole, idx, grossScores, stablefordScores, bestPts, hasScores, contributors, sourceColors }) => (
         <div key={hole.hole_number} className={`${grid} px-3 py-3 items-center border-b border-[#E2DAC8] ${idx % 2 === 0 ? "bg-[#EEE8D6]" : ""}`}>
           <span className={`text-lg font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
           <span className={`text-lg ${muted}`} style={sf}>{hole.par}</span>
           {grossScores.map((gross, pi) => (
-            <span key={pi} className={`flex justify-center items-center gap-0.5 -my-3 py-3 ${contributors[pi] ? "bg-[#C9A84C]/10" : ""}`}>
-              {scoreSymbol(gross, hole.par)}
-              {stablefordScores[pi] !== null && (
-                <sup className={`text-sm leading-none ${muted}`} style={sf}>{stablefordScores[pi]}</sup>
-              )}
+            <span key={pi} className={`flex flex-col items-center justify-center -my-3 py-3 gap-0.5 ${contributors[pi] ? "bg-[#C9A84C]/10" : ""}`}>
+              <span className="flex items-center gap-0.5">
+                {scoreSymbol(gross, hole.par)}
+                {stablefordScores[pi] !== null && (
+                  <sup className={`text-sm leading-none ${muted}`} style={sf}>{stablefordScores[pi]}</sup>
+                )}
+              </span>
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: sourceColors[pi] ?? "transparent" }} />
             </span>
           ))}
           <span className={`text-right text-lg ${ptsColor(hasScores ? bestPts : null)}`} style={sf}>{hasScores ? bestPts : "—"}</span>
@@ -237,8 +259,9 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
 
 // ─── Scorecard modal ───────────────────────────────────────────
 
-function ScorecardModal({ team, round, holes, scores, roundHandicaps, onClose }: {
-  team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]; onClose: () => void
+function ScorecardModal({ team, round, holes, scores, roundHandicaps, compositeHoles, allTeams, onClose }: {
+  team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]
+  compositeHoles: CompositeHole[]; allTeams: Team[]; onClose: () => void
 }) {
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
@@ -260,6 +283,8 @@ function ScorecardModal({ team, round, holes, scores, roundHandicaps, onClose }:
             holes={holes}
             scores={scores}
             roundHandicaps={roundHandicaps}
+            compositeHoles={compositeHoles}
+            allTeams={allTeams}
           />
         </div>
       </div>
@@ -326,7 +351,7 @@ function CourseTiles({ team, rounds, holes, scores, roundHandicaps, onTileClick 
 
 // ─── Main component ────────────────────────────────────────────
 
-export default function LeaderboardClient({ rounds, teams, holes, scores, roundHandicaps, tees }: Props) {
+export default function LeaderboardClient({ rounds, teams, holes, scores, roundHandicaps, tees, compositeHoles }: Props) {
   const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null)
   const [modal, setModal] = useState<{ team: Team; round: Round } | null>(null)
 
@@ -458,6 +483,8 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
           holes={holes}
           scores={scores}
           roundHandicaps={roundHandicaps}
+          compositeHoles={compositeHoles}
+          allTeams={teams}
           onClose={() => setModal(null)}
         />
       )}
