@@ -184,16 +184,25 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, tees }
               const best         = bestPts(hole)
               const holeHasScore = players.some(p => playerScore(p, hole) !== null)
               const isOdd        = i % 2 === 0
-              const baseBg       = isOdd ? "bg-white" : "bg-gray-50/40"
+              if (hole.hole_number === 1) {
+                players.forEach((p, pi) => {
+                  const s = playerScore(p, hole)
+                  console.log(`[CompositeScorecard] Hole 1 Player ${pi + 1} (${p.name}):`, {
+                    score: s,
+                    gross: s ? Number(s.gross_score) : null,
+                    par: Number(hole.par),
+                  })
+                })
+              }
               return (
-                <tr key={hole.id} className="border-t border-gray-100">
-                  <td className={`${baseBg} py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
-                  <td className={`${baseBg} text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
+                <tr key={hole.id} className={`border-t border-gray-100 ${isOdd ? "bg-white" : "bg-gray-50/40"}`}>
+                  <td className={`py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
+                  <td className={`text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
                   {players.map(p => {
                     const s      = playerScore(p, hole)
                     const isBest = best > 0 && (s?.stableford_points ?? 0) === best
                     return (
-                      <td key={p.id} className={`${isBest ? "bg-[#fef3c7]" : baseBg} text-center py-1.5 px-1`}>
+                      <td key={p.id} className={`${isBest ? "bg-[#fef3c7]" : ""} text-center py-1.5 px-1`}>
                         {s
                           ? s.no_return
                             ? <span className={`text-orange-500 text-xs font-semibold ${crimson}`}>NR</span>
@@ -203,7 +212,7 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, tees }
                       </td>
                     )
                   })}
-                  <td className={`${baseBg} text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
+                  <td className={`text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
                     !holeHasScore ? "text-gray-200"
                     : best >= 3   ? "text-[#2d6a4f]"
                     : best === 0  ? "text-gray-300"
@@ -222,16 +231,15 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, tees }
               const best         = bestPts(hole)
               const holeHasScore = players.some(p => playerScore(p, hole) !== null)
               const isOdd        = i % 2 === 0
-              const baseBg       = isOdd ? "bg-white" : "bg-gray-50/40"
               return (
-                <tr key={hole.id} className="border-t border-gray-100">
-                  <td className={`${baseBg} py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
-                  <td className={`${baseBg} text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
+                <tr key={hole.id} className={`border-t border-gray-100 ${isOdd ? "bg-white" : "bg-gray-50/40"}`}>
+                  <td className={`py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
+                  <td className={`text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
                   {players.map(p => {
                     const s      = playerScore(p, hole)
                     const isBest = best > 0 && (s?.stableford_points ?? 0) === best
                     return (
-                      <td key={p.id} className={`${isBest ? "bg-[#fef3c7]" : baseBg} text-center py-1.5 px-1`}>
+                      <td key={p.id} className={`${isBest ? "bg-[#fef3c7]" : ""} text-center py-1.5 px-1`}>
                         {s
                           ? s.no_return
                             ? <span className={`text-orange-500 text-xs font-semibold ${crimson}`}>NR</span>
@@ -241,7 +249,7 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, tees }
                       </td>
                     )
                   })}
-                  <td className={`${baseBg} text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
+                  <td className={`text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
                     !holeHasScore ? "text-gray-200"
                     : best >= 3   ? "text-[#2d6a4f]"
                     : best === 0  ? "text-gray-300"
