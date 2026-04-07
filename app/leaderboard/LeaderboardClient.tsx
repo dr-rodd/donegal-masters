@@ -42,20 +42,61 @@ function teamRoundPts(team: Team, holes: Hole[], scores: Score[], roundId: strin
   }, 0)
 }
 
+// ─── Score shape ───────────────────────────────────────────────
+
+function ScoreShape({ gross, par }: { gross: number; par: number }) {
+  const diff = gross - par
+  const f = "font-[family-name:var(--font-crimson)] leading-none"
+  if (diff <= -2) return (
+    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#C9A84C]">
+      <span className={`${f} text-lg font-semibold text-[#1a0a00]`}>{gross}</span>
+    </span>
+  )
+  if (diff === -1) return (
+    <span className="inline-flex items-center justify-center w-8 h-8 rounded-full border-2 border-[#2d6a4f]">
+      <span className={`${f} text-lg text-[#1a5235]`}>{gross}</span>
+    </span>
+  )
+  if (diff === 0) return <span className={`${f} text-lg text-gray-700`}>{gross}</span>
+  if (diff === 1) return (
+    <span className="inline-flex items-center justify-center w-7 h-7 border border-gray-400">
+      <span className={`${f} text-base text-gray-500`}>{gross}</span>
+    </span>
+  )
+  return (
+    <span className="inline-flex items-center justify-center w-7 h-7 bg-gray-300">
+      <span className={`${f} text-base text-gray-600`}>{gross}</span>
+    </span>
+  )
+}
+
 // ─── Paper composite scorecard ─────────────────────────────────
 
-function CompositeScorecard({ team, round, holes }: {
+function CompositeScorecard({ team, round, holes, scores }: {
   team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]
 }) {
   const courseHoles = holes
     .filter(h => h.course_id === round.courses?.id)
     .sort((a, b) => a.hole_number - b.hole_number)
-  const front  = courseHoles.slice(0, 9)
-  const back   = courseHoles.slice(9, 18)
+  const front   = courseHoles.slice(0, 9)
+  const back    = courseHoles.slice(9, 18)
   const crimson = "font-[family-name:var(--font-crimson)]"
+  const player1 = sortedPlayers(team.players)[0] ?? null
 
-  function outPar() { return front.reduce((s, h) => s + h.par, 0) }
-  function inPar()  { return back.reduce((s, h) => s + h.par, 0) }
+  function p1Score(holeId: string) {
+    if (!player1) return null
+    return scores.find(s => s.player_id === player1.id && s.hole_id === holeId && s.round_id === round.id) ?? null
+  }
+  function sumPar(hs: Hole[])   { return hs.reduce((s, h) => s + h.par, 0) }
+  function sumGross(hs: Hole[]) {
+    return hs.reduce((s, h) => {
+      const sc = p1Score(h.id)
+      return s + (sc && !sc.no_return ? sc.gross_score : 0)
+    }, 0)
+  }
+  function sumPts(hs: Hole[])   { return hs.reduce((s, h) => s + (p1Score(h.id)?.stableford_points ?? 0), 0) }
+
+  const hasScores = courseHoles.some(h => p1Score(h.id) !== null)
 
   return (
     <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
@@ -77,44 +118,110 @@ function CompositeScorecard({ team, round, holes }: {
             <tr className="border-b-2 border-gray-200 bg-gray-50">
               <th className="text-left py-2 px-3 text-sm font-semibold text-gray-400 uppercase tracking-wide font-[family-name:var(--font-playfair)] w-10">Hole</th>
               <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-9">Par</th>
+              <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide">Score</th>
+              <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-10">Pts</th>
             </tr>
           </thead>
           <tbody>
             {/* Front 9 */}
-            {front.map((hole, i) => (
-              <tr key={hole.id} className={`border-t border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50/40"}`}>
-                <td className={`py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
-                <td className={`text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
-              </tr>
-            ))}
+            {front.map((hole, i) => {
+              const s   = p1Score(hole.id)
+              const pts = s?.stableford_points ?? null
+              return (
+                <tr key={hole.id} className={`border-t border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50/40"}`}>
+                  <td className={`py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
+                  <td className={`text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
+                  <td className="text-center py-1.5 px-2">
+                    {s
+                      ? s.no_return
+                        ? <span className={`text-orange-500 text-sm font-semibold ${crimson}`}>NR</span>
+                        : <ScoreShape gross={s.gross_score} par={hole.par} />
+                      : <span className="text-gray-200 text-sm">—</span>
+                    }
+                  </td>
+                  <td className={`text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
+                    pts == null   ? "text-gray-200"
+                    : pts >= 3   ? "text-[#2d6a4f]"
+                    : pts === 0  ? "text-gray-300"
+                    : "text-gray-500"
+                  }`}>
+                    {pts != null ? pts : "—"}
+                  </td>
+                </tr>
+              )
+            })}
 
             {/* Out subtotal */}
             <tr className="border-t-2 border-gray-200 bg-gray-100">
               <td className="py-2 px-3 text-sm uppercase tracking-wider font-semibold text-gray-500 font-[family-name:var(--font-playfair)]">Out</td>
-              <td className={`text-center py-2 px-2 text-base font-semibold text-gray-700 ${crimson}`}>{outPar()}</td>
+              <td className={`text-center py-2 px-2 text-base font-semibold text-gray-700 ${crimson}`}>{sumPar(front)}</td>
+              <td className={`text-center py-2 px-2 text-base font-semibold text-gray-700 ${crimson}`}>
+                {hasScores && sumGross(front) > 0 ? sumGross(front) : "—"}
+              </td>
+              <td className={`text-center py-2 px-2 text-base text-[#2d6a4f] font-semibold ${crimson}`}>
+                {hasScores ? sumPts(front) : "—"}
+              </td>
             </tr>
 
             {/* Back 9 */}
-            {back.map((hole, i) => (
-              <tr key={hole.id} className={`border-t border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50/40"}`}>
-                <td className={`py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
-                <td className={`text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
-              </tr>
-            ))}
+            {back.map((hole, i) => {
+              const s   = p1Score(hole.id)
+              const pts = s?.stableford_points ?? null
+              return (
+                <tr key={hole.id} className={`border-t border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50/40"}`}>
+                  <td className={`py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
+                  <td className={`text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
+                  <td className="text-center py-1.5 px-2">
+                    {s
+                      ? s.no_return
+                        ? <span className={`text-orange-500 text-sm font-semibold ${crimson}`}>NR</span>
+                        : <ScoreShape gross={s.gross_score} par={hole.par} />
+                      : <span className="text-gray-200 text-sm">—</span>
+                    }
+                  </td>
+                  <td className={`text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
+                    pts == null   ? "text-gray-200"
+                    : pts >= 3   ? "text-[#2d6a4f]"
+                    : pts === 0  ? "text-gray-300"
+                    : "text-gray-500"
+                  }`}>
+                    {pts != null ? pts : "—"}
+                  </td>
+                </tr>
+              )
+            })}
 
             {/* In subtotal */}
             <tr className="border-t-2 border-gray-200 bg-gray-100">
               <td className="py-2 px-3 text-sm uppercase tracking-wider font-semibold text-gray-500 font-[family-name:var(--font-playfair)]">In</td>
-              <td className={`text-center py-2 px-2 text-base font-semibold text-gray-700 ${crimson}`}>{inPar()}</td>
+              <td className={`text-center py-2 px-2 text-base font-semibold text-gray-700 ${crimson}`}>{sumPar(back)}</td>
+              <td className={`text-center py-2 px-2 text-base font-semibold text-gray-700 ${crimson}`}>
+                {hasScores && sumGross(back) > 0 ? sumGross(back) : "—"}
+              </td>
+              <td className={`text-center py-2 px-2 text-base text-[#2d6a4f] font-semibold ${crimson}`}>
+                {hasScores ? sumPts(back) : "—"}
+              </td>
             </tr>
 
             {/* Total */}
             <tr className="border-t-2 border-[#1e3a22] bg-[#1a3a22]">
               <td className="py-2 px-3 text-sm uppercase tracking-wider font-semibold text-white/70 font-[family-name:var(--font-playfair)]">Total</td>
-              <td className={`text-center py-2 px-2 text-lg font-semibold text-white ${crimson}`}>{outPar() + inPar()}</td>
+              <td className={`text-center py-2 px-2 text-lg font-semibold text-white ${crimson}`}>{sumPar(courseHoles)}</td>
+              <td className={`text-center py-2 px-2 text-lg font-semibold text-white ${crimson}`}>
+                {hasScores && sumGross(courseHoles) > 0 ? sumGross(courseHoles) : "—"}
+              </td>
+              <td className={`text-center py-2 px-2 text-lg font-bold text-[#C9A84C] ${crimson}`}>
+                {hasScores ? sumPts(courseHoles) : "—"}
+              </td>
             </tr>
           </tbody>
         </table>
+      )}
+
+      {!hasScores && courseHoles.length > 0 && (
+        <p className={`text-center text-gray-300 text-sm py-4 border-t border-gray-100 ${crimson}`}>
+          No scores recorded yet
+        </p>
       )}
     </div>
   )
