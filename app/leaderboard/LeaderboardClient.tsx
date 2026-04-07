@@ -92,25 +92,22 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
 
   return (
     <>
-      {/* Numbered player tiles */}
-      <div className="flex gap-2 overflow-x-auto pb-0.5 mb-3">
+      {/* Paper scorecard player header */}
+      <div style={{ background: "#EAE4D5" }}>
         {players.map((p, i) => {
+          const sf  = { fontFamily: "Georgia, serif" }
           const hcp = roundHandicaps.find(rh => rh.player_id === p.id && rh.round_id === round.id)?.playing_handicap
-          const isSel = p.id === bestPlayer.id
           return (
-            <div
-              key={p.id}
-              className={`flex-shrink-0 flex flex-col items-start px-3.5 py-2.5 rounded-sm border min-w-[100px]
-                ${isSel ? "border-[#C9A84C] bg-[#C9A84C]/10" : "border-[#1e3d28] bg-[#0f2418]"}`}
-            >
-              <div className="flex items-center gap-1.5 mb-1">
-                <span className="font-[family-name:var(--font-playfair)] text-[#C9A84C] text-sm font-bold leading-none">{i + 1}</span>
-                <span className={`text-base font-medium leading-tight ${isSel ? "text-white" : "text-white/55"}`}>
-                  {p.name.split(" ")[0]}
-                </span>
-              </div>
-              <span className={`text-sm ${isSel ? "text-[#C9A84C]" : "text-white/25"}`}>
-                {hcp != null ? `HC ${hcp}` : "—"}
+            <div key={p.id} className="flex items-baseline gap-3 px-3 py-2 border-b border-[#D4CBBA]">
+              <span className="text-[10px] tracking-[0.15em] uppercase text-[#7A7060] w-[4.5rem] flex-shrink-0" style={sf}>
+                Player {i + 1}
+              </span>
+              <span className="font-[family-name:var(--font-playfair)] text-base text-[#2C2C1E] font-semibold flex-1 min-w-0 truncate border-b border-[#C4BAA8]">
+                {p.name}
+              </span>
+              <span className="text-[10px] tracking-[0.15em] uppercase text-[#7A7060] flex-shrink-0" style={sf}>HC</span>
+              <span className="text-sm font-semibold text-[#3A3A2E] flex-shrink-0 w-7 text-right border-b border-[#C4BAA8]" style={sf}>
+                {hcp ?? "—"}
               </span>
             </div>
           )
