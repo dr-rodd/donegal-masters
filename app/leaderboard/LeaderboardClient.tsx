@@ -65,64 +65,78 @@ function teamRoundPts(team: Team, holes: Hole[], scores: Score[], roundId: strin
 function CompositeScorecard({ team, round, holes, scores, roundHandicaps, tees }: {
   team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]; tees: Tee[]
 }) {
-  const courseId   = round.courses?.id ?? ""
-  const courseName = round.courses?.name ?? ""
+  const courseId    = round.courses?.id ?? ""
+  const courseName  = round.courses?.name ?? ""
   const courseHoles = holes
     .filter(h => h.course_id === courseId)
     .sort((a, b) => a.hole_number - b.hole_number)
   const front   = courseHoles.slice(0, 9)
   const back    = courseHoles.slice(9, 18)
   const crimson = "font-[family-name:var(--font-crimson)]"
+  const players = sortedPlayers(team.players)
 
-  const player1    = sortedPlayers(team.players)[0] ?? null
-  const playingHcp = roundHandicaps.find(rh => rh.player_id === player1?.id && rh.round_id === round.id)?.playing_handicap ?? null
-  const tee        = player1 ? defaultTee(tees, courseId, player1.gender ?? "M") : null
-  const hasScores  = courseHoles.some(h => holeScore(h) !== null)
-  const hasNR      = courseHoles.some(h => holeScore(h)?.no_return)
-
-  function holeScore(hole: Hole): Score | null {
-    if (!player1) return null
-    return scores.find(s => s.player_id === player1.id && s.hole_id === hole.id && s.round_id === round.id) ?? null
+  function playerScore(player: Player, hole: Hole): Score | null {
+    return scores.find(s => s.player_id === player.id && s.hole_id === hole.id && s.round_id === round.id) ?? null
   }
 
-  function nrGross(hole: Hole): number {
-    const ph = playingHcp ?? 0
+  function playerHcp(player: Player): number | null {
+    return roundHandicaps.find(rh => rh.player_id === player.id && rh.round_id === round.id)?.playing_handicap ?? null
+  }
+
+  function playerNrGross(player: Player, hole: Hole): number {
+    const ph    = playerHcp(player) ?? 0
     const shots = Math.floor(ph / 18) + (hole.stroke_index <= ph % 18 ? 1 : 0)
     return hole.par + 2 + shots
   }
 
-  function sumGross(hs: Hole[]): number {
+  function bestPts(hole: Hole): number {
+    return players.reduce((best, p) => Math.max(best, playerScore(p, hole)?.stableford_points ?? 0), 0)
+  }
+
+  function playerSumGross(player: Player, hs: Hole[]): number {
     return hs.reduce((sum, h) => {
-      const s = holeScore(h)
+      const s = playerScore(player, h)
       if (!s) return sum
-      return sum + (s.no_return ? nrGross(h) : Number(s.gross_score))
+      return sum + (s.no_return ? playerNrGross(player, h) : Number(s.gross_score))
     }, 0)
   }
-  function sumPts(hs: Hole[]) { return hs.reduce((sum, h) => sum + (holeScore(h)?.stableford_points ?? 0), 0) }
-  function sumPar(hs: Hole[]) { return hs.reduce((sum, h) => sum + h.par, 0) }
 
-  // SubtotalRow — matches ScorecardClient exactly, SI and yardage columns omitted
-  function SubtotalRow({ label, par, gross, pts, rowHasNR, isTotal }: {
-    label: string; par: number; gross: number; pts: number; rowHasNR?: boolean; isTotal?: boolean
-  }) {
-    const bg        = isTotal ? "bg-[#1a3a22]"   : "bg-gray-100"
+  function totalBestPts(hs: Hole[]): number {
+    return hs.reduce((sum, h) => sum + bestPts(h), 0)
+  }
+
+  function sumPar(hs: Hole[]): number {
+    return hs.reduce((sum, h) => sum + h.par, 0)
+  }
+
+  const hasScores = courseHoles.some(h => players.some(p => playerScore(p, h) !== null))
+
+  function SubtotalRow({ label, hs, isTotal }: { label: string; hs: Hole[]; isTotal?: boolean }) {
+    const bg        = isTotal ? "bg-[#1a3a22]"    : "bg-gray-100"
     const border    = isTotal ? "border-[#1e3a22]" : "border-gray-200"
-    const textLabel = isTotal ? "text-white/70"   : "text-gray-500"
-    const textData  = isTotal ? "text-white"      : "text-gray-700"
+    const textLabel = isTotal ? "text-white/70"    : "text-gray-500"
+    const textData  = isTotal ? "text-white"       : "text-gray-700"
     const textPts   = isTotal ? "text-[#C9A84C] font-semibold" : "text-[#2d6a4f] font-semibold"
-    const sz        = isTotal ? "text-lg"         : "text-base"
+    const sz        = isTotal ? "text-lg"          : "text-base"
     return (
       <tr className={`border-t-2 ${border} ${bg}`}>
         <td className={`py-2 px-3 text-sm uppercase tracking-wider font-semibold ${textLabel} font-[family-name:var(--font-playfair)]`}>{label}</td>
-        <td className={`text-center py-2 px-2 ${sz} font-semibold ${textData} ${crimson}`}>{par}</td>
-        <td className={`text-center py-2 px-2 ${sz} font-semibold ${textData} ${crimson}`}>
-          {hasScores
-            ? <>{gross > 0 ? gross : "—"}{rowHasNR && <span className="text-orange-500 text-[9px] ml-0.5">NR</span>}</>
-            : "—"
-          }
-        </td>
+        <td className={`text-center py-2 px-2 ${sz} font-semibold ${textData} ${crimson}`}>{sumPar(hs)}</td>
+        {players.map(p => {
+          const gross   = playerSumGross(p, hs)
+          const hasNR   = hs.some(h => playerScore(p, h)?.no_return)
+          const hasAny  = hs.some(h => playerScore(p, h) !== null)
+          return (
+            <td key={p.id} className={`text-center py-2 px-1 ${sz} font-semibold ${textData} ${crimson}`}>
+              {hasAny
+                ? <>{gross > 0 ? gross : "—"}{hasNR && <span className="text-orange-500 text-[9px] ml-0.5">NR</span>}</>
+                : "—"
+              }
+            </td>
+          )
+        })}
         <td className={`text-center py-2 px-2 ${sz} ${isTotal ? "font-bold" : ""} ${textPts} ${crimson}`}>
-          {hasScores ? pts : "—"}
+          {hasScores ? totalBestPts(hs) : "—"}
         </td>
       </tr>
     )
@@ -131,13 +145,23 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, tees }
   return (
     <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
 
-      {/* Header — matches ScorecardClient */}
+      {/* Header */}
       <div className="bg-[#1a3a22] px-4 py-3 flex items-center justify-between">
         <span className="font-[family-name:var(--font-playfair)] text-white text-lg">{courseName}</span>
-        <div className={`flex items-center gap-3 text-sm ${crimson}`}>
-          {tee && <span className="text-[#C9A84C]/80 capitalize">{tee.name.toLowerCase()} tees</span>}
-          {playingHcp != null && <span className="text-white/40">hcp {playingHcp}</span>}
-        </div>
+        <span className={`text-white/40 text-sm ${crimson}`}>Best ball</span>
+      </div>
+
+      {/* Player legend */}
+      <div className="flex divide-x divide-gray-200 border-b border-gray-200 bg-gray-50">
+        {players.map((p, i) => (
+          <div key={p.id} className="flex-1 px-2 py-2 text-center">
+            <span className="text-[#C9A84C] text-xs font-bold font-[family-name:var(--font-playfair)]">{i + 1}</span>
+            <span className={`block text-gray-700 text-xs font-medium truncate ${crimson}`}>{displayName(p)}</span>
+            {playerHcp(p) != null && (
+              <span className={`text-gray-400 text-[10px] ${crimson}`}>hcp {playerHcp(p)}</span>
+            )}
+          </div>
+        ))}
       </div>
 
       {courseHoles.length === 0 ? (
@@ -147,74 +171,90 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, tees }
           <thead>
             <tr className="border-b-2 border-gray-200 bg-gray-50">
               <th className="text-left py-2 px-3 text-sm font-semibold text-gray-400 uppercase tracking-wide font-[family-name:var(--font-playfair)] w-10">Hole</th>
-              <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-9">Par</th>
-              <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide">Score</th>
-              <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-10">Pts</th>
+              <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-8">Par</th>
+              {players.map((_, i) => (
+                <th key={i} className="text-center py-2 px-1 text-sm font-bold text-[#C9A84C] uppercase tracking-wide w-9">{i + 1}</th>
+              ))}
+              <th className="text-center py-2 px-2 text-sm font-semibold text-[#C9A84C] uppercase tracking-wide w-10">Tot</th>
             </tr>
           </thead>
           <tbody>
             {/* Front 9 */}
             {front.map((hole, i) => {
-              const s   = holeScore(hole)
-              const pts = s?.stableford_points ?? null
-              const isOdd = i % 2 === 0
+              const best         = bestPts(hole)
+              const holeHasScore = players.some(p => playerScore(p, hole) !== null)
+              const isOdd        = i % 2 === 0
+              const baseBg       = isOdd ? "bg-white" : "bg-gray-50/40"
               return (
                 <tr key={hole.id} className="border-t border-gray-100">
-                  <td className={`${isOdd ? "bg-white" : "bg-gray-50/40"} py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
-                  <td className={`${isOdd ? "bg-white" : "bg-gray-50/40"} text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
-                  <td className={`${isOdd ? "bg-white" : "bg-gray-50/40"} text-center py-1.5 px-2`}>
-                    {s
-                      ? s.no_return
-                        ? <span className={`text-orange-500 text-sm font-semibold ${crimson}`}>NR</span>
-                        : <ScoreShape gross={Number(s.gross_score)} par={Number(hole.par)} />
-                      : <span className="text-gray-200 text-sm">—</span>
-                    }
-                  </td>
-                  <td className={`${isOdd ? "bg-white" : "bg-gray-50/40"} text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
-                    pts == null  ? "text-gray-200"
-                    : pts >= 3  ? "text-[#2d6a4f]"
-                    : pts === 0 ? "text-gray-300"
-                    : "text-gray-500"
+                  <td className={`${baseBg} py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
+                  <td className={`${baseBg} text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
+                  {players.map(p => {
+                    const s      = playerScore(p, hole)
+                    const isBest = best > 0 && (s?.stableford_points ?? 0) === best
+                    return (
+                      <td key={p.id} className={`${isBest ? "bg-[#fef3c7]" : baseBg} text-center py-1.5 px-1`}>
+                        {s
+                          ? s.no_return
+                            ? <span className={`text-orange-500 text-xs font-semibold ${crimson}`}>NR</span>
+                            : <ScoreShape gross={Number(s.gross_score)} par={Number(hole.par)} />
+                          : <span className="text-gray-200 text-sm">—</span>
+                        }
+                      </td>
+                    )
+                  })}
+                  <td className={`${baseBg} text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
+                    !holeHasScore ? "text-gray-200"
+                    : best >= 3   ? "text-[#2d6a4f]"
+                    : best === 0  ? "text-gray-300"
+                    :               "text-gray-500"
                   }`}>
-                    {pts != null ? pts : "—"}
+                    {holeHasScore ? best : "—"}
                   </td>
                 </tr>
               )
             })}
 
-            <SubtotalRow label="Out" par={sumPar(front)} gross={sumGross(front)} pts={sumPts(front)} />
+            <SubtotalRow label="Out" hs={front} />
 
             {/* Back 9 */}
             {back.map((hole, i) => {
-              const s   = holeScore(hole)
-              const pts = s?.stableford_points ?? null
-              const isOdd = i % 2 === 0
+              const best         = bestPts(hole)
+              const holeHasScore = players.some(p => playerScore(p, hole) !== null)
+              const isOdd        = i % 2 === 0
+              const baseBg       = isOdd ? "bg-white" : "bg-gray-50/40"
               return (
                 <tr key={hole.id} className="border-t border-gray-100">
-                  <td className={`${isOdd ? "bg-white" : "bg-gray-50/40"} py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
-                  <td className={`${isOdd ? "bg-white" : "bg-gray-50/40"} text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
-                  <td className={`${isOdd ? "bg-white" : "bg-gray-50/40"} text-center py-1.5 px-2`}>
-                    {s
-                      ? s.no_return
-                        ? <span className={`text-orange-500 text-sm font-semibold ${crimson}`}>NR</span>
-                        : <ScoreShape gross={Number(s.gross_score)} par={Number(hole.par)} />
-                      : <span className="text-gray-200 text-sm">—</span>
-                    }
-                  </td>
-                  <td className={`${isOdd ? "bg-white" : "bg-gray-50/40"} text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
-                    pts == null  ? "text-gray-200"
-                    : pts >= 3  ? "text-[#2d6a4f]"
-                    : pts === 0 ? "text-gray-300"
-                    : "text-gray-500"
+                  <td className={`${baseBg} py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
+                  <td className={`${baseBg} text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
+                  {players.map(p => {
+                    const s      = playerScore(p, hole)
+                    const isBest = best > 0 && (s?.stableford_points ?? 0) === best
+                    return (
+                      <td key={p.id} className={`${isBest ? "bg-[#fef3c7]" : baseBg} text-center py-1.5 px-1`}>
+                        {s
+                          ? s.no_return
+                            ? <span className={`text-orange-500 text-xs font-semibold ${crimson}`}>NR</span>
+                            : <ScoreShape gross={Number(s.gross_score)} par={Number(hole.par)} />
+                          : <span className="text-gray-200 text-sm">—</span>
+                        }
+                      </td>
+                    )
+                  })}
+                  <td className={`${baseBg} text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
+                    !holeHasScore ? "text-gray-200"
+                    : best >= 3   ? "text-[#2d6a4f]"
+                    : best === 0  ? "text-gray-300"
+                    :               "text-gray-500"
                   }`}>
-                    {pts != null ? pts : "—"}
+                    {holeHasScore ? best : "—"}
                   </td>
                 </tr>
               )
             })}
 
-            <SubtotalRow label="In" par={sumPar(back)} gross={sumGross(back)} pts={sumPts(back)} />
-            <SubtotalRow label="Total" par={sumPar(courseHoles)} gross={sumGross(courseHoles)} pts={sumPts(courseHoles)} rowHasNR={hasNR} isTotal />
+            <SubtotalRow label="In" hs={back} />
+            <SubtotalRow label="Total" hs={courseHoles} isTotal />
           </tbody>
         </table>
       )}
