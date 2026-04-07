@@ -184,16 +184,6 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, tees }
               const best         = bestPts(hole)
               const holeHasScore = players.some(p => playerScore(p, hole) !== null)
               const isOdd        = i % 2 === 0
-              if (hole.hole_number === 1) {
-                players.forEach((p, pi) => {
-                  const s = playerScore(p, hole)
-                  console.log(`[CompositeScorecard] Hole 1 Player ${pi + 1} (${p.name}):`, {
-                    score: s,
-                    gross: s ? Number(s.gross_score) : null,
-                    par: Number(hole.par),
-                  })
-                })
-              }
               return (
                 <tr key={hole.id} className={`border-t border-gray-100 ${isOdd ? "bg-white" : "bg-gray-50/40"}`}>
                   <td className={`py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>{hole.hole_number}</td>
@@ -206,7 +196,7 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, tees }
                         {s
                           ? s.no_return
                             ? <span className={`text-orange-500 text-xs font-semibold ${crimson}`}>NR</span>
-                            : (console.log(`[ScoreShape] h${hole.hole_number} ${p.name}:`, { gross: s.gross_score, grossType: typeof s.gross_score, par: hole.par, parType: typeof hole.par, grossN: Number(s.gross_score), parN: Number(hole.par) }), <ScoreShape gross={Number(s.gross_score)} par={Number(hole.par)} />)
+                            : <ScoreShape gross={Number(s.gross_score)} par={Number(hole.par)} />
                           : <span className="text-gray-200 text-sm">—</span>
                         }
                       </td>
