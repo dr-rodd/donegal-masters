@@ -243,16 +243,13 @@ function ScorecardModal({ team, round, holes, scores, roundHandicaps, onClose }:
         className="relative bg-[#0a1a0e] rounded-t-xl flex flex-col max-h-[90vh]"
         onClick={e => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
-          <span className="text-white/25 text-xs tracking-[0.15em] uppercase">Round {round.round_number}</span>
-          <button
-            onClick={onClose}
-            className="text-white/35 hover:text-white transition-colors p-1 -mr-1 text-lg leading-none"
-          >
-            ✕
-          </button>
-        </div>
-        <div className="overflow-y-auto flex-1 px-4 pb-8">
+        <button
+          onClick={onClose}
+          className="absolute top-3 right-3 z-10 text-white/35 hover:text-white transition-colors p-1 text-lg leading-none"
+        >
+          ✕
+        </button>
+        <div className="overflow-y-auto flex-1 px-4 pt-2 pb-8">
           <CompositeScorecard
             team={team}
             round={round}
