@@ -206,7 +206,7 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, tees }
                         {s
                           ? s.no_return
                             ? <span className={`text-orange-500 text-xs font-semibold ${crimson}`}>NR</span>
-                            : <ScoreShape gross={Number(s.gross_score)} par={Number(hole.par)} />
+                            : (console.log(`[ScoreShape] h${hole.hole_number} ${p.name}:`, { gross: s.gross_score, grossType: typeof s.gross_score, par: hole.par, parType: typeof hole.par, grossN: Number(s.gross_score), parN: Number(hole.par) }), <ScoreShape gross={Number(s.gross_score)} par={Number(hole.par)} />)
                           : <span className="text-gray-200 text-sm">—</span>
                         }
                       </td>
