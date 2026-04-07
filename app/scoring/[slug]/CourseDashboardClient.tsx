@@ -891,7 +891,7 @@ export default function CourseDashboardClient({
           holes={holes}
           roundHandicaps={roundHandicaps}
           onClose={goBack}
-          showBackButton={true}
+          showBackButton={false}
         />
       )}
 

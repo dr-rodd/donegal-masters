@@ -7,7 +7,7 @@ import { features } from "@/lib/features"
 // ─── Types ─────────────────────────────────────────────────────
 
 type Course   = { id: string; name: string }
-type Round    = { id: string; round_number: number; courses: Course | null }
+type Round    = { id: string; round_number: number; status?: string; courses: Course | null }
 type Player   = { id: string; name: string; role: string; handicap: number; is_composite?: boolean }
 type Team     = { id: string; name: string; color: string; players: Player[] }
 type Hole     = { id: string; hole_number: number; par: number; stroke_index: number; course_id: string }
@@ -22,414 +22,453 @@ interface Props {
   roundHandicaps: RoundHcp[]
 }
 
-// ─── Constants ─────────────────────────────────────────────────
-
-const ROLE_BG: Record<string, string> = {
-  dad: "bg-blue-900/70",
-  mum: "bg-rose-900/70",
-  son: "bg-emerald-900/60",
-}
-
-const ROLE_DOT: Record<string, string> = {
-  dad: "bg-blue-400",
-  mum: "bg-rose-400",
-  son: "bg-emerald-400",
-}
-
-const MEDALS = ["🥇", "🥈", "🥉", "4️⃣"]
-
-const COURSE_LOGO: Record<string, string> = {
-  "Old Tom Morris":    "/oldtomlogo.png",
-  "Sandy Hills":       "/sandyhillslogo.png",
-  "St Patricks Links": "/stpatrickslogo.png",
-}
+// ─── Player helpers ────────────────────────────────────────────
 
 const ROLE_ORDER: Record<string, number> = { dad: 0, mum: 1, son: 2 }
 function sortedPlayers(players: Player[]) {
   return [...players].sort((a, b) => (ROLE_ORDER[a.role] ?? 3) - (ROLE_ORDER[b.role] ?? 3))
 }
-const displayName = (p: Player) => (p.is_composite ? p.name.replace(/^Composite\s+/i, "") : p.name).split(" ")[0]
+const displayName = (p: Player) =>
+  (p.is_composite ? p.name.replace(/^Composite\s+/i, "") : p.name).split(" ")[0]
 
-// ─── Best-ball helpers ─────────────────────────────────────────
-
-interface BestHole {
-  hole: Hole
-  pts: number
-  gross: number
-  nr: boolean
-  role: string | null
-  hasScore: boolean
-}
-
-function getBestBall(team: Team, holes: Hole[], scores: Score[], roundId: string): BestHole[] {
-  return holes.map(hole => {
-    const candidates = team.players.flatMap(p => {
-      const s = scores.find(sc =>
-        sc.player_id === p.id && sc.hole_id === hole.id && sc.round_id === roundId
-      )
-      return s ? [{ s, p }] : []
-    })
-    if (!candidates.length) return { hole, pts: 0, gross: 0, nr: false, role: null, hasScore: false }
-    const best = candidates.reduce((a, b) =>
-      b.s.stableford_points > a.s.stableford_points ? b : a
-    )
-    return {
-      hole,
-      pts: best.s.stableford_points,
-      gross: best.s.gross_score,
-      nr: best.s.no_return,
-      role: best.p.role,
-      hasScore: true,
-    }
-  })
-}
+// ─── Scoring helpers ───────────────────────────────────────────
 
 function teamRoundPts(team: Team, holes: Hole[], scores: Score[], roundId: string): number {
-  return getBestBall(team, holes, scores, roundId).reduce((s, h) => s + h.pts, 0)
+  return holes.reduce((total, hole) => {
+    const best = team.players
+      .map(p => scores.find(s => s.player_id === p.id && s.hole_id === hole.id && s.round_id === roundId))
+      .filter(Boolean)
+      .reduce((max, s) => Math.max(max, s!.stableford_points), 0)
+    return total + best
+  }, 0)
 }
 
-// ─── Score cell ────────────────────────────────────────────────
+// ─── Score shape with pts superscript (paper card style) ───────
 
-function ScoreCell({ gross, pts, nr, role }: { gross: number; pts: number; nr: boolean; role?: string | null }) {
-  const bg = role ? (ROLE_BG[role] ?? "") : ""
+function CompScore({ gross, par, pts, nr }: { gross: number; par: number; pts: number; nr: boolean }) {
+  const f = "font-[family-name:var(--font-crimson)]"
+  if (nr) return <span className={`text-orange-500 text-xs font-semibold ${f}`}>NR</span>
+  const diff = gross - par
+  const sup = <sup className={`text-[9px] text-gray-400 leading-none ${f}`}>{pts}</sup>
+
+  if (diff <= -2) return (
+    <span className="inline-flex items-start">
+      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full bg-[#C9A84C] ${f} text-sm font-semibold text-[#1a0a00]`}>{gross}</span>
+      {sup}
+    </span>
+  )
+  if (diff === -1) return (
+    <span className="inline-flex items-start">
+      <span className={`inline-flex items-center justify-center w-6 h-6 rounded-full border-2 border-[#2d6a4f] ${f} text-sm text-[#1a5235]`}>{gross}</span>
+      {sup}
+    </span>
+  )
+  if (diff === 0) return (
+    <span className="inline-flex items-start gap-0.5">
+      <span className={`${f} text-base text-gray-700`}>{gross}</span>
+      {sup}
+    </span>
+  )
+  if (diff === 1) return (
+    <span className="inline-flex items-start">
+      <span className={`inline-flex items-center justify-center w-6 h-6 border border-gray-400 ${f} text-sm text-gray-500`}>{gross}</span>
+      {sup}
+    </span>
+  )
   return (
-    <td className={`text-center px-1 py-1.5 min-w-[30px] ${bg}`}>
-      {nr
-        ? <span className="text-orange-400/70 text-xs">NR</span>
-        : <span className="text-white text-base whitespace-nowrap">{gross}<sup className="text-white/40 text-[9px]">{pts}</sup></span>
-      }
-    </td>
+    <span className="inline-flex items-start">
+      <span className={`inline-flex items-center justify-center w-6 h-6 bg-gray-300 ${f} text-sm text-gray-600`}>{gross}</span>
+      {sup}
+    </span>
   )
 }
 
-function EmptyCell() {
-  return <td className="text-center px-1 py-1.5 min-w-[30px] text-white/20 text-sm">—</td>
-}
+// ─── Paper composite scorecard ─────────────────────────────────
 
-// ─── Team scorecard (best-ball + individual rows) ──────────────
-
-function TeamScorecard({ team, holes, scores, roundHandicaps, roundId }: {
-  team: Team; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]; roundId: string
+function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
+  team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]
 }) {
-  const bb      = getBestBall(team, holes, scores, roundId)
-  const front   = bb.slice(0, 9)
-  const back    = bb.slice(9, 18)
-  const hasAnyScore = bb.some(h => h.hasScore)
-  const outPts  = front.reduce((s, h) => s + h.pts, 0)
-  const inPts   = back.reduce((s, h) => s + h.pts, 0)
-  const outPar  = front.reduce((s, h) => s + h.hole.par, 0)
-  const inPar   = back.reduce((s, h) => s + h.hole.par, 0)
+  const courseHoles = holes
+    .filter(h => h.course_id === round.courses?.id)
+    .sort((a, b) => a.hole_number - b.hole_number)
+  const front   = courseHoles.slice(0, 9)
+  const back    = courseHoles.slice(9, 18)
+  const players = sortedPlayers(team.players)
+  const f       = "font-[family-name:var(--font-crimson)]"
+  const hasAny  = scores.some(s => s.round_id === round.id && players.some(p => p.id === s.player_id))
 
-  const frontHoles = holes.slice(0, 9)
-  const backHoles  = holes.slice(9, 18)
+  function playerScore(playerId: string, holeId: string) {
+    return scores.find(s => s.player_id === playerId && s.hole_id === holeId && s.round_id === round.id) ?? null
+  }
+
+  function holeInfo(hole: Hole) {
+    const pScores = players.map(p => ({ player: p, score: playerScore(p.id, hole.id) }))
+    const maxPts  = Math.max(0, ...pScores.filter(x => x.score).map(x => x.score!.stableford_points))
+    const contributors = new Set(
+      maxPts > 0
+        ? pScores.filter(x => x.score?.stableford_points === maxPts).map(x => x.player.id)
+        : []
+    )
+    return { pScores, maxPts, contributors }
+  }
+
+  function subtotals(holeSet: Hole[]) {
+    const par = holeSet.reduce((s, h) => s + h.par, 0)
+    const playerGross = players.map(p =>
+      holeSet.reduce((s, h) => {
+        const sc = playerScore(p.id, h.id)
+        return s + (sc && !sc.no_return ? sc.gross_score : 0)
+      }, 0)
+    )
+    const bestPts = holeSet.reduce((s, h) => s + holeInfo(h).maxPts, 0)
+    return { par, playerGross, bestPts }
+  }
+
+  const outSub = subtotals(front)
+  const inSub  = subtotals(back)
+  const totSub = {
+    par:         outSub.par + inSub.par,
+    playerGross: players.map((_, i) => outSub.playerGross[i] + inSub.playerGross[i]),
+    bestPts:     outSub.bestPts + inSub.bestPts,
+  }
+
+  function HoleRow({ hole, odd }: { hole: Hole; odd: boolean }) {
+    const { pScores, maxPts, contributors } = holeInfo(hole)
+    const anyScore = pScores.some(x => x.score)
+    return (
+      <tr className={`border-t border-gray-100 ${odd ? "bg-white" : "bg-gray-50/40"}`}>
+        <td className={`py-2.5 px-2 text-base font-semibold text-gray-700 ${f}`}>{hole.hole_number}</td>
+        <td className={`text-center py-2.5 px-1 text-base text-gray-500 ${f}`}>{hole.par}</td>
+        {pScores.map(({ player, score }) => (
+          <td
+            key={player.id}
+            className={`text-center py-2 px-1 ${contributors.has(player.id) ? "bg-amber-50" : ""}`}
+          >
+            {score
+              ? <CompScore gross={score.gross_score} par={hole.par} pts={score.stableford_points} nr={score.no_return} />
+              : <span className="text-gray-200 text-sm">—</span>
+            }
+          </td>
+        ))}
+        <td className={`text-center py-2.5 px-2 text-base font-semibold ${f} ${
+          !anyScore     ? "text-gray-200"
+          : maxPts >= 3 ? "text-[#2d6a4f]"
+          : maxPts === 0 ? "text-gray-300"
+          : "text-gray-500"
+        }`}>
+          {anyScore ? maxPts : "—"}
+        </td>
+      </tr>
+    )
+  }
+
+  function SubRow({ label, sub, isTotal }: { label: string; sub: typeof outSub; isTotal?: boolean }) {
+    const bg     = isTotal ? "bg-[#1a3a22]" : "bg-gray-100"
+    const tLabel = isTotal ? "text-white/70" : "text-gray-500"
+    const tData  = isTotal ? "text-white"    : "text-gray-700"
+    const tPts   = isTotal ? "text-[#C9A84C] font-bold" : "text-[#2d6a4f] font-semibold"
+    const border = isTotal ? "border-[#1e3a22]" : "border-gray-200"
+    return (
+      <tr className={`border-t-2 ${border} ${bg}`}>
+        <td className={`py-2 px-2 text-xs uppercase tracking-wider font-semibold ${tLabel} font-[family-name:var(--font-playfair)]`}>{label}</td>
+        <td className={`text-center py-2 px-1 text-sm font-semibold ${tData} ${f}`}>{sub.par}</td>
+        {sub.playerGross.map((g, i) => (
+          <td key={i} className={`text-center py-2 px-1 text-sm ${tData} ${f}`}>
+            {hasAny && g > 0 ? g : "—"}
+          </td>
+        ))}
+        <td className={`text-center py-2 px-2 text-sm ${tPts} ${f}`}>
+          {hasAny ? sub.bestPts : "—"}
+        </td>
+      </tr>
+    )
+  }
 
   return (
-    <div className="bg-[#0f2418] border border-[#1e3d28] rounded-sm overflow-hidden mb-4">
-      {/* Header */}
-      <div className="px-4 py-3 flex items-center justify-between border-b border-[#1e3d28]">
-        <div className="flex items-center gap-2">
-          <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
-          <span className="font-[family-name:var(--font-playfair)] text-white">{team.name}</span>
+    <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
+      {/* Green header */}
+      <div className="bg-[#1a3a22] px-4 py-3">
+        <div className="flex items-center gap-2 mb-0.5">
+          <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
+          <span className="font-[family-name:var(--font-playfair)] text-white text-lg">{team.name}</span>
         </div>
-        <div className="flex items-center gap-3">
-          {hasAnyScore && (
-            <span className="text-[#C9A84C] font-semibold">{outPts + inPts} pts</span>
-          )}
-        </div>
+        <p className="text-white/40 text-sm pl-4">{round.courses?.name}</p>
       </div>
 
-      {!hasAnyScore ? (
-        <p className="px-4 py-5 text-white/20 text-sm text-center tracking-widest">No scores yet</p>
+      {courseHoles.length === 0 ? (
+        <p className="text-gray-300 text-sm text-center py-10">Course data unavailable</p>
       ) : (
-        <div className="overflow-x-auto">
-          <table className="text-[13px] border-collapse w-full">
-            <thead>
-              <tr className="border-b border-[#1e3d28]">
-                <th className="sticky left-0 z-10 bg-[#0f2418] text-left px-3 py-1.5 text-white/25 font-normal min-w-[72px] border-r border-[#1e3d28]/60">Hole</th>
-                {frontHoles.map(h => <th key={h.id} className="text-center px-1 py-1.5 text-white/25 font-normal min-w-[30px]">{h.hole_number}</th>)}
-                <th className="text-center px-2 py-1.5 text-white/25 font-normal">Out</th>
-                {backHoles.map(h => <th key={h.id} className="text-center px-1 py-1.5 text-white/25 font-normal min-w-[30px]">{h.hole_number}</th>)}
-                <th className="text-center px-2 py-1.5 text-white/25 font-normal">In</th>
-                <th className="text-center px-2 py-1.5 text-white/25 font-normal">Grs</th>
-                <th className="text-center px-2 py-1.5 text-white/25 font-normal">Pts</th>
-              </tr>
-              <tr className="border-b border-[#1e3d28]">
-                <th className="sticky left-0 z-10 bg-[#0f2418] text-left px-3 py-1 text-white/20 font-normal border-r border-[#1e3d28]/60">Par</th>
-                {frontHoles.map(h => <th key={h.id} className="text-center px-1 py-1 text-white/20 font-normal">{h.par}</th>)}
-                <th className="text-center px-2 py-1 text-white/20 font-normal">{outPar}</th>
-                {backHoles.map(h => <th key={h.id} className="text-center px-1 py-1 text-white/20 font-normal">{h.par}</th>)}
-                <th className="text-center px-2 py-1 text-white/20 font-normal">{inPar}</th>
-                <th /><th />
-              </tr>
-            </thead>
-            <tbody>
-              {/* Best-ball row */}
-              <tr className="border-t border-[#1e3d28]">
-                <td className="sticky left-0 z-10 bg-[#0f2418] px-3 py-1.5 text-white/40 text-xs uppercase tracking-wider border-r border-[#1e3d28]/60">Best</td>
-                {front.map(h => h.hasScore
-                  ? <ScoreCell key={h.hole.id} gross={h.gross} pts={h.pts} nr={h.nr} role={h.role} />
-                  : <EmptyCell key={h.hole.id} />
-                )}
-                <td className="text-center px-2 py-1.5 text-base text-white/60 font-semibold">{outPts}</td>
-                {back.map(h => h.hasScore
-                  ? <ScoreCell key={h.hole.id} gross={h.gross} pts={h.pts} nr={h.nr} role={h.role} />
-                  : <EmptyCell key={h.hole.id} />
-                )}
-                <td className="text-center px-2 py-1.5 text-base text-white/60 font-semibold">{inPts}</td>
-                <td />
-                <td className="text-center px-2 py-1.5 text-[#C9A84C] text-base font-bold">{outPts + inPts}</td>
-              </tr>
+        <table className="border-collapse w-full table-fixed">
+          <colgroup>
+            <col style={{ width: "34px" }} />
+            <col style={{ width: "30px" }} />
+            {players.map(p => <col key={p.id} />)}
+            <col style={{ width: "38px" }} />
+          </colgroup>
+          <thead>
+            <tr className="border-b-2 border-gray-200 bg-gray-50">
+              <th className="text-left py-2.5 px-2 text-xs font-semibold text-gray-400 uppercase tracking-wide font-[family-name:var(--font-playfair)]">
+                Hole
+              </th>
+              <th className="text-center py-2.5 px-1 text-xs font-normal text-gray-400 uppercase tracking-wide">Par</th>
+              {players.map(p => (
+                <th key={p.id} className="text-center py-2.5 px-1">
+                  <span className="font-[family-name:var(--font-playfair)] text-xs font-semibold text-gray-500 truncate block">
+                    {displayName(p)}
+                  </span>
+                  {p.is_composite && (
+                    <span className="inline-block text-[8px] font-bold text-[#C9A84C] border border-[#C9A84C]/60 px-0.5 rounded-sm leading-tight mt-0.5">C</span>
+                  )}
+                </th>
+              ))}
+              <th className="text-center py-2.5 px-2 text-xs font-semibold text-gray-500 uppercase tracking-wide">Tot</th>
+            </tr>
+          </thead>
+          <tbody>
+            {front.map((hole, i) => <HoleRow key={hole.id} hole={hole} odd={i % 2 === 0} />)}
+            <SubRow label="Out" sub={outSub} />
+            {back.map((hole, i) => <HoleRow key={hole.id} hole={hole} odd={i % 2 === 0} />)}
+            <SubRow label="In" sub={inSub} />
+            <SubRow label="Total" sub={totSub} isTotal />
+          </tbody>
+        </table>
+      )}
 
-              {/* Divider */}
-              <tr><td colSpan={23} className="border-t border-[#1e3d28]/60" /></tr>
-
-              {/* Individual player rows */}
-              {sortedPlayers(team.players).map(player => {
-                const hcp = roundHandicaps.find(rh => rh.player_id === player.id && rh.round_id === roundId)
-                const pScores = holes.map(h =>
-                  scores.find(s => s.player_id === player.id && s.hole_id === h.id && s.round_id === roundId)
-                )
-                const hasScores  = pScores.some(Boolean)
-                const frontS     = pScores.slice(0, 9)
-                const backS      = pScores.slice(9, 18)
-                const outGross   = frontS.reduce((s, sc) => s + (sc?.gross_score ?? 0), 0)
-                const inGross    = backS.reduce((s, sc) => s + (sc?.gross_score ?? 0), 0)
-                const totalGross = outGross + inGross
-                const totalPts   = pScores.reduce((s, sc) => s + (sc?.stableford_points ?? 0), 0)
-                const hasNR      = pScores.some(sc => sc?.no_return)
-
-                return (
-                  <tr key={player.id} className="border-t border-[#1e3d28]/30">
-                    <td className="sticky left-0 z-10 bg-[#0f2418] px-3 py-1.5 border-r border-[#1e3d28]/60">
-                      <div className="flex items-center gap-1.5">
-                        <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${ROLE_DOT[player.role] ?? "bg-white/30"}`} />
-                        {features.scorecardViewer()
-                          ? <Link href={`/scorecard/${player.id}?from=leaderboard`} className="text-sm text-[#C9A84C] hover:text-white transition-colors">{displayName(player)}</Link>
-                          : <span className="text-sm text-[#C9A84C]">{displayName(player)}</span>
-                        }
-                        {player.is_composite && (
-                          <span className="text-[9px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-0.5 rounded-sm leading-tight">C</span>
-                        )}
-                        {hcp && <span className="text-white/20 text-[10px]">ph{hcp.playing_handicap}</span>}
-                      </div>
-                    </td>
-                    {!hasScores ? (
-                      <>
-                        {holes.map(h => <EmptyCell key={h.id} />)}
-                        <td /><td /><td />
-                      </>
-                    ) : (
-                      <>
-                        {frontS.map((sc, i) => sc
-                          ? <ScoreCell key={frontHoles[i].id} gross={sc.gross_score} pts={sc.stableford_points} nr={sc.no_return} />
-                          : <EmptyCell key={frontHoles[i].id} />
-                        )}
-                        <td className="text-center px-2 py-1.5 text-white/35">{outGross}</td>
-                        {backS.map((sc, i) => sc
-                          ? <ScoreCell key={backHoles[i].id} gross={sc.gross_score} pts={sc.stableford_points} nr={sc.no_return} />
-                          : <EmptyCell key={backHoles[i].id} />
-                        )}
-                        <td className="text-center px-2 py-1.5 text-white/35">{inGross}</td>
-                        <td className="text-center px-2 py-1.5 text-white/50">
-                          {totalGross}
-                          {hasNR && <span className="text-orange-400/60 text-[10px] ml-0.5">NR</span>}
-                        </td>
-                        <td className="text-center px-2 py-1.5 text-[#C9A84C] font-semibold">{totalPts}</td>
-                      </>
-                    )}
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
+      {!hasAny && courseHoles.length > 0 && (
+        <p className={`text-center text-gray-300 text-sm py-4 border-t border-gray-100 ${f}`}>
+          No scores recorded yet
+        </p>
       )}
     </div>
   )
 }
 
-// ─── Day tab ───────────────────────────────────────────────────
+// ─── Scorecard modal ───────────────────────────────────────────
 
-function DayTab({ round, teams, holes, scores, roundHandicaps }: {
-  round: Round; teams: Team[]; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]
+function ScorecardModal({ team, round, holes, scores, roundHandicaps, onClose }: {
+  team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]; onClose: () => void
 }) {
-  const courseHoles = holes.filter(h => h.course_id === round.courses?.id)
-
-  const sorted = [...teams].sort((a, b) =>
-    teamRoundPts(b, courseHoles, scores, round.id) - teamRoundPts(a, courseHoles, scores, round.id)
-  )
-
   return (
-    <div>
-      {sorted.map(team => (
-        <TeamScorecard
-          key={team.id}
-          team={team}
-          holes={courseHoles}
-          scores={scores}
-          roundHandicaps={roundHandicaps}
-          roundId={round.id}
-        />
-      ))}
+    <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/70" />
+      <div
+        className="relative bg-[#0a1a0e] rounded-t-xl overflow-hidden flex flex-col max-h-[90vh]"
+        onClick={e => e.stopPropagation()}
+      >
+        <div className="flex items-center justify-between px-4 py-3 flex-shrink-0">
+          <span className="text-white/25 text-xs tracking-[0.15em] uppercase">Round {round.round_number}</span>
+          <button
+            onClick={onClose}
+            className="text-white/35 hover:text-white transition-colors p-1 -mr-1 text-lg leading-none"
+          >
+            ✕
+          </button>
+        </div>
+        <div className="overflow-y-auto flex-1 px-4 pb-8">
+          <CompositeScorecard
+            team={team}
+            round={round}
+            holes={holes}
+            scores={scores}
+            roundHandicaps={roundHandicaps}
+          />
+        </div>
+      </div>
     </div>
   )
 }
 
-// ─── Overall tab ───────────────────────────────────────────────
+// ─── Course tiles ──────────────────────────────────────────────
 
-function OverallTab({ rounds, teams, holes, scores }: {
-  rounds: Round[]; teams: Team[]; holes: Hole[]; scores: Score[]
+function CourseTiles({ team, rounds, holes, scores, roundHandicaps, onTileClick }: {
+  team: Team; rounds: Round[]; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]
+  onTileClick: (round: Round) => void
 }) {
-  const rows = teams.map(team => {
-    const byRound = rounds.map(r => {
-      const courseHoles = holes.filter(h => h.course_id === r.courses?.id)
-      return teamRoundPts(team, courseHoles, scores, r.id)
-    })
-    return { team, byRound, total: byRound.reduce((s, p) => s + p, 0) }
-  }).sort((a, b) => b.total - a.total)
+  const roundsByNumber: Record<number, Round> = {}
+  rounds.forEach(r => { roundsByNumber[r.round_number] = r })
 
   return (
-    <div className="overflow-x-auto">
-      <table className="w-full border-collapse text-sm">
-        <thead>
-          <tr className="border-b border-[#1e3d28]">
-            <th className="text-left px-4 py-3 text-white/30 font-normal">Team</th>
-            {rounds.map(r => (
-              <th key={r.id} className="text-center px-3 py-3 text-white/30 font-normal text-sm">
-                Day {r.round_number}
-                <div className="text-white/15 text-xs font-normal">{r.courses?.name}</div>
-              </th>
-            ))}
-            <th className="text-center px-4 py-3 text-white/30 font-normal">Total</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map(({ team, byRound, total }, i) => (
-            <Fragment key={team.id}>
-              {/* Full-width team name title row */}
-              <tr className={i > 0 ? "border-t border-[#1e3d28]" : ""}>
-                <td colSpan={rounds.length + 2} className="px-4 pt-2.5 pb-1">
-                  <div className="flex items-center gap-2">
-                    <span>{MEDALS[i]}</span>
-                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
-                    <span className="font-[family-name:var(--font-playfair)] text-white text-base font-semibold">{team.name}</span>
-                  </div>
-                </td>
-              </tr>
-              {/* Members + scores row */}
-              <tr>
-                <td className="px-4 pb-3 align-middle">
-                  <div className="flex flex-col">
-                    {sortedPlayers(team.players).map(p => (
-                      <div key={p.id} className="flex items-center gap-1 leading-relaxed">
-                        {features.scorecardViewer()
-                          ? <Link href={`/scorecard/${p.id}?from=leaderboard`} className="text-sm text-[#C9A84C]/70 hover:text-[#C9A84C] transition-colors">{displayName(p)}</Link>
-                          : <span className="text-sm text-[#C9A84C]/70">{displayName(p)}</span>
-                        }
-                        {p.is_composite && (
-                          <span className="text-[9px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-0.5 rounded-sm leading-tight">C</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </td>
-                {byRound.map((pts, j) => (
-                  <td key={j} className="text-center px-3 pb-3 text-white/70 text-lg font-semibold align-middle">
-                    {pts > 0 ? pts : <span className="text-white/20 font-normal text-base">—</span>}
-                  </td>
-                ))}
-                <td className="text-center px-4 pb-3 font-[family-name:var(--font-playfair)] text-[#C9A84C] text-2xl font-bold align-middle">
-                  {total > 0 ? total : <span className="text-white/20 text-base font-normal">—</span>}
-                </td>
-              </tr>
-            </Fragment>
-          ))}
-        </tbody>
-      </table>
+    <div className="px-3 pb-4 pt-2 space-y-2 bg-[#070f09]">
+      {[1, 2, 3].map(num => {
+        const round = roundsByNumber[num]
+        if (!round) {
+          return (
+            <div key={num} className="w-full rounded-sm border border-[#1e3d28] bg-[#0f2418] px-5 py-4 opacity-40">
+              <p className="font-[family-name:var(--font-playfair)] text-white/30 text-base">Round {num}</p>
+              <p className="text-white/20 text-sm mt-0.5">Not scheduled</p>
+            </div>
+          )
+        }
+        const courseHoles = holes.filter(h => h.course_id === round.courses?.id)
+        const pts = teamRoundPts(team, courseHoles, scores, round.id)
+        const hasScores = pts > 0
+        return (
+          <button
+            key={round.id}
+            onClick={() => onTileClick(round)}
+            className={`w-full text-left rounded-sm border transition-all duration-200 overflow-hidden active:opacity-75
+              ${hasScores
+                ? "border-[#C9A84C]/50 shadow-[0_0_16px_rgba(201,168,76,0.10)] bg-[#0f2418]"
+                : "border-[#1e3d28] bg-[#0f2418]"
+              }`}
+          >
+            <div className="px-5 py-4 flex items-center justify-between gap-4">
+              <div className="min-w-0">
+                <p className="font-[family-name:var(--font-playfair)] text-white text-base leading-tight">
+                  {round.courses?.name ?? `Round ${num}`}
+                </p>
+                <p className={`text-sm mt-1 ${hasScores ? "text-[#C9A84C]" : "text-white/25"}`}>
+                  {hasScores ? "Scores submitted" : "No scores yet"}
+                </p>
+              </div>
+              <div className="flex-shrink-0 flex items-center gap-3">
+                {hasScores && (
+                  <span className="font-[family-name:var(--font-playfair)] text-[#C9A84C] text-xl font-bold">{pts}</span>
+                )}
+                <span className="text-white/30 text-sm">View →</span>
+              </div>
+            </div>
+          </button>
+        )
+      })}
     </div>
   )
-}
-
-// ─── Logo mask helper ───────────────────────────────────────────
-
-function logoMask(src: string): React.CSSProperties {
-  return {
-    backgroundColor: "currentColor",
-    WebkitMaskImage: `url(${src})`,
-    maskImage: `url(${src})`,
-    WebkitMaskSize: "contain",
-    maskSize: "contain",
-    WebkitMaskRepeat: "no-repeat",
-    maskRepeat: "no-repeat",
-    WebkitMaskPosition: "center",
-    maskPosition: "center",
-  }
 }
 
 // ─── Main component ────────────────────────────────────────────
 
 export default function LeaderboardClient({ rounds, teams, holes, scores, roundHandicaps }: Props) {
-  const tabs = rounds.map(r => ({
-    key:  r.id,
-    label: `Day ${r.round_number}`,
-    sub:  r.courses?.name ?? "",
-    logo: r.courses?.name ? (COURSE_LOGO[r.courses.name] ?? null) : null,
-  }))
-  const [active, setActive] = useState(tabs[0]?.key ?? "")
+  const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null)
+  const [modal, setModal] = useState<{ team: Team; round: Round } | null>(null)
+
+  const sortedRounds = [...rounds].sort((a, b) => a.round_number - b.round_number)
+  const roundsByNumber: Record<number, Round> = {}
+  sortedRounds.forEach(r => { roundsByNumber[r.round_number] = r })
+
+  const rows = teams.map(team => {
+    let total = 0
+    let roundsWithScores = 0
+    for (const r of sortedRounds) {
+      const courseHoles = holes.filter(h => h.course_id === r.courses?.id)
+      const pts = teamRoundPts(team, courseHoles, scores, r.id)
+      if (pts > 0) { total += pts; roundsWithScores++ }
+    }
+    return { team, total, roundsWithScores }
+  }).sort((a, b) => b.total - a.total)
+
+  const totalRounds = sortedRounds.length
+
+  function toggleTeam(teamId: string) {
+    setExpandedTeamId(prev => prev === teamId ? null : teamId)
+  }
 
   return (
-    <div>
-      {/* Overall standings — always visible */}
-      <OverallTab rounds={rounds} teams={teams} holes={holes} scores={scores} />
-
-      {/* Day tabs */}
-      <div className="mt-10">
-        <div className="flex justify-between gap-2 mb-6">
-          {tabs.map((tab) => {
-            const isActive = active === tab.key
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setActive(tab.key)}
-                className={`relative flex-1 rounded-sm transition-colors border
-                  ${isActive
-                    ? "bg-[#C9A84C]/10 border-[#C9A84C]/40 text-[#C9A84C]"
-                    : "bg-white/[0.03] border-[#1e3d28] text-white/40 hover:bg-white/[0.06] hover:text-white/60"}`}
-              >
-                {/* Mobile: logo → course name → day number, stacked */}
-                <div className="flex flex-col items-center justify-center text-center gap-1.5 px-2 py-3 sm:hidden">
-                  {tab.logo && <div className="h-10 w-10 flex-shrink-0" style={logoMask(tab.logo)} />}
-                  <span className="font-[family-name:var(--font-playfair)] text-sm font-semibold leading-tight w-full">{tab.sub}</span>
-                  <span className={`text-xs tracking-[0.15em] uppercase ${isActive ? "text-[#C9A84C]/50" : "text-white/25"}`}>{tab.label}</span>
-                </div>
-
-                {/* Desktop: text centred, logo right — unchanged */}
-                <div className="hidden sm:flex flex-col items-center justify-center text-center px-4 py-4">
-                  <span className="font-[family-name:var(--font-playfair)] text-lg font-semibold leading-tight">{tab.sub}</span>
-                  <span className={`text-[10px] mt-1 tracking-[0.15em] uppercase ${isActive ? "text-[#C9A84C]/50" : "text-white/25"}`}>{tab.label}</span>
-                </div>
-                {tab.logo && (
-                  <div className="hidden sm:block absolute right-0 top-1/2 -translate-y-1/2 -translate-x-1/2 h-12 w-12" style={logoMask(tab.logo)} />
-                )}
-              </button>
-            )
-          })}
+    <>
+      <div className="border border-[#1e3d28]">
+        {/* Sticky column headers — match live leaderboard exactly */}
+        <div className="sticky top-[69px] z-10 flex items-center gap-3 px-4 py-2 bg-[#0a1a0e] border-b border-[#1e3d28]">
+          <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 w-6 flex-shrink-0">Pos</span>
+          <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 flex-1 min-w-0">Team</span>
+          <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 flex-shrink-0 min-w-[3.5rem] text-center">Score</span>
+          <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 flex-shrink-0 w-9 text-right">Thru</span>
         </div>
 
-        {(() => {
-          const round = rounds.find(r => r.id === active)
-          if (!round) return null
+        {/* Team rows */}
+        {rows.map(({ team, total, roundsWithScores }, i) => {
+          const isExpanded = expandedTeamId === team.id
+          const isLast = i === rows.length - 1
+          const allDone = totalRounds > 0 && roundsWithScores === totalRounds
+
+          // Score pill
+          const baseline = 36 * roundsWithScores
+          const rel = total - baseline
+          let scoreDisplay: string
+          let scorePillClass: string
+          if (roundsWithScores === 0) {
+            scoreDisplay   = "—"
+            scorePillClass = "bg-white/5 text-white/25"
+          } else if (allDone) {
+            scoreDisplay   = `${total}`
+            scorePillClass = rel > 0
+              ? "bg-[#C9A84C]/15 text-[#C9A84C]"
+              : rel < 0
+                ? "bg-green-900/25 text-green-400"
+                : "bg-white/5 text-white/45"
+          } else {
+            scoreDisplay   = rel > 0 ? `+${rel}` : rel < 0 ? `${rel}` : "E"
+            scorePillClass = rel > 0
+              ? "bg-[#C9A84C]/15 text-[#C9A84C]"
+              : rel < 0
+                ? "bg-green-900/25 text-green-400"
+                : "bg-white/5 text-white/45"
+          }
+
+          // Thru
+          const thruDisplay = allDone ? "F" : roundsWithScores > 0 ? `${roundsWithScores}` : "—"
+          const thruClass = allDone
+            ? "text-white/60 font-semibold"
+            : roundsWithScores > 0 ? "text-white/30" : "text-white/15"
+
           return (
-            <DayTab
-              round={round}
-              teams={teams}
-              holes={holes}
-              scores={scores}
-              roundHandicaps={roundHandicaps}
-            />
+            <Fragment key={team.id}>
+              <button
+                onClick={() => toggleTeam(team.id)}
+                className={`w-full flex items-center gap-3 px-4 py-3 text-left active:bg-white/5 transition-colors
+                  ${!isLast || isExpanded ? "border-b border-[#1e3d28]" : ""}`}
+              >
+                {/* Pos */}
+                <span className="text-white/40 text-base font-semibold w-6 flex-shrink-0 tabular-nums">
+                  {i + 1}
+                </span>
+
+                {/* Team dot + name */}
+                <div className="flex items-center gap-2 flex-1 min-w-0">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
+                  <span className="font-[family-name:var(--font-playfair)] text-base text-white truncate">
+                    {team.name}
+                  </span>
+                </div>
+
+                {/* Score pill */}
+                <span className={`flex-shrink-0 inline-flex items-center justify-center
+                  px-2 py-0.5 rounded-sm text-lg font-bold tabular-nums min-w-[3.5rem] ${scorePillClass}`}>
+                  {scoreDisplay}
+                </span>
+
+                {/* Thru */}
+                <span className={`flex-shrink-0 w-9 text-right tabular-nums text-base ${thruClass}`}>
+                  {thruDisplay}
+                </span>
+              </button>
+
+              {isExpanded && (
+                <div className={!isLast ? "border-b border-[#1e3d28]" : ""}>
+                  <CourseTiles
+                    team={team}
+                    rounds={sortedRounds}
+                    holes={holes}
+                    scores={scores}
+                    roundHandicaps={roundHandicaps}
+                    onTileClick={round => setModal({ team, round })}
+                  />
+                </div>
+              )}
+            </Fragment>
           )
-        })()}
+        })}
       </div>
-    </div>
+
+      {/* Scorecard modal */}
+      {modal && (
+        <ScorecardModal
+          team={modal.team}
+          round={modal.round}
+          holes={holes}
+          scores={scores}
+          roundHandicaps={roundHandicaps}
+          onClose={() => setModal(null)}
+        />
+      )}
+    </>
   )
 }
