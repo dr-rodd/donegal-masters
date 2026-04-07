@@ -2,7 +2,6 @@
 
 import { useState, Fragment } from "react"
 import { features } from "@/lib/features"
-import { InlineScorecard } from "@/app/scoring/LiveLeaderboardPanel"
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -43,7 +42,7 @@ function teamRoundPts(team: Team, holes: Hole[], scores: Score[], roundId: strin
   }, 0)
 }
 
-// ─── Composite scorecard (reuses InlineScorecard) ──────────────
+// ─── Composite scorecard ───────────────────────────────────────
 
 function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
   team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]
@@ -53,49 +52,78 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
     .filter(h => h.course_id === courseId)
     .sort((a, b) => a.hole_number - b.hole_number)
 
-  // Pick the highest stableford scorer on this team for this round
   const players = sortedPlayers(team.players)
-  const bestPlayer = players.reduce((best, p) => {
-    const pts = scores.filter(s => s.player_id === p.id && s.round_id === round.id)
-      .reduce((sum, s) => sum + s.stableford_points, 0)
-    const bestPts = scores.filter(s => s.player_id === best.id && s.round_id === round.id)
-      .reduce((sum, s) => sum + s.stableford_points, 0)
-    return pts > bestPts ? p : best
-  }, players[0])
+  if (players.length === 0) return null
 
-  if (!bestPlayer) return null
+  const sf    = { fontFamily: "Georgia, serif" }
+  const muted = "text-[#7A7060]"
+  const dark  = "text-[#3A3A2E]"
+  // Hole | Par | SI | 1 | 2 | 3 | Pts
+  const grid  = "grid grid-cols-[2fr_2fr_2fr_3fr_3fr_3fr_2fr] w-full"
 
-  const playingHcp = roundHandicaps.find(
-    rh => rh.player_id === bestPlayer.id && rh.round_id === round.id
-  )?.playing_handicap ?? 0
-
-  // Adapt Score[] → InlineScorecard's LiveScoreRow[] (hole_id → hole_number)
-  const playerScores = scores
-    .filter(s => s.player_id === bestPlayer.id && s.round_id === round.id)
-    .flatMap(s => {
-      const hole = holes.find(h => h.id === s.hole_id)
-      if (!hole) return []
-      return [{
-        player_id: s.player_id,
-        hole_number: hole.hole_number,
-        gross_score: s.no_return ? null : s.gross_score,
-        stableford_points: s.stableford_points,
-      }]
-    })
-
-  const player = {
-    id: bestPlayer.id,
-    name: bestPlayer.name,
-    gender: bestPlayer.gender ?? "M",
-    teams: { name: team.name, color: team.color },
+  const scoreSymbol = (gross: number | null, par: number) => {
+    if (gross === null) return <span className={`${muted} text-sm`} style={sf}>—</span>
+    const diff = gross - par
+    const n = <span className="text-sm font-semibold leading-none">{gross}</span>
+    if (diff <= -2) return <span className="w-6 h-6 rounded-full bg-[#C9A84C] flex items-center justify-center text-[#3A3A2E]">{n}</span>
+    if (diff === -1) return <span className="w-6 h-6 rounded-full border border-[#C9A84C] flex items-center justify-center text-[#5A4F3A]">{n}</span>
+    if (diff === 0)  return <span className={`${dark} text-sm font-semibold`} style={sf}>{gross}</span>
+    if (diff === 1)  return <span className="w-6 h-6 bg-[#E8DCBC]/50 rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
+    return               <span className="w-6 h-6 bg-[#E8DCBC] rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
   }
 
+  const ptsColor = (pts: number | null) =>
+    pts === null ? muted :
+    pts === 0    ? "text-[#A89880] opacity-50" :
+                   "text-[#7B6C3E] font-bold"
+
+  // Build per-player score maps: hole_number → Score
+  const playerScoreMaps = players.map(p =>
+    new Map(
+      scores
+        .filter(s => s.player_id === p.id && s.round_id === round.id)
+        .flatMap(s => {
+          const hole = holes.find(h => h.id === s.hole_id)
+          return hole ? [[hole.hole_number, s] as [number, Score]] : []
+        })
+    )
+  )
+
+  // Build rows
+  const rows = courseHoles.map((hole, idx) => {
+    const grossScores = players.map((_, pi) => {
+      const s = playerScoreMaps[pi].get(hole.hole_number)
+      return s ? (s.no_return ? null : s.gross_score) : null
+    })
+    const bestPts = players.reduce((max, _, pi) => {
+      const s = playerScoreMaps[pi].get(hole.hole_number)
+      return s ? Math.max(max, s.stableford_points) : max
+    }, 0)
+    const hasScores = players.some((_, pi) => playerScoreMaps[pi].has(hole.hole_number))
+    return { hole, idx, grossScores, bestPts, hasScores }
+  })
+
+  const front9 = rows.slice(0, 9)
+  const back9  = rows.slice(9)
+
+  const front9Par  = front9.reduce((s, r) => s + r.hole.par, 0)
+  const back9Par   = back9.reduce((s, r) => s + r.hole.par, 0)
+  const front9Pts  = front9.reduce((s, r) => s + r.bestPts, 0)
+  const back9Pts   = back9.reduce((s, r) => s + r.bestPts, 0)
+  const front9HasScores = front9.some(r => r.hasScores)
+  const back9HasScores  = back9.some(r => r.hasScores)
+
+  const front9Gross = players.map((_, pi) => front9.reduce((s, r) => s + (r.grossScores[pi] ?? 0), 0))
+  const back9Gross  = players.map((_, pi) => back9.reduce((s, r) => s + (r.grossScores[pi] ?? 0), 0))
+  const totalGross  = players.map((_, pi) => front9Gross[pi] + back9Gross[pi])
+  const totalPts    = front9Pts + back9Pts
+
   return (
-    <>
+    <div style={{ background: "#F5F0E8" }}>
+
       {/* Paper scorecard player header */}
       <div style={{ background: "#EAE4D5" }}>
         {players.map((p, i) => {
-          const sf  = { fontFamily: "Georgia, serif" }
           const hcp = roundHandicaps.find(rh => rh.player_id === p.id && rh.round_id === round.id)?.playing_handicap
           return (
             <div key={p.id} className="flex items-baseline gap-3 px-3 py-2 border-b border-[#D4CBBA]">
@@ -114,14 +142,83 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
         })}
       </div>
 
-      <InlineScorecard
-        player={player}
-        playingHcp={playingHcp}
-        courseHoles={courseHoles}
-        playerScores={playerScores}
-        courseId={courseId}
-      />
-    </>
+      {/* Column headers */}
+      <div className={`${grid} px-3 py-1.5 border-b border-[#D4CBBA]`} style={{ background: "#EAE4D5" }}>
+        {(["Hole", "Par", "SI"] as const).map(h => (
+          <span key={h} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${muted}`} style={sf}>{h}</span>
+        ))}
+        {[1, 2, 3].map(n => (
+          <span key={n} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${muted} text-center`} style={sf}>{n}</span>
+        ))}
+        <span className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${muted} text-right`} style={sf}>Pts</span>
+      </div>
+
+      {/* Front 9 */}
+      {front9.map(({ hole, idx, grossScores, bestPts, hasScores }) => (
+        <div key={hole.hole_number} className={`${grid} px-3 py-1.5 items-center border-b border-[#E2DAC8] ${idx % 2 === 1 ? "bg-[#EEE8D6]" : ""}`}>
+          <span className={`text-sm font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
+          <span className={`text-sm ${muted}`} style={sf}>{hole.par}</span>
+          <span className={`text-sm ${muted}`} style={sf}>{hole.stroke_index}</span>
+          {grossScores.map((gross, pi) => (
+            <span key={pi} className="flex justify-center">{scoreSymbol(gross, hole.par)}</span>
+          ))}
+          <span className={`text-right text-sm ${ptsColor(hasScores ? bestPts : null)}`} style={sf}>{hasScores ? bestPts : "—"}</span>
+        </div>
+      ))}
+
+      {/* Out subtotal */}
+      <div className={`${grid} px-3 py-2 items-center border-b border-[#C9A84C]/20`} style={{ background: "rgba(201,168,76,0.16)" }}>
+        <span className="text-xs font-bold tracking-widest uppercase text-[#5C4520]" style={sf}>Out</span>
+        <span className="text-sm font-bold text-[#5C4520]" style={sf}>{front9Par}</span>
+        <span />
+        {players.map((_, pi) => (
+          <span key={pi} className="text-center text-sm font-bold text-[#5C4520]" style={sf}>
+            {front9HasScores && front9Gross[pi] > 0 ? front9Gross[pi] : "—"}
+          </span>
+        ))}
+        <span className="text-right text-sm font-bold text-[#7B6C3E]" style={sf}>{front9HasScores ? front9Pts : "—"}</span>
+      </div>
+
+      {/* Back 9 */}
+      {back9.map(({ hole, idx, grossScores, bestPts, hasScores }) => (
+        <div key={hole.hole_number} className={`${grid} px-3 py-1.5 items-center border-b border-[#E2DAC8] ${idx % 2 === 0 ? "bg-[#EEE8D6]" : ""}`}>
+          <span className={`text-sm font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
+          <span className={`text-sm ${muted}`} style={sf}>{hole.par}</span>
+          <span className={`text-sm ${muted}`} style={sf}>{hole.stroke_index}</span>
+          {grossScores.map((gross, pi) => (
+            <span key={pi} className="flex justify-center">{scoreSymbol(gross, hole.par)}</span>
+          ))}
+          <span className={`text-right text-sm ${ptsColor(hasScores ? bestPts : null)}`} style={sf}>{hasScores ? bestPts : "—"}</span>
+        </div>
+      ))}
+
+      {/* In subtotal */}
+      <div className={`${grid} px-3 py-2 items-center border-b border-[#C9A84C]/20`} style={{ background: "rgba(201,168,76,0.16)" }}>
+        <span className="text-xs font-bold tracking-widest uppercase text-[#5C4520]" style={sf}>In</span>
+        <span className="text-sm font-bold text-[#5C4520]" style={sf}>{back9Par}</span>
+        <span />
+        {players.map((_, pi) => (
+          <span key={pi} className="text-center text-sm font-bold text-[#5C4520]" style={sf}>
+            {back9HasScores && back9Gross[pi] > 0 ? back9Gross[pi] : "—"}
+          </span>
+        ))}
+        <span className="text-right text-sm font-bold text-[#7B6C3E]" style={sf}>{back9HasScores ? back9Pts : "—"}</span>
+      </div>
+
+      {/* Tot row */}
+      <div className={`${grid} px-3 py-2.5 items-center`} style={{ background: "rgba(201,168,76,0.35)" }}>
+        <span className="text-xs font-bold tracking-widest uppercase text-[#4A3810]" style={sf}>Tot</span>
+        <span className="text-sm font-bold text-[#4A3810]" style={sf}>{front9Par + back9Par}</span>
+        <span />
+        {players.map((_, pi) => (
+          <span key={pi} className="text-center text-sm font-bold text-[#4A3810]" style={sf}>
+            {totalGross[pi] > 0 ? totalGross[pi] : "—"}
+          </span>
+        ))}
+        <span className="text-right text-base font-extrabold text-[#5C4520] font-[family-name:var(--font-playfair)]">{totalPts}</span>
+      </div>
+
+    </div>
   )
 }
 
