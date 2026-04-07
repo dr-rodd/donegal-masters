@@ -124,12 +124,12 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
     const anyScore = pScores.some(x => x.score)
     return (
       <tr className={`border-t border-gray-100 ${odd ? "bg-white" : "bg-gray-50/40"}`}>
-        <td className={`py-2.5 px-2 text-lg font-semibold text-gray-700 ${f}`}>{hole.hole_number}</td>
-        <td className={`text-center py-2.5 px-1 text-base text-gray-500 ${f}`}>{hole.par}</td>
+        <td className={`py-2.5 px-3 text-lg font-semibold text-gray-700 ${f}`}>{hole.hole_number}</td>
+        <td className={`text-center py-2.5 px-2 text-base text-gray-500 ${f}`}>{hole.par}</td>
         {pScores.map(({ player, score }) => {
           const highlighted = contributors.has(player.id)
           return (
-            <td key={player.id} className={`text-center py-1.5 px-1 ${highlighted ? "bg-[#fef3c7]" : ""}`}>
+            <td key={player.id} className={`text-center py-1.5 px-2 ${highlighted ? "bg-[#fef3c7]" : ""}`}>
               {score
                 ? score.no_return
                   ? <span className={`text-orange-500 text-sm font-semibold ${f}`}>NR</span>
@@ -160,10 +160,10 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
     const sz     = isTotal ? "text-lg" : "text-base"
     return (
       <tr className={`border-t-2 ${border} ${bg}`}>
-        <td className={`py-2 px-2 text-sm uppercase tracking-wider font-semibold ${tLabel} font-[family-name:var(--font-playfair)]`}>{label}</td>
-        <td className={`text-center py-2 px-1 ${sz} font-semibold ${tData} ${f}`}>{sub.par}</td>
+        <td className={`py-2 px-3 text-sm uppercase tracking-wider font-semibold ${tLabel} font-[family-name:var(--font-playfair)]`}>{label}</td>
+        <td className={`text-center py-2 px-2 ${sz} font-semibold ${tData} ${f}`}>{sub.par}</td>
         {sub.playerGross.map((g, i) => (
-          <td key={i} className={`text-center py-2 px-1 ${sz} ${tData} ${f}`}>
+          <td key={i} className={`text-center py-2 px-2 ${sz} font-semibold ${tData} ${f}`}>
             {hasAny && g > 0 ? g : "—"}
           </td>
         ))}
@@ -220,16 +220,16 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps }: {
           </colgroup>
           <thead>
             <tr className="border-b-2 border-gray-200 bg-gray-50">
-              <th className="text-left py-2 px-2 text-sm font-semibold text-gray-400 uppercase tracking-wide font-[family-name:var(--font-playfair)]">
+              <th className="text-left py-2 px-3 text-sm font-semibold text-gray-400 uppercase tracking-wide font-[family-name:var(--font-playfair)]">
                 Hole
               </th>
-              <th className="text-center py-2 px-1 text-sm font-normal text-gray-400 uppercase tracking-wide">Par</th>
+              <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide">Par</th>
               {players.map((_, i) => (
-                <th key={i} className={`text-center py-2 px-1 font-[family-name:var(--font-crimson)] text-lg font-bold text-[#2d6a4f]`}>
+                <th key={i} className={`text-center py-2 px-2 font-[family-name:var(--font-crimson)] text-lg font-bold text-[#2d6a4f]`}>
                   {i + 1}
                 </th>
               ))}
-              <th className="text-center py-2 px-2 text-sm font-semibold text-gray-500 uppercase tracking-wide">Tot</th>
+              <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide">Tot</th>
             </tr>
           </thead>
           <tbody>
