@@ -6,7 +6,7 @@ import SettingsButton from "./components/SettingsButton";
 export default function Home() {
   return (
     <main
-      className="relative min-h-dvh flex flex-col items-center justify-center px-2 pt-4 pb-10"
+      className="relative min-h-dvh flex flex-col items-center justify-center px-2 pt-2 pb-5"
       style={{
         backgroundImage: "url(/rosapenna.jpg)",
         backgroundSize: "cover",
@@ -36,7 +36,7 @@ export default function Home() {
         <p className="text-white/80 text-sm sm:text-lg tracking-[0.3em] uppercase mb-1 mt-1 [text-shadow:0_2px_12px_rgba(0,0,0,0.9)]">
           16 – 18 April 2026
         </p>
-        <p className="text-white/60 text-xs tracking-[0.2em] uppercase mb-6 [text-shadow:0_2px_8px_rgba(0,0,0,0.9)]">
+        <p className="text-white/60 text-xs tracking-[0.2em] uppercase mb-3 [text-shadow:0_2px_8px_rgba(0,0,0,0.9)]">
           Rosapenna Hotel &amp; Golf Resort, Co. Donegal
         </p>
 
