@@ -39,7 +39,7 @@ export default async function LeaderboardPage() {
             The Donegal Masters
           </h1>
           <Link href="/leaderboard/individual" className="inline-flex items-center justify-center w-11 h-11 rounded-xl bg-white/10 text-[#C9A84C] hover:bg-white/15 hover:text-white transition-colors flex-shrink-0 text-[10px] tracking-widest uppercase text-center leading-tight px-1">
-            Ind
+            Solo
           </Link>
         </div>
       </div>
