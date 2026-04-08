@@ -147,7 +147,7 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
   const totalPts    = front9Pts + back9Pts
 
   return (
-    <div style={{ background: "#F5F0E8" }}>
+    <div className="rounded-t-xl overflow-hidden" style={{ background: "#F5F0E8" }}>
 
       {/* Sticky header: players + column labels */}
       <div className="sticky top-0 z-10" style={{ background: "#EAE4D5" }}>
@@ -272,16 +272,21 @@ function ScorecardModal({ team, round, holes, scores, roundHandicaps, compositeH
     <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70" />
       <div
-        className="relative bg-[#0a1a0e] rounded-t-xl flex flex-col max-h-[90vh]"
+        className="relative bg-[#0a1a0e] rounded-t-2xl flex flex-col max-h-[90vh]"
         onClick={e => e.stopPropagation()}
       >
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-3 z-10 text-white/35 hover:text-white transition-colors p-1 text-lg leading-none"
-        >
-          ✕
-        </button>
-        <div className="overflow-y-auto flex-1 px-4 pt-10 pb-8">
+        {/* Close button row — outside scroll container so it never scrolls behind */}
+        <div className="flex-shrink-0 flex items-center justify-end px-4 py-3">
+          <button
+            onClick={onClose}
+            className="text-white/40 hover:text-white transition-colors p-2 text-base leading-none"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Scrollable scorecard — sticky header inside pins to top of this container */}
+        <div className="overflow-y-auto flex-1 pb-8">
           <CompositeScorecard
             team={team}
             round={round}
