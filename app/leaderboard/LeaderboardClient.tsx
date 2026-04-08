@@ -1,15 +1,7 @@
 "use client"
 
 import { useState, Fragment } from "react"
-import Image from "next/image"
 import { features } from "@/lib/features"
-
-// Round number → course logo (matches CLAUDE.md course-to-round mapping)
-const ROUND_LOGOS: Record<number, string> = {
-  1: "/oldtomlogo.png",       // Old Tom Morris
-  2: "/stpatrickslogo.png",   // St Patrick's Links
-  3: "/sandyhillslogo.png",   // Sandy Hills
-}
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -422,24 +414,13 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
     <>
       <div className="border border-[#1e3d28]">
         {/* Sticky column headers */}
-        <div className="sticky top-[85px] z-10 grid grid-cols-[24px_1fr_36px_36px_36px_52px] gap-x-2 items-end px-4 pt-2 pb-1.5 bg-[#0a1a0e] border-b border-[#1e3d28]">
-          <span className="text-[10px] tracking-[0.15em] uppercase text-white/30">Pos</span>
-          <span className="text-[10px] tracking-[0.15em] uppercase text-white/30">Team</span>
+        <div className="sticky top-[85px] z-10 grid grid-cols-[24px_1fr_36px_36px_36px_52px] gap-x-2 items-center px-3 py-1 bg-[#0a1a0e] border-b border-[#1e3d28]">
+          <span className="text-[10px] tracking-widest uppercase text-white/30">Pos</span>
+          <span className="text-[10px] tracking-widest uppercase text-white/30">Team</span>
           {[1, 2, 3].map(n => (
-            <div key={n} className="flex flex-col items-center gap-0.5">
-              {ROUND_LOGOS[n] && (
-                <Image
-                  src={ROUND_LOGOS[n]}
-                  alt={`Round ${n}`}
-                  width={20}
-                  height={20}
-                  className="opacity-50 object-contain"
-                />
-              )}
-              <span className="text-[10px] tracking-[0.15em] uppercase text-white/30">{n}</span>
-            </div>
+            <span key={n} className="text-xs text-white/30 text-center tabular-nums">{n}</span>
           ))}
-          <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 text-right">Total</span>
+          <span className="text-[10px] tracking-widest uppercase text-white/30 text-right">Tot</span>
         </div>
 
         {/* Team rows */}
@@ -452,11 +433,11 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
             <Fragment key={team.id}>
               <button
                 onClick={() => toggleTeam(team.id)}
-                className={`w-full grid grid-cols-[24px_1fr_36px_36px_36px_52px] gap-x-2 items-center px-4 py-3 text-left active:bg-white/5 transition-colors
+                className={`w-full grid grid-cols-[24px_1fr_36px_36px_36px_52px] gap-x-2 items-center px-3 py-2 text-left active:bg-white/5 transition-colors
                   ${!isLast || isExpanded ? "border-b border-[#1e3d28]" : ""}`}
               >
                 {/* Pos */}
-                <span className="text-white/40 text-sm font-semibold tabular-nums self-start pt-1">
+                <span className="text-white/40 text-base font-semibold tabular-nums self-start pt-0.5">
                   {i + 1}
                 </span>
 
@@ -468,7 +449,7 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
                       {team.name}
                     </span>
                   </div>
-                  <div className="flex flex-col mt-0.5 pl-4">
+                  <div className="flex flex-col pl-4">
                     {members.map(p => (
                       <span key={p.id} className="text-white/35 text-xs leading-snug">{displayName(p)}</span>
                     ))}
@@ -479,14 +460,14 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
                 {[1, 2, 3].map(n => {
                   const pts = roundPts[n] ?? 0
                   return (
-                    <span key={n} className={`text-center tabular-nums text-sm self-start pt-1 ${pts > 0 ? "text-white/70" : "text-white/20"}`}>
+                    <span key={n} className={`text-center tabular-nums text-base self-start pt-0.5 ${pts > 0 ? "text-white/70" : "text-white/20"}`}>
                       {pts > 0 ? pts : "—"}
                     </span>
                   )
                 })}
 
                 {/* Total */}
-                <span className={`text-right tabular-nums font-bold self-start pt-0.5 ${total > 0 ? "text-xl text-[#C9A84C]" : "text-base text-white/20"}`}>
+                <span className={`text-right tabular-nums font-bold self-start ${total > 0 ? "text-xl text-[#C9A84C]" : "text-base text-white/20"}`}>
                   {total > 0 ? total : "—"}
                 </span>
               </button>

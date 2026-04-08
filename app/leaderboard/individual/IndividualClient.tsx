@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import Image from "next/image"
 import { features } from "@/lib/features"
 
 // ─── Types ─────────────────────────────────────────────────────
@@ -41,12 +40,6 @@ const ROLE_DOT: Record<string, string> = {
   dad: "bg-blue-400",
   mum: "bg-rose-400",
   son: "bg-emerald-400",
-}
-
-const ROUND_LOGOS: Record<number, string> = {
-  1: "/oldtomlogo.png",
-  2: "/stpatrickslogo.png",
-  3: "/sandyhillslogo.png",
 }
 
 // ─── Helpers ───────────────────────────────────────────────────
@@ -464,24 +457,13 @@ export default function IndividualClient({ rounds, players, holes, scores, round
         <div className="border border-[#1e3d28]">
 
           {/* Sticky column headers — first child so rows cannot scroll under it */}
-          <div className="sticky top-0 z-10 grid grid-cols-[24px_1fr_36px_36px_36px_52px] gap-x-2 items-end px-4 pt-2 pb-1.5 bg-[#0a1a0e] border-b border-[#1e3d28]">
-            <span className="text-white/25 text-[10px] tracking-widest uppercase">Pos</span>
-            <span className="text-white/25 text-[10px] tracking-widest uppercase">Player</span>
+          <div className="sticky top-0 z-10 grid grid-cols-[24px_1fr_36px_36px_36px_52px] gap-x-2 items-center px-3 py-1 bg-[#0a1a0e] border-b border-[#1e3d28]">
+            <span className="text-[10px] tracking-widest uppercase text-white/25">Pos</span>
+            <span className="text-[10px] tracking-widest uppercase text-white/25">Player</span>
             {rounds.map(r => (
-              <div key={r.id} className="flex flex-col items-center gap-0.5">
-                {ROUND_LOGOS[r.round_number] && (
-                  <Image
-                    src={ROUND_LOGOS[r.round_number]}
-                    alt={`Round ${r.round_number}`}
-                    width={16}
-                    height={16}
-                    className="opacity-40 object-contain"
-                  />
-                )}
-                <span className="text-white/25 text-[10px] tracking-widest">{r.round_number}</span>
-              </div>
+              <span key={r.id} className="text-xs text-white/25 text-center tabular-nums">{r.round_number}</span>
             ))}
-            <span className="text-[#C9A84C]/50 text-[10px] tracking-widest uppercase text-right">
+            <span className="text-[10px] tracking-widest uppercase text-[#C9A84C]/50 text-right">
               {viewMode === "stableford" ? "Tot" : strokesView === "nett" ? "Nett" : "Gross"}
             </span>
           </div>
@@ -500,7 +482,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
               <div
                 key={player.id}
                 onClick={() => canOpen && navigate(player.id, 0)}
-                className={`grid grid-cols-[24px_1fr_36px_36px_36px_52px] gap-x-2 items-center px-4 py-3
+                className={`grid grid-cols-[24px_1fr_36px_36px_36px_52px] gap-x-2 items-center px-3 py-2
                   border-b border-[#1e3d28] last:border-b-0
                   ${canOpen ? "cursor-pointer active:bg-white/5 transition-colors" : ""}`}
               >
@@ -531,7 +513,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
                         e.stopPropagation()
                         if (canOpenRound) navigate(player.id, j)
                       }}
-                      className={`flex items-baseline justify-center gap-0.5 text-sm font-semibold tabular-nums rounded-sm py-1 transition-colors
+                      className={`flex items-baseline justify-center gap-0.5 text-base font-semibold tabular-nums rounded-sm py-0.5 transition-colors
                         ${canOpenRound ? "cursor-pointer active:bg-white/10" : ""}
                         ${hasRound ? "text-white/70" : "text-white/20 font-normal"}`}
                     >
