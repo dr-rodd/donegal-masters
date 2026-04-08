@@ -28,7 +28,7 @@ export default function Home() {
           width={400}
           height={400}
           priority
-          className="w-full sm:w-[420px] h-auto mb-1"
+          className="w-[95%] sm:w-[420px] h-auto mb-0"
           style={{ filter: "brightness(0) saturate(100%) invert(74%) sepia(27%) saturate(739%) hue-rotate(5deg) brightness(95%) contrast(95%)" }}
         />
 
