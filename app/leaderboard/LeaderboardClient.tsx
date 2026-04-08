@@ -154,11 +154,11 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
         {/* Single player row */}
         <div className="flex items-baseline gap-3 px-3 py-2 border-b border-[#D4CBBA]">
           <span className="text-[10px] tracking-[0.15em] uppercase text-[#7A7060] flex-shrink-0" style={sf}>Players</span>
-          <div className="flex-1 min-w-0 flex items-baseline gap-3 flex-wrap">
+          <div className="flex-1 min-w-0 flex items-baseline justify-between">
             {players.map((p, i) => {
               const hcp = roundHandicaps.find(rh => rh.player_id === p.id && rh.round_id === round.id)?.playing_handicap
               return (
-                <span key={p.id} className="text-sm text-[#2C2C1E]" style={sf}>
+                <span key={p.id} className="flex-1 text-center text-sm text-[#2C2C1E]" style={sf}>
                   <span className={`text-[10px] ${muted}`}>{i + 1}.</span>
                   {" "}
                   <span className="font-[family-name:var(--font-playfair)] font-semibold">{p.name.split(" ")[0]}</span>
@@ -281,7 +281,7 @@ function ScorecardModal({ team, round, holes, scores, roundHandicaps, compositeH
         >
           ✕
         </button>
-        <div className="overflow-y-auto flex-1 px-4 pt-2 pb-8">
+        <div className="overflow-y-auto flex-1 px-4 pt-10 pb-8">
           <CompositeScorecard
             team={team}
             round={round}
