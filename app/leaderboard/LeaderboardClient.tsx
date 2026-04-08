@@ -64,15 +64,19 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
   // Hole | Par | 1 | 2 | 3 | TOT
   const grid  = "grid grid-cols-[2fr_2fr_3fr_3fr_3fr_2fr] w-full"
 
-  const scoreSymbol = (gross: number | null, par: number) => {
+  const scoreSymbol = (gross: number | null, par: number, contributor = false) => {
     if (gross === null) return <span className={`${muted} text-xl`} style={sf}>—</span>
     const diff = gross - par
     const n = <span className="text-xl font-semibold leading-none">{gross}</span>
-    if (diff <= -2) return <span className="w-10 h-10 rounded-full bg-[#C9A84C] flex items-center justify-center text-[#3A3A2E]">{n}</span>
-    if (diff === -1) return <span className="w-10 h-10 rounded-full border border-[#C9A84C] flex items-center justify-center text-[#5A4F3A]">{n}</span>
-    if (diff === 0)  return <span className={`${dark} text-xl font-semibold`} style={sf}>{gross}</span>
-    if (diff === 1)  return <span className="w-10 h-10 bg-[#E8DCBC]/50 rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
-    return               <span className="w-10 h-10 bg-[#E8DCBC] rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
+    const ring = contributor ? " ring-2 ring-[#C9A84C] ring-offset-1 ring-offset-[#F5F0E8]" : ""
+    if (diff <= -2) return <span className={`w-10 h-10 rounded-full bg-[#C9A84C] flex items-center justify-center text-[#3A3A2E]${ring}`}>{n}</span>
+    if (diff === -1) return <span className={`w-10 h-10 rounded-full border border-[#C9A84C] flex items-center justify-center text-[#5A4F3A]${ring}`}>{n}</span>
+    if (diff === 0) {
+      if (contributor) return <span className={`w-10 h-10 rounded-full border-2 border-[#C9A84C] flex items-center justify-center text-[#3A3A2E]`}>{n}</span>
+      return <span className={`${dark} text-xl font-semibold`} style={sf}>{gross}</span>
+    }
+    if (diff === 1)  return <span className={`w-10 h-10 bg-[#E8DCBC]/50 rounded-md flex items-center justify-center text-[#5A4F3A]${ring}`}>{n}</span>
+    return               <span className={`w-10 h-10 bg-[#E8DCBC] rounded-md flex items-center justify-center text-[#5A4F3A]${ring}`}>{n}</span>
   }
 
   const ptsColor = (pts: number | null) =>
@@ -145,36 +149,37 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
   return (
     <div style={{ background: "#F5F0E8" }}>
 
-      {/* Paper scorecard player header */}
-      <div style={{ background: "#EAE4D5" }}>
-        {players.map((p, i) => {
-          const hcp = roundHandicaps.find(rh => rh.player_id === p.id && rh.round_id === round.id)?.playing_handicap
-          return (
-            <div key={p.id} className="flex items-baseline gap-3 px-3 py-2 border-b border-[#D4CBBA]">
-              <span className="text-[10px] tracking-[0.15em] uppercase text-[#7A7060] w-[4.5rem] flex-shrink-0" style={sf}>
-                Player {i + 1}
-              </span>
-              <span className="font-[family-name:var(--font-playfair)] text-base text-[#2C2C1E] font-semibold flex-1 min-w-0 truncate border-b border-[#C4BAA8]">
-                {p.name}
-              </span>
-              <span className="text-[10px] tracking-[0.15em] uppercase text-[#7A7060] flex-shrink-0" style={sf}>HC</span>
-              <span className="text-sm font-semibold text-[#3A3A2E] flex-shrink-0 w-7 text-right border-b border-[#C4BAA8]" style={sf}>
-                {hcp ?? "—"}
-              </span>
-            </div>
-          )
-        })}
-      </div>
+      {/* Sticky header: players + column labels */}
+      <div className="sticky top-0 z-10" style={{ background: "#EAE4D5" }}>
+        {/* Single player row */}
+        <div className="flex items-baseline gap-3 px-3 py-2 border-b border-[#D4CBBA]">
+          <span className="text-[10px] tracking-[0.15em] uppercase text-[#7A7060] flex-shrink-0" style={sf}>Players</span>
+          <div className="flex-1 min-w-0 flex items-baseline gap-3 flex-wrap">
+            {players.map((p, i) => {
+              const hcp = roundHandicaps.find(rh => rh.player_id === p.id && rh.round_id === round.id)?.playing_handicap
+              return (
+                <span key={p.id} className="text-sm text-[#2C2C1E]" style={sf}>
+                  <span className={`text-[10px] ${muted}`}>{i + 1}.</span>
+                  {" "}
+                  <span className="font-[family-name:var(--font-playfair)] font-semibold">{p.name.split(" ")[0]}</span>
+                  {" "}
+                  <span className={`text-[10px] ${muted}`}>{hcp ?? "—"}</span>
+                </span>
+              )
+            })}
+          </div>
+        </div>
 
-      {/* Column headers */}
-      <div className={`${grid} px-3 py-1.5 border-b border-[#D4CBBA]`} style={{ background: "#EAE4D5" }}>
-        {(["Hole", "Par"] as const).map(h => (
-          <span key={h} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${muted}`} style={sf}>{h}</span>
-        ))}
-        {[1, 2, 3].map(n => (
-          <span key={n} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${muted} text-center`} style={sf}>{n}</span>
-        ))}
-        <span className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${muted} text-right`} style={sf}>TOT</span>
+        {/* Column headers */}
+        <div className={`${grid} px-3 py-1.5 border-b border-[#D4CBBA]`}>
+          {(["Hole", "Par"] as const).map(h => (
+            <span key={h} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${muted}`} style={sf}>{h}</span>
+          ))}
+          {[1, 2, 3].map(n => (
+            <span key={n} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${muted} text-center`} style={sf}>{n}</span>
+          ))}
+          <span className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${muted} text-right`} style={sf}>TOT</span>
+        </div>
       </div>
 
       {/* Front 9 */}
@@ -183,9 +188,9 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
           <span className={`text-lg font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
           <span className={`text-lg ${muted}`} style={sf}>{hole.par}</span>
           {grossScores.map((gross, pi) => (
-            <span key={pi} className={`flex flex-col items-center justify-center -my-3 py-3 gap-0.5 ${contributors[pi] ? "bg-[#C9A84C]/10" : ""}`}>
+            <span key={pi} className="flex flex-col items-center justify-center -my-3 py-3 gap-0.5">
               <span className="flex items-center gap-0.5">
-                {scoreSymbol(gross, hole.par)}
+                {scoreSymbol(gross, hole.par, contributors[pi])}
                 {stablefordScores[pi] !== null && (
                   <sup className={`text-sm leading-none ${muted}`} style={sf}>{stablefordScores[pi]}</sup>
                 )}
@@ -215,9 +220,9 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
           <span className={`text-lg font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
           <span className={`text-lg ${muted}`} style={sf}>{hole.par}</span>
           {grossScores.map((gross, pi) => (
-            <span key={pi} className={`flex flex-col items-center justify-center -my-3 py-3 gap-0.5 ${contributors[pi] ? "bg-[#C9A84C]/10" : ""}`}>
+            <span key={pi} className="flex flex-col items-center justify-center -my-3 py-3 gap-0.5">
               <span className="flex items-center gap-0.5">
-                {scoreSymbol(gross, hole.par)}
+                {scoreSymbol(gross, hole.par, contributors[pi])}
                 {stablefordScores[pi] !== null && (
                   <sup className={`text-sm leading-none ${muted}`} style={sf}>{stablefordScores[pi]}</sup>
                 )}
