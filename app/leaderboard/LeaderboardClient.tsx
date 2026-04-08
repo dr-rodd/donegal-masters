@@ -252,11 +252,11 @@ function ScorecardModal({ team, round, holes, scores, roundHandicaps, compositeH
       >
         {/* ① Title + close — always visible, never scrolls */}
         <div className="flex-shrink-0 flex items-center justify-between px-4 pt-5 pb-3">
-          <div className="min-w-0">
-            <p className="font-[family-name:var(--font-playfair)] text-white text-base leading-tight truncate">
+          <div className="min-w-0 flex items-baseline gap-3 flex-wrap">
+            <p className="font-[family-name:var(--font-playfair)] text-white text-2xl leading-tight truncate">
               {team.name}
             </p>
-            <p className="text-[#C9A84C] text-xs mt-0.5 truncate">
+            <p className="text-[#C9A84C] text-base truncate">
               {round.courses?.name ?? `Round ${round.round_number}`}
             </p>
           </div>
