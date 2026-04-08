@@ -1,7 +1,15 @@
 "use client"
 
 import { useState, Fragment } from "react"
+import Image from "next/image"
 import { features } from "@/lib/features"
+
+// Round number → course logo (matches CLAUDE.md course-to-round mapping)
+const ROUND_LOGOS: Record<number, string> = {
+  1: "/oldtomlogo.png",       // Old Tom Morris
+  2: "/stpatrickslogo.png",   // St Patrick's Links
+  3: "/sandyhillslogo.png",   // Sandy Hills
+}
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -389,14 +397,14 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
   sortedRounds.forEach(r => { roundsByNumber[r.round_number] = r })
 
   const rows = teams.map(team => {
-    let total = 0
-    let roundsWithScores = 0
+    const roundPts: Record<number, number> = {}
     for (const r of sortedRounds) {
       const courseHoles = holes.filter(h => h.course_id === r.courses?.id)
-      const pts = teamRoundPts(team, courseHoles, scores, r.id)
-      if (pts > 0) { total += pts; roundsWithScores++ }
+      roundPts[r.round_number] = teamRoundPts(team, courseHoles, scores, r.id)
     }
-    return { team, total, roundsWithScores }
+    const total = Object.values(roundPts).reduce((s, p) => s + p, 0)
+    const roundsWithScores = Object.values(roundPts).filter(p => p > 0).length
+    return { team, roundPts, total, roundsWithScores }
   }).sort((a, b) => b.total - a.total)
 
   const totalRounds = sortedRounds.length
@@ -409,81 +417,72 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
     <>
       <div className="border border-[#1e3d28]">
         {/* Sticky column headers */}
-        <div className="sticky top-[85px] z-10 flex items-center gap-3 px-4 py-2 bg-[#0a1a0e] border-b border-[#1e3d28]">
-          <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 w-6 flex-shrink-0">Pos</span>
-          <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 flex-1 min-w-0">Team</span>
-          <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 flex-shrink-0 min-w-[3.5rem] text-center">Score</span>
-          <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 flex-shrink-0 w-9 text-right">Thru</span>
+        <div className="sticky top-[85px] z-10 grid grid-cols-[24px_1fr_36px_36px_36px_52px] gap-x-2 items-end px-4 pt-2 pb-1.5 bg-[#0a1a0e] border-b border-[#1e3d28]">
+          <span className="text-[10px] tracking-[0.15em] uppercase text-white/30">Pos</span>
+          <span className="text-[10px] tracking-[0.15em] uppercase text-white/30">Team</span>
+          {[1, 2, 3].map(n => (
+            <div key={n} className="flex flex-col items-center gap-0.5">
+              {ROUND_LOGOS[n] && (
+                <Image
+                  src={ROUND_LOGOS[n]}
+                  alt={`Round ${n}`}
+                  width={20}
+                  height={20}
+                  className="opacity-50 object-contain"
+                />
+              )}
+              <span className="text-[10px] tracking-[0.15em] uppercase text-white/30">{n}</span>
+            </div>
+          ))}
+          <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 text-right">Total</span>
         </div>
 
         {/* Team rows */}
-        {rows.map(({ team, total, roundsWithScores }, i) => {
+        {rows.map(({ team, roundPts, total, roundsWithScores }, i) => {
           const isExpanded = expandedTeamId === team.id
           const isLast     = i === rows.length - 1
-          const allDone    = totalRounds > 0 && roundsWithScores === totalRounds
           const members    = sortedPlayers(team.players)
-
-          // Score pill
-          const baseline = 36 * roundsWithScores
-          const rel = total - baseline
-          let scoreDisplay: string
-          let scorePillClass: string
-          if (roundsWithScores === 0) {
-            scoreDisplay   = "—"
-            scorePillClass = "bg-white/5 text-white/25"
-          } else if (allDone) {
-            scoreDisplay   = `${total}`
-            scorePillClass = rel > 0
-              ? "bg-[#C9A84C]/15 text-[#C9A84C]"
-              : rel < 0 ? "bg-green-900/25 text-green-400"
-              : "bg-white/5 text-white/45"
-          } else {
-            scoreDisplay   = rel > 0 ? `+${rel}` : rel < 0 ? `${rel}` : "E"
-            scorePillClass = rel > 0
-              ? "bg-[#C9A84C]/15 text-[#C9A84C]"
-              : rel < 0 ? "bg-green-900/25 text-green-400"
-              : "bg-white/5 text-white/45"
-          }
-
-          const thruDisplay = allDone ? "F" : roundsWithScores > 0 ? `${roundsWithScores}` : "—"
-          const thruClass   = allDone ? "text-white/60 font-semibold" : roundsWithScores > 0 ? "text-white/30" : "text-white/15"
 
           return (
             <Fragment key={team.id}>
               <button
                 onClick={() => toggleTeam(team.id)}
-                className={`w-full flex items-center gap-3 px-4 py-3 text-left active:bg-white/5 transition-colors
+                className={`w-full grid grid-cols-[24px_1fr_36px_36px_36px_52px] gap-x-2 items-center px-4 py-3 text-left active:bg-white/5 transition-colors
                   ${!isLast || isExpanded ? "border-b border-[#1e3d28]" : ""}`}
               >
                 {/* Pos */}
-                <span className="text-white/40 text-base font-semibold w-6 flex-shrink-0 tabular-nums self-start pt-0.5">
+                <span className="text-white/40 text-sm font-semibold tabular-nums self-start pt-1">
                   {i + 1}
                 </span>
 
-                {/* Team name + member names */}
-                <div className="flex-1 min-w-0">
+                {/* Team name + member names (vertical) */}
+                <div className="min-w-0">
                   <div className="flex items-center gap-2">
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
                     <span className="font-[family-name:var(--font-playfair)] text-base text-white truncate">
                       {team.name}
                     </span>
                   </div>
-                  <div className="flex gap-2 mt-0.5 pl-4 flex-wrap">
+                  <div className="flex flex-col mt-0.5 pl-4">
                     {members.map(p => (
-                      <span key={p.id} className="text-white/35 text-xs truncate">{displayName(p)}</span>
+                      <span key={p.id} className="text-white/35 text-xs leading-snug">{displayName(p)}</span>
                     ))}
                   </div>
                 </div>
 
-                {/* Score pill */}
-                <span className={`flex-shrink-0 inline-flex items-center justify-center self-start mt-0.5
-                  px-2 py-0.5 rounded-sm text-lg font-bold tabular-nums min-w-[3.5rem] ${scorePillClass}`}>
-                  {scoreDisplay}
-                </span>
+                {/* Per-round points */}
+                {[1, 2, 3].map(n => {
+                  const pts = roundPts[n] ?? 0
+                  return (
+                    <span key={n} className={`text-center tabular-nums text-sm self-start pt-1 ${pts > 0 ? "text-white/70" : "text-white/20"}`}>
+                      {pts > 0 ? pts : "—"}
+                    </span>
+                  )
+                })}
 
-                {/* Thru */}
-                <span className={`flex-shrink-0 w-9 text-right tabular-nums text-base self-start pt-0.5 ${thruClass}`}>
-                  {thruDisplay}
+                {/* Total */}
+                <span className={`text-right tabular-nums font-bold self-start pt-0.5 ${total > 0 ? "text-xl text-[#C9A84C]" : "text-base text-white/20"}`}>
+                  {total > 0 ? total : "—"}
                 </span>
               </button>
 
