@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import ScorecardClient from "./ScorecardClient"
+import BackButton from "@/app/components/BackButton"
 
 export const revalidate = 30
 
@@ -33,9 +34,7 @@ export default async function ScorecardPage({
     <div className="min-h-dvh bg-[#0a1a0e] text-white">
       <div className="border-b border-[#1e3d28]">
         <div className="max-w-2xl mx-auto px-4 py-5 flex items-center justify-between">
-          <Link href={backHref} className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">
-            ← Back
-          </Link>
+          <BackButton href={backHref} />
           <div className="flex items-center gap-2">
             {(playerRes.data as any).teams && (
               <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: (playerRes.data as any).teams.color }} />

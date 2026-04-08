@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, Fragment } from "react"
 import { supabase } from "@/lib/supabase"
+import BackButton from "@/app/components/BackButton"
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -400,12 +401,7 @@ export default function LiveLeaderboardPanel({
           <span className="text-green-400 text-sm tracking-[0.2em] uppercase">{roundLabel}</span>
         </div>
         {showBackButton && onClose && (
-          <button
-            onClick={onClose}
-            className="text-[#C9A84C] text-sm tracking-[0.2em] uppercase hover:text-white transition-colors"
-          >
-            ← Back
-          </button>
+          <BackButton onClick={onClose} />
         )}
       </div>
 

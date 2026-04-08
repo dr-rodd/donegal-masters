@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import TeamsClient from "./TeamsClient"
 import Poller from "@/app/components/Poller"
+import BackButton from "@/app/components/BackButton"
 
 export const dynamic = "force-dynamic"
 
@@ -17,9 +18,7 @@ export default async function TeamsPage() {
     <div className="min-h-dvh bg-[#0a1a0e] text-white">
       <div className="border-b border-[#1e3d28] sticky top-0 z-20 bg-[#0a1a0e]">
         <div className="max-w-6xl mx-auto px-4 py-5 flex items-center justify-between">
-          <Link href="/" className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">
-            ← Home
-          </Link>
+          <BackButton href="/" />
           <h1 className="font-[family-name:var(--font-playfair)] text-xl text-white tracking-wide">
             Teams
           </h1>

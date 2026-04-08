@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabase"
 import ScoreEntryForm from "./ScoreEntryForm"
 import Link from "next/link"
+import BackButton from "@/app/components/BackButton"
 
 export const dynamic = "force-dynamic"
 
@@ -19,9 +20,7 @@ export default async function ScoreEntryPage() {
       {/* Header */}
       <div className="border-b border-[#1e3d28] sticky top-0 z-20 bg-[#0a1a0e]">
         <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
-          <Link href="/scoring" className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">
-            ← Scoring
-          </Link>
+          <BackButton href="/scoring" />
           <h1 className="font-[family-name:var(--font-playfair)] text-lg text-white tracking-wide">
             Score Entry
           </h1>

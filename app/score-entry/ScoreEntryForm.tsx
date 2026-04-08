@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from "react"
 import Image from "next/image"
 import { supabase } from "@/lib/supabase"
+import BackButton from "@/app/components/BackButton"
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -899,10 +900,9 @@ export default function ScoreEntryForm({ players, courses }: { players: Player[]
             {phase === "submitting" ? "Saving…" : `Submit Scorecard · ${totalPts} pts`}
           </button>
 
-          <button onClick={() => setPhase("selecting")}
-            className="w-full mt-3 py-3 text-white/30 text-sm tracking-[0.2em] uppercase hover:text-white/60 transition-colors">
-            ← Back
-          </button>
+          <div className="flex justify-center mt-3">
+            <BackButton onClick={() => setPhase("selecting")} />
+          </div>
         </>
       )}
     </div>

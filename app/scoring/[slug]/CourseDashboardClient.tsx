@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase"
 import LiveScoringFlow from "../LiveScoringFlow"
 import LiveLeaderboardPanel from "../LiveLeaderboardPanel"
 import type { ActiveLiveRound } from "../ScoringClient"
+import BackButton from "@/app/components/BackButton"
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -361,8 +362,8 @@ export default function CourseDashboardClient({
   // ─── Header ───────────────────────────────────────────────
 
   const headerLeft = view === "dashboard"
-    ? <Link href="/scoring" className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">← Courses</Link>
-    : <button onClick={goBack} className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">← Back</button>
+    ? <BackButton href="/scoring" />
+    : <BackButton onClick={goBack} />
 
   const headerRight = view === "scoring"
     ? <div className="w-[80px]" />

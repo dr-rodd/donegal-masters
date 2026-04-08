@@ -5,6 +5,7 @@ import Link from "next/link"
 import ScoreEntryForm from "@/app/score-entry/ScoreEntryForm"
 import LiveScoringFlow from "./LiveScoringFlow"
 import LiveLeaderboardPanel from "./LiveLeaderboardPanel"
+import BackButton from "@/app/components/BackButton"
 
 // ─── Types (mirrors server data shapes) ──────────────────
 
@@ -62,13 +63,8 @@ export default function ScoringClient({ players, rounds, holes, tees, roundHandi
   // ─── Header ───────────────────────────────────────────────
 
   const headerLeft = view === "landing"
-    ? <Link href="/" className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">← Home</Link>
-    : <button
-        onClick={() => { setView("landing"); setShowLiveLeaderboard(false) }}
-        className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors"
-      >
-        ← Scoring
-      </button>
+    ? <BackButton href="/" />
+    : <BackButton onClick={() => { setView("landing"); setShowLiveLeaderboard(false) }} />
 
   const headerRight = view === "landing"
     ? <Link href="/leaderboard" className="text-white/40 text-xs tracking-[0.2em] uppercase hover:text-[#C9A84C] transition-colors">Leaderboard →</Link>

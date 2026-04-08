@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useRef, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
+import BackButton from "@/app/components/BackButton"
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -373,9 +374,7 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
     return (
       <div className="max-w-lg mx-auto w-full px-4 py-8 flex flex-col gap-6">
         <div className="flex items-center gap-3">
-          <button onClick={() => setStep("mode")} className="text-[#C9A84C] text-sm tracking-[0.2em] uppercase">
-            ← Back
-          </button>
+          <BackButton onClick={() => setStep("mode")} />
           <span className="text-white/20 text-sm">|</span>
           <span className="text-white/40 text-sm tracking-[0.2em] uppercase">
             {mode === "solo" ? "Solo Entry" : "Group Entry"}
@@ -716,9 +715,7 @@ function HoleCard({
     <div className="max-w-lg mx-auto w-full px-4 py-6 flex flex-col gap-5">
       {/* Progress */}
       <div className="flex items-center justify-between">
-        <button onClick={onBack} className="text-[#C9A84C] text-sm tracking-[0.2em] uppercase">
-          ← Back
-        </button>
+        <BackButton onClick={onBack} />
         <div className="flex items-center gap-1">
           {Array.from({ length: totalHoles }).map((_, i) => (
             <div

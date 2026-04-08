@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import LeaderboardClient from "./LeaderboardClient"
 import Poller from "@/app/components/Poller"
+import BackButton from "@/app/components/BackButton"
 
 export const revalidate = 30
 
@@ -33,9 +34,7 @@ export default async function LeaderboardPage() {
     <div className="min-h-dvh bg-[#0a1a0e] text-white">
       <div className="sticky top-0 z-50 bg-[#0a1a0e] border-b border-[#1e3d28]">
         <div className="max-w-lg mx-auto px-4 py-5 flex items-center justify-between">
-          <Link href="/" className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">
-            ← Home
-          </Link>
+          <BackButton href="/" />
           <h1 className="font-[family-name:var(--font-playfair)] text-xl sm:text-2xl text-white tracking-wide">
             The Donegal Masters
           </h1>

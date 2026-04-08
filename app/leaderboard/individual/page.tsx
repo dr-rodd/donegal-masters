@@ -2,6 +2,7 @@ import { supabase } from "@/lib/supabase"
 import Link from "next/link"
 import IndividualClient from "./IndividualClient"
 import Poller from "@/app/components/Poller"
+import BackButton from "@/app/components/BackButton"
 
 export const revalidate = 30
 
@@ -20,9 +21,7 @@ export default async function IndividualPage() {
     <div className="min-h-dvh bg-[#0a1a0e] text-white">
       <div className="border-b border-[#1e3d28]">
         <div className="max-w-5xl mx-auto px-4 py-5 flex items-center justify-between">
-          <Link href="/leaderboard" className="text-[#C9A84C] text-xs tracking-[0.2em] uppercase hover:text-white transition-colors">
-            ← Leaderboard
-          </Link>
+          <BackButton href="/leaderboard" />
           <h1 className="font-[family-name:var(--font-playfair)] text-xl sm:text-2xl text-white tracking-wide">
             Individual Standings
           </h1>

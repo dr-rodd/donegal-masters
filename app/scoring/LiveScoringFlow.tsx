@@ -4,6 +4,7 @@ import React, { useState, useEffect, useRef } from "react"
 import { supabase } from "@/lib/supabase"
 import type { ActiveLiveRound } from "./ScoringClient"
 import LiveLeaderboardPanel from "./LiveLeaderboardPanel"
+import BackButton from "@/app/components/BackButton"
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -942,12 +943,7 @@ export default function LiveScoringFlow({
 
           {/* Sub-header */}
           <div className="sticky top-[57px] z-10 bg-[#0a1a0e] border-b border-[#1e3d28] px-4 py-3 flex items-center justify-between">
-            <button
-              onClick={() => setEditingPlayerId(null)}
-              className="text-[#C9A84C] text-sm tracking-[0.2em] uppercase hover:text-white transition-colors"
-            >
-              ← Back
-            </button>
+            <BackButton onClick={() => setEditingPlayerId(null)} />
             <div className="flex items-center gap-2">
               {player.teams && (
                 <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams.color }} />
