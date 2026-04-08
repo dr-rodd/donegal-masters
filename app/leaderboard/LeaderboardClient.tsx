@@ -1,7 +1,6 @@
 "use client"
 
 import { useState, Fragment } from "react"
-import { features } from "@/lib/features"
 
 // ─── Types ─────────────────────────────────────────────────────
 

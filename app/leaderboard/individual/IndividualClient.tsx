@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { features } from "@/lib/features"
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -473,10 +472,8 @@ export default function IndividualClient({ rounds, players, holes, scores, round
             <p className="px-4 py-8 text-center text-white/20 text-sm">No scores yet</p>
           ) : standings.map(({ player, byRound, hasAny, totalSF, totalGross, totalNett, hasNR, badges }, i) => {
             const totValue = getTotValue({ player, byRound, hasAny, totalSF, totalGross, totalNett, hasNR, badges })
-            const showScorecard = features.scorecardViewer()
-            const showEmojis = features.birdieEmojis()
-            const emojiStr = showEmojis ? "🦅".repeat(badges.eagles) + "🦤".repeat(badges.birdies) : ""
-            const canOpen = hasAny && showScorecard
+            const emojiStr = "🦅".repeat(badges.eagles) + "🦤".repeat(badges.birdies)
+            const canOpen = hasAny
 
             return (
               <div
@@ -505,7 +502,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
                 {byRound.map((r, j) => {
                   const val = getRoundValue(r)
                   const hasRound = r.sf !== null
-                  const canOpenRound = hasRound && showScorecard
+                  const canOpenRound = hasRound
                   return (
                     <div
                       key={j}
@@ -541,7 +538,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
       </section>
 
       {/* ── Matchplay ── */}
-      {features.matchplay() && <section>
+      <section>
         <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white mb-5">Matchplay</h2>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
@@ -592,7 +589,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
             Select two players to view matchplay
           </div>
         )}
-      </section>}
+      </section>
 
     </div>
   )
