@@ -414,7 +414,7 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
     <>
       <div className="border border-[#1e3d28]">
         {/* Sticky column headers */}
-        <div className="sticky top-[85px] z-10 grid grid-cols-[24px_1fr_36px_36px_36px_52px] gap-x-2 items-center px-3 py-1 bg-[#0a1a0e] border-b border-[#1e3d28]">
+        <div className="sticky top-[85px] z-10 grid grid-cols-[20px_1fr_44px_44px_44px_60px] gap-x-2 items-center px-3 py-1 bg-[#0a1a0e] border-b border-[#1e3d28]">
           <span className="text-[10px] tracking-widest uppercase text-white/30">Pos</span>
           <span className="text-[10px] tracking-widest uppercase text-white/30">Team</span>
           {[1, 2, 3].map(n => (
@@ -433,41 +433,39 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
             <Fragment key={team.id}>
               <button
                 onClick={() => toggleTeam(team.id)}
-                className={`w-full grid grid-cols-[24px_1fr_36px_36px_36px_52px] gap-x-2 items-center px-3 py-2 text-left active:bg-white/5 transition-colors
+                className={`w-full grid grid-cols-[20px_1fr_44px_44px_44px_60px] gap-x-2 items-center px-3 py-1 text-left active:bg-white/5 transition-colors
                   ${!isLast || isExpanded ? "border-b border-[#1e3d28]" : ""}`}
               >
                 {/* Pos */}
-                <span className="text-white/40 text-base font-semibold tabular-nums self-start pt-0.5">
+                <span className="text-white/40 text-sm font-semibold tabular-nums">
                   {i + 1}
                 </span>
 
-                {/* Team name + member names (vertical) */}
+                {/* Team name + member names (single row) */}
                 <div className="min-w-0">
-                  <div className="flex items-center gap-2">
+                  <div className="flex items-center gap-1.5">
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
                     <span className="font-[family-name:var(--font-playfair)] text-base text-white truncate">
                       {team.name}
                     </span>
                   </div>
-                  <div className="flex flex-col pl-4">
-                    {members.map(p => (
-                      <span key={p.id} className="text-white/35 text-xs leading-snug">{displayName(p)}</span>
-                    ))}
-                  </div>
+                  <p className="text-white/30 text-xs pl-3.5 truncate leading-snug">
+                    {members.map(p => displayName(p)).join(", ")}
+                  </p>
                 </div>
 
                 {/* Per-round points */}
                 {[1, 2, 3].map(n => {
                   const pts = roundPts[n] ?? 0
                   return (
-                    <span key={n} className={`text-center tabular-nums text-base self-start pt-0.5 ${pts > 0 ? "text-white/70" : "text-white/20"}`}>
+                    <span key={n} className={`text-center tabular-nums text-2xl font-semibold ${pts > 0 ? "text-white/70" : "text-white/20"}`}>
                       {pts > 0 ? pts : "—"}
                     </span>
                   )
                 })}
 
                 {/* Total */}
-                <span className={`text-right tabular-nums font-bold self-start ${total > 0 ? "text-xl text-[#C9A84C]" : "text-base text-white/20"}`}>
+                <span className={`text-right tabular-nums font-bold ${total > 0 ? "text-2xl text-[#C9A84C]" : "text-lg text-white/20"}`}>
                   {total > 0 ? total : "—"}
                 </span>
               </button>
