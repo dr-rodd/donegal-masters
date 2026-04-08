@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import Countdown from "./components/Countdown";
 import SettingsButton from "./components/SettingsButton";
 
@@ -20,17 +21,16 @@ export default function Home() {
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center text-center w-full">
 
-        {/* Top ornament */}
-        <div className="flex items-center gap-4 mb-5">
-          <div className="h-px w-14 bg-gold opacity-70" />
-          <span className="text-gold text-xs tracking-[0.3em] uppercase">Est. 2023</span>
-          <div className="h-px w-14 bg-gold opacity-70" />
-        </div>
-
-        {/* Title */}
-        <h1 className="font-[family-name:var(--font-playfair)] text-4xl sm:text-6xl font-bold text-white tracking-tight leading-tight mb-2 [text-shadow:0_2px_20px_rgba(0,0,0,0.9),0_4px_40px_rgba(0,0,0,0.7)]">
-          The Donegal Masters
-        </h1>
+        {/* Logo */}
+        <Image
+          src="/Retro_donegal_masters_logo.png"
+          alt="The Donegal Masters"
+          width={400}
+          height={400}
+          priority
+          className="w-72 sm:w-96 h-auto mb-2"
+          style={{ filter: "brightness(0) saturate(100%) invert(74%) sepia(27%) saturate(739%) hue-rotate(5deg) brightness(95%) contrast(95%)" }}
+        />
 
         {/* Subtitle */}
         <p className="text-white/80 text-sm sm:text-lg tracking-[0.3em] uppercase mb-1 [text-shadow:0_2px_12px_rgba(0,0,0,0.9)]">
