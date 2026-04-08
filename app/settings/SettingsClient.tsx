@@ -40,14 +40,20 @@ const PASSWORD = "donegal2026"
 
 async function executeAction(action: Action): Promise<void> {
   if (action === "reset-scores") {
-    const [scoresRes, hcpsRes, compositeRes] = await Promise.all([
+    const [scoresRes, hcpsRes, compositeRes, liveScoresRes, liveLocksRes, liveRoundsRes] = await Promise.all([
       supabaseAdmin.from("scores").delete().not("round_id", "is", null),
       supabaseAdmin.from("round_handicaps").delete().not("round_id", "is", null),
       supabaseAdmin.from("composite_holes").delete().not("id", "is", null),
+      supabaseAdmin.from("live_scores").delete().not("id", "is", null),
+      supabaseAdmin.from("live_player_locks").delete().not("id", "is", null),
+      supabaseAdmin.from("live_rounds").delete().not("id", "is", null),
     ])
     if (scoresRes.error) throw new Error(scoresRes.error.message)
     if (hcpsRes.error) throw new Error(hcpsRes.error.message)
     if (compositeRes.error) throw new Error(compositeRes.error.message)
+    if (liveScoresRes.error) throw new Error(liveScoresRes.error.message)
+    if (liveLocksRes.error) throw new Error(liveLocksRes.error.message)
+    if (liveRoundsRes.error) throw new Error(liveRoundsRes.error.message)
   } else {
     const { error } = await supabaseAdmin
       .from("players")

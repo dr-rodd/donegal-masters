@@ -47,18 +47,20 @@ const PASSWORD = "donegal2026"
 
 async function executeAction(action: Action): Promise<void> {
   if (action === "reset-scores") {
-    const [a, b, c, d, e] = await Promise.all([
+    const [a, b, c, d, e, f] = await Promise.all([
       supabase.from("scores").delete().not("round_id", "is", null),
       supabase.from("round_handicaps").delete().not("round_id", "is", null),
       supabase.from("composite_holes").delete().not("id", "is", null),
       supabase.from("live_scores").delete().not("id", "is", null),
-      supabase.from("live_rounds").update({ status: "closed", closed_at: new Date().toISOString() }).eq("status", "active"),
+      supabase.from("live_player_locks").delete().not("id", "is", null),
+      supabase.from("live_rounds").delete().not("id", "is", null),
     ])
     if (a.error) throw new Error(a.error.message)
     if (b.error) throw new Error(b.error.message)
     if (c.error) throw new Error(c.error.message)
     if (d.error) throw new Error(d.error.message)
     if (e.error) throw new Error(e.error.message)
+    if (f.error) throw new Error(f.error.message)
     await revalidateLeaderboards()
   } else {
     const { error } = await supabase.from("players").update({ team_id: null }).not("id", "is", null)
