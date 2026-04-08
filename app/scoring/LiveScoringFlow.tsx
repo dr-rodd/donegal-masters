@@ -1144,7 +1144,7 @@ export default function LiveScoringFlow({
 
           // Score symbol — tight fit, number fills most of symbol, uniform row height
           const scoreSymbol = (gross: number | null, ePar: number, isNR: boolean) => {
-            if (isNR) return <span className="text-orange-600 text-base font-semibold" style={{ fontFamily: "Georgia, serif" }}>NR</span>
+            if (isNR) return <span className="inline-flex items-center justify-center w-7 h-7 border border-orange-500/60 rounded-sm text-orange-500 text-xs font-semibold" style={{ fontFamily: "Georgia, serif" }}>NR</span>
             if (gross === null) return <span className="text-[#A89880] text-base">—</span>
             const diff = gross - ePar
             const n = <span className="text-base font-semibold leading-none">{gross}</span>

@@ -78,7 +78,8 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
   const dark  = SC_DARK
   const grid  = SC_GRID
 
-  const scoreSymbol = (gross: number | null, par: number, contributor = false) => {
+  const scoreSymbol = (gross: number | null, par: number, contributor = false, isNR = false) => {
+    if (isNR) return <span className="inline-flex items-center justify-center w-10 h-10 border border-orange-500/60 rounded-sm text-orange-500 text-sm font-semibold">NR</span>
     if (gross === null) return <span className={`${muted} text-xl`} style={sf}>—</span>
     const diff = gross - par
     const n = <span className="text-xl font-semibold leading-none">{gross}</span>
@@ -124,6 +125,10 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
       const s = playerScoreMaps[pi].get(hole.hole_number)
       return s ? (s.no_return ? null : s.gross_score) : null
     })
+    const isNRScores = players.map((_, pi) => {
+      const s = playerScoreMaps[pi].get(hole.hole_number)
+      return s?.no_return === true
+    })
     const stablefordScores = players.map((_, pi) => {
       const s = playerScoreMaps[pi].get(hole.hole_number)
       return s ? s.stableford_points : null
@@ -142,7 +147,7 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
       const sourceId = compositeHoleMap.get(`${p.id}:${round.id}:${hole.id}`)
       return sourceId ? (sourcePlayerColorMap.get(sourceId) ?? null) : null
     })
-    return { hole, idx, grossScores, stablefordScores, bestPts, hasScores, contributors, sourceColors }
+    return { hole, idx, grossScores, stablefordScores, bestPts, hasScores, contributors, sourceColors, isNRScores }
   })
 
   const front9 = rows.slice(0, 9)
@@ -164,14 +169,14 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
     <div style={{ background: "#F5F0E8" }}>
 
       {/* Front 9 */}
-      {front9.map(({ hole, idx, grossScores, stablefordScores, bestPts, hasScores, contributors, sourceColors }) => (
+      {front9.map(({ hole, idx, grossScores, stablefordScores, bestPts, hasScores, contributors, sourceColors, isNRScores }) => (
         <div key={hole.hole_number} className={`${grid} px-3 py-3 items-center border-b border-[#E2DAC8] ${idx % 2 === 1 ? "bg-[#EEE8D6]" : ""}`}>
           <span className={`text-lg font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
           <span className={`text-lg ${muted}`} style={sf}>{hole.par}</span>
           {grossScores.map((gross, pi) => (
             <span key={pi} className="flex flex-col items-center justify-center -my-3 py-3 gap-0.5">
               <span className="flex items-center gap-0.5">
-                {scoreSymbol(gross, hole.par, contributors[pi])}
+                {scoreSymbol(gross, hole.par, contributors[pi], isNRScores[pi])}
                 {stablefordScores[pi] !== null && (
                   <sup className={`text-sm leading-none ${muted}`} style={sf}>{stablefordScores[pi]}</sup>
                 )}
@@ -196,14 +201,14 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
       </div>
 
       {/* Back 9 */}
-      {back9.map(({ hole, idx, grossScores, stablefordScores, bestPts, hasScores, contributors, sourceColors }) => (
+      {back9.map(({ hole, idx, grossScores, stablefordScores, bestPts, hasScores, contributors, sourceColors, isNRScores }) => (
         <div key={hole.hole_number} className={`${grid} px-3 py-3 items-center border-b border-[#E2DAC8] ${idx % 2 === 0 ? "bg-[#EEE8D6]" : ""}`}>
           <span className={`text-lg font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
           <span className={`text-lg ${muted}`} style={sf}>{hole.par}</span>
           {grossScores.map((gross, pi) => (
             <span key={pi} className="flex flex-col items-center justify-center -my-3 py-3 gap-0.5">
               <span className="flex items-center gap-0.5">
-                {scoreSymbol(gross, hole.par, contributors[pi])}
+                {scoreSymbol(gross, hole.par, contributors[pi], isNRScores[pi])}
                 {stablefordScores[pi] !== null && (
                   <sup className={`text-sm leading-none ${muted}`} style={sf}>{stablefordScores[pi]}</sup>
                 )}

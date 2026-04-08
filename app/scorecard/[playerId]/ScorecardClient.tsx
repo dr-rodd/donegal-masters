@@ -330,7 +330,7 @@ export default function ScorecardClient({ player, rounds, holes, scores, roundHa
                       <td className="text-center py-1.5 px-2">
                         {s
                           ? s.no_return
-                            ? <span className={`text-orange-500 text-sm font-semibold ${crimson}`}>NR</span>
+                            ? <span className={`inline-flex items-center justify-center w-7 h-7 border border-orange-500/60 rounded-sm text-orange-500 text-xs font-semibold ${crimson}`}>NR</span>
                             : <ScoreShape gross={s.gross_score} par={hole.par} />
                           : <span className="text-gray-200 text-sm">—</span>
                         }
@@ -381,7 +381,7 @@ export default function ScorecardClient({ player, rounds, holes, scores, roundHa
                       <td className="text-center py-1.5 px-2">
                         {s
                           ? s.no_return
-                            ? <span className={`text-orange-500 text-sm font-semibold ${crimson}`}>NR</span>
+                            ? <span className={`inline-flex items-center justify-center w-7 h-7 border border-orange-500/60 rounded-sm text-orange-500 text-xs font-semibold ${crimson}`}>NR</span>
                             : <ScoreShape gross={s.gross_score} par={hole.par} />
                           : <span className="text-gray-200 text-sm">—</span>
                         }
