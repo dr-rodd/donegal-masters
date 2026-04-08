@@ -457,7 +457,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
         <div className="border border-[#1e3d28]">
 
           {/* Sticky column headers — first child so rows cannot scroll under it */}
-          <div className="sticky top-0 z-10 grid grid-cols-[24px_1fr_36px_36px_36px_52px] gap-x-2 items-center px-3 py-1 bg-[#0a1a0e] border-b border-[#1e3d28]">
+          <div className="sticky top-0 z-10 grid grid-cols-[20px_1fr_44px_44px_44px_60px] gap-x-2 items-center px-3 py-1 bg-[#0a1a0e] border-b border-[#1e3d28]">
             <span className="text-[10px] tracking-widest uppercase text-white/25">Pos</span>
             <span className="text-[10px] tracking-widest uppercase text-white/25">Player</span>
             {rounds.map(r => (
@@ -482,7 +482,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
               <div
                 key={player.id}
                 onClick={() => canOpen && navigate(player.id, 0)}
-                className={`grid grid-cols-[24px_1fr_36px_36px_36px_52px] gap-x-2 items-center px-3 py-2
+                className={`grid grid-cols-[20px_1fr_44px_44px_44px_60px] gap-x-2 items-center px-3 py-1
                   border-b border-[#1e3d28] last:border-b-0
                   ${canOpen ? "cursor-pointer active:bg-white/5 transition-colors" : ""}`}
               >
@@ -513,7 +513,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
                         e.stopPropagation()
                         if (canOpenRound) navigate(player.id, j)
                       }}
-                      className={`flex items-baseline justify-center gap-0.5 text-base font-semibold tabular-nums rounded-sm py-0.5 transition-colors
+                      className={`flex items-baseline justify-center gap-0.5 text-2xl font-semibold tabular-nums rounded-sm py-0.5 transition-colors
                         ${canOpenRound ? "cursor-pointer active:bg-white/10" : ""}
                         ${hasRound ? "text-white/70" : "text-white/20 font-normal"}`}
                     >
@@ -531,7 +531,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
 
                 {/* TOT */}
                 <span className={`text-right font-[family-name:var(--font-playfair)] tabular-nums
-                  ${hasAny ? "text-[#C9A84C] text-xl font-bold" : "text-white/20 text-sm font-normal"}`}>
+                  ${hasAny ? "text-[#C9A84C] text-2xl font-bold" : "text-white/20 text-sm font-normal"}`}>
                   {hasAny ? totValue : "—"}
                 </span>
               </div>
