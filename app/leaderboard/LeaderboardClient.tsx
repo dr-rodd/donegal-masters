@@ -276,10 +276,10 @@ function ScorecardModal({ team, round, holes, scores, roundHandicaps, compositeH
         onClick={e => e.stopPropagation()}
       >
         {/* Close button row — outside scroll container so it never scrolls behind */}
-        <div className="flex-shrink-0 flex items-center justify-end px-4 py-3">
+        <div className="flex-shrink-0 flex items-center justify-end px-4 py-2">
           <button
             onClick={onClose}
-            className="text-white/40 hover:text-white transition-colors p-2 text-base leading-none"
+            className="text-white/50 hover:text-white transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center text-xl"
           >
             ✕
           </button>
