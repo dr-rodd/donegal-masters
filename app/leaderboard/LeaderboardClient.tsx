@@ -23,6 +23,13 @@ interface Props {
   compositeHoles: CompositeHole[]
 }
 
+// ─── Scorecard styling constants ───────────────────────────────
+
+const SC_SF    = { fontFamily: "Georgia, serif" }
+const SC_MUTED = "text-[#7A7060]"
+const SC_DARK  = "text-[#3A3A2E]"
+const SC_GRID  = "grid grid-cols-[2fr_2fr_3fr_3fr_3fr_2fr] w-full"
+
 // ─── Player helpers ────────────────────────────────────────────
 
 const ROLE_ORDER: Record<string, number> = { dad: 0, mum: 1, son: 2 }
@@ -58,11 +65,10 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
   const players = sortedPlayers(team.players)
   if (players.length === 0) return null
 
-  const sf    = { fontFamily: "Georgia, serif" }
-  const muted = "text-[#7A7060]"
-  const dark  = "text-[#3A3A2E]"
-  // Hole | Par | 1 | 2 | 3 | TOT
-  const grid  = "grid grid-cols-[2fr_2fr_3fr_3fr_3fr_2fr] w-full"
+  const sf    = SC_SF
+  const muted = SC_MUTED
+  const dark  = SC_DARK
+  const grid  = SC_GRID
 
   const scoreSymbol = (gross: number | null, par: number, contributor = false) => {
     if (gross === null) return <span className={`${muted} text-xl`} style={sf}>—</span>
@@ -147,40 +153,7 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
   const totalPts    = front9Pts + back9Pts
 
   return (
-    <div className="rounded-t-xl overflow-hidden" style={{ background: "#F5F0E8" }}>
-
-      {/* Sticky header: players + column labels */}
-      <div className="sticky top-0 z-10" style={{ background: "#EAE4D5" }}>
-        {/* Single player row */}
-        <div className="flex items-baseline gap-3 px-3 py-2 border-b border-[#D4CBBA]">
-          <span className="text-[10px] tracking-[0.15em] uppercase text-[#7A7060] flex-shrink-0" style={sf}>Players</span>
-          <div className="flex-1 min-w-0 flex items-baseline justify-between">
-            {players.map((p, i) => {
-              const hcp = roundHandicaps.find(rh => rh.player_id === p.id && rh.round_id === round.id)?.playing_handicap
-              return (
-                <span key={p.id} className="flex-1 text-center text-sm text-[#2C2C1E]" style={sf}>
-                  <span className={`text-[10px] ${muted}`}>{i + 1}.</span>
-                  {" "}
-                  <span className="font-[family-name:var(--font-playfair)] font-semibold">{p.name.split(" ")[0]}</span>
-                  {" "}
-                  <span className={`text-[10px] ${muted}`}>{hcp ?? "—"}</span>
-                </span>
-              )
-            })}
-          </div>
-        </div>
-
-        {/* Column headers */}
-        <div className={`${grid} px-3 py-1.5 border-b border-[#D4CBBA]`}>
-          {(["Hole", "Par"] as const).map(h => (
-            <span key={h} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${muted}`} style={sf}>{h}</span>
-          ))}
-          {[1, 2, 3].map(n => (
-            <span key={n} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${muted} text-center`} style={sf}>{n}</span>
-          ))}
-          <span className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${muted} text-right`} style={sf}>TOT</span>
-        </div>
-      </div>
+    <div style={{ background: "#F5F0E8" }}>
 
       {/* Front 9 */}
       {front9.map(({ hole, idx, grossScores, stablefordScores, bestPts, hasScores, contributors, sourceColors }) => (
@@ -268,6 +241,8 @@ function ScorecardModal({ team, round, holes, scores, roundHandicaps, compositeH
   team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]
   compositeHoles: CompositeHole[]; allTeams: Team[]; onClose: () => void
 }) {
+  const players = sortedPlayers(team.players)
+
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70" />
@@ -275,27 +250,70 @@ function ScorecardModal({ team, round, holes, scores, roundHandicaps, compositeH
         className="relative bg-[#0a1a0e] rounded-t-2xl flex flex-col max-h-[90vh]"
         onClick={e => e.stopPropagation()}
       >
-        {/* Close button row — outside scroll container so it never scrolls behind */}
-        <div className="flex-shrink-0 flex items-center justify-end px-4 py-2">
+        {/* ① Title + close — always visible, never scrolls */}
+        <div className="flex-shrink-0 flex items-center justify-between px-4 pt-5 pb-3">
+          <div className="min-w-0">
+            <p className="font-[family-name:var(--font-playfair)] text-white text-base leading-tight truncate">
+              {team.name}
+            </p>
+            <p className="text-[#C9A84C] text-xs mt-0.5 truncate">
+              {round.courses?.name ?? `Round ${round.round_number}`}
+            </p>
+          </div>
           <button
             onClick={onClose}
-            className="text-white/50 hover:text-white transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center text-xl"
+            className="text-white/50 hover:text-white transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center text-xl flex-shrink-0"
           >
             ✕
           </button>
         </div>
 
-        {/* Scrollable scorecard — sticky header inside pins to top of this container */}
-        <div className="overflow-y-auto flex-1 pb-8">
-          <CompositeScorecard
-            team={team}
-            round={round}
-            holes={holes}
-            scores={scores}
-            roundHandicaps={roundHandicaps}
-            compositeHoles={compositeHoles}
-            allTeams={allTeams}
-          />
+        {/* Parchment card — fills remaining height, clips rounded corners */}
+        <div className="flex flex-col flex-1 min-h-0 rounded-t-xl overflow-hidden" style={{ background: "#F5F0E8" }}>
+
+          {/* ② Players row — always visible, never scrolls */}
+          <div className="flex-shrink-0 flex items-baseline gap-3 px-3 py-2 border-b border-[#D4CBBA]" style={{ background: "#EAE4D5" }}>
+            <span className="text-[10px] tracking-[0.15em] uppercase flex-shrink-0" style={{ ...SC_SF, color: "#7A7060" }}>Players</span>
+            <div className="flex-1 min-w-0 flex items-baseline justify-between">
+              {players.map((p, i) => {
+                const hcp = roundHandicaps.find(rh => rh.player_id === p.id && rh.round_id === round.id)?.playing_handicap
+                return (
+                  <span key={p.id} className="flex-1 text-center text-sm text-[#2C2C1E]" style={SC_SF}>
+                    <span className={`text-[10px] ${SC_MUTED}`}>{i + 1}.</span>
+                    {" "}
+                    <span className="font-[family-name:var(--font-playfair)] font-semibold">{p.name.split(" ")[0]}</span>
+                    {" "}
+                    <span className={`text-[10px] ${SC_MUTED}`}>{hcp ?? "—"}</span>
+                  </span>
+                )
+              })}
+            </div>
+          </div>
+
+          {/* ③ Column headers — always visible, never scrolls */}
+          <div className={`flex-shrink-0 ${SC_GRID} px-3 py-1.5 border-b border-[#D4CBBA]`} style={{ background: "#EAE4D5" }}>
+            {(["Hole", "Par"] as const).map(h => (
+              <span key={h} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${SC_MUTED}`} style={SC_SF}>{h}</span>
+            ))}
+            {[1, 2, 3].map(n => (
+              <span key={n} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${SC_MUTED} text-center`} style={SC_SF}>{n}</span>
+            ))}
+            <span className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${SC_MUTED} text-right`} style={SC_SF}>TOT</span>
+          </div>
+
+          {/* Score rows — only this scrolls */}
+          <div className="overflow-y-auto flex-1 pb-8">
+            <CompositeScorecard
+              team={team}
+              round={round}
+              holes={holes}
+              scores={scores}
+              roundHandicaps={roundHandicaps}
+              compositeHoles={compositeHoles}
+              allTeams={allTeams}
+            />
+          </div>
+
         </div>
       </div>
     </div>
