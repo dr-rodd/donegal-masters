@@ -464,7 +464,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
         <div className="border border-[#1e3d28]">
 
           {/* Sticky column headers — first child so rows cannot scroll under it */}
-          <div className="sticky top-[85px] z-10 grid grid-cols-[24px_1fr_36px_36px_36px_52px] gap-x-2 items-end px-4 pt-2 pb-1.5 bg-[#0a1a0e] border-b border-[#1e3d28]">
+          <div className="sticky top-0 z-10 grid grid-cols-[24px_1fr_36px_36px_36px_52px] gap-x-2 items-end px-4 pt-2 pb-1.5 bg-[#0a1a0e] border-b border-[#1e3d28]">
             <span className="text-white/25 text-[10px] tracking-widest uppercase">Pos</span>
             <span className="text-white/25 text-[10px] tracking-widest uppercase">Player</span>
             {rounds.map(r => (
