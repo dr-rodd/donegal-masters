@@ -328,7 +328,7 @@ export default function LiveScoringFlow({
 
       const { data: existingScores } = await supabase
         .from("live_scores")
-        .select("player_id, hole_number, gross_score, stableford_points")
+        .select("player_id, hole_number, gross_score, stableford_points, no_return")
         .in("player_id", lockedIds)
         .eq("round_id", rId)
 
@@ -352,7 +352,7 @@ export default function LiveScoringFlow({
         if (!scoreState[idx]) scoreState[idx] = {}
         scoreState[idx][row.player_id] = {
           gross: row.gross_score,
-          isNR: false,
+          isNR: row.no_return === true,
           stableford: row.stableford_points,
         }
       }
@@ -1116,20 +1116,21 @@ export default function LiveScoringFlow({
             const hs      = scores[idx]?.[player.id]
             const ePar    = effectivePar(hole, player.gender, courseId)
             const eSI     = effectiveSI(hole, player.gender, courseId)
-            const isNR    = hs?.isNR === true
-            const gross   = isNR ? null : (hs?.gross ?? null)
-            const pts     = isNR ? 0 : gross !== null
+            const isNR      = hs?.isNR === true
+            const gross     = isNR ? null : (hs?.gross ?? null)  // null for NR display
+            const grossFull = hs?.gross ?? null                   // NR max gross for subtotals
+            const pts       = isNR ? 0 : gross !== null
               ? (hs?.stableford ?? calcStableford(gross, ePar, eSI, playingHcp))
               : null
             const yardage = yardageForTee(hole, tee.name)
 
             if (pts !== null) { totalPts += pts; hasAnyScore = true }
-            if (gross !== null) totalGross += gross
+            if (grossFull !== null) totalGross += grossFull
             if (yardage) totalYards += yardage
             totalPar += ePar
             if (idx < 9) {
               if (pts !== null) front9Pts += pts
-              if (gross !== null) front9Gross += gross
+              if (grossFull !== null) front9Gross += grossFull
               if (yardage) front9Yards += yardage
               front9Par += ePar
             }
