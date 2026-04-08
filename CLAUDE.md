@@ -75,6 +75,10 @@ These tables power the active scoring flow and exist only in the Supabase databa
 | `leaderboard_by_round` | Best stableford score per hole per team per round, with `running_team_total` |
 | `leaderboard_summary` | Total team points per round, ordered by score descending |
 
+### Composite Player Notes
+
+Composite players have `team_id = NULL`. PostgREST nested queries using `teams.select("players(...)")` will silently exclude composite players. Always fetch players in a flat query joined server-side when composite players need to be included.
+
 ### Key Constraints
 
 - One dad, one mum, one son per team — dad/mum uniqueness enforced via partial unique indexes
