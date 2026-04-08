@@ -1,5 +1,4 @@
 import { supabase } from "@/lib/supabase"
-import Link from "next/link"
 import TeamsClient from "./TeamsClient"
 import Poller from "@/app/components/Poller"
 import BackButton from "@/app/components/BackButton"
@@ -22,9 +21,7 @@ export default async function TeamsPage() {
           <h1 className="font-[family-name:var(--font-playfair)] text-xl text-white tracking-wide">
             Teams
           </h1>
-          <Link href="/leaderboard" className="text-white/40 text-xs tracking-[0.2em] uppercase hover:text-[#C9A84C] transition-colors">
-            Leaderboard →
-          </Link>
+          <div className="w-11" />
         </div>
       </div>
 
