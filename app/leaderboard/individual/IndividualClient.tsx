@@ -460,31 +460,33 @@ export default function IndividualClient({ rounds, players, holes, scores, round
           </div>
         </div>
 
-        {/* Column headers */}
-        <div className="sticky top-[85px] z-10 grid grid-cols-[24px_1fr_36px_36px_36px_52px] gap-x-2 items-end px-4 pt-2 pb-1.5 bg-[#0a1a0e] border-b border-[#1e3d28]">
-          <span className="text-white/25 text-[10px] tracking-widest uppercase">Pos</span>
-          <span className="text-white/25 text-[10px] tracking-widest uppercase">Player</span>
-          {rounds.map(r => (
-            <div key={r.id} className="flex flex-col items-center gap-0.5">
-              {ROUND_LOGOS[r.round_number] && (
-                <Image
-                  src={ROUND_LOGOS[r.round_number]}
-                  alt={`Round ${r.round_number}`}
-                  width={16}
-                  height={16}
-                  className="opacity-40 object-contain"
-                />
-              )}
-              <span className="text-white/25 text-[10px] tracking-widest">{r.round_number}</span>
-            </div>
-          ))}
-          <span className="text-[#C9A84C]/50 text-[10px] tracking-widest uppercase text-right">
-            {viewMode === "stableford" ? "Tot" : strokesView === "nett" ? "Nett" : "Gross"}
-          </span>
-        </div>
+        {/* Card: sticky column header + rows */}
+        <div className="border border-[#1e3d28]">
 
-        {/* Rows */}
-        <div className="border border-[#1e3d28] rounded-sm overflow-hidden">
+          {/* Sticky column headers — first child so rows cannot scroll under it */}
+          <div className="sticky top-[85px] z-10 grid grid-cols-[24px_1fr_36px_36px_36px_52px] gap-x-2 items-end px-4 pt-2 pb-1.5 bg-[#0a1a0e] border-b border-[#1e3d28]">
+            <span className="text-white/25 text-[10px] tracking-widest uppercase">Pos</span>
+            <span className="text-white/25 text-[10px] tracking-widest uppercase">Player</span>
+            {rounds.map(r => (
+              <div key={r.id} className="flex flex-col items-center gap-0.5">
+                {ROUND_LOGOS[r.round_number] && (
+                  <Image
+                    src={ROUND_LOGOS[r.round_number]}
+                    alt={`Round ${r.round_number}`}
+                    width={16}
+                    height={16}
+                    className="opacity-40 object-contain"
+                  />
+                )}
+                <span className="text-white/25 text-[10px] tracking-widest">{r.round_number}</span>
+              </div>
+            ))}
+            <span className="text-[#C9A84C]/50 text-[10px] tracking-widest uppercase text-right">
+              {viewMode === "stableford" ? "Tot" : strokesView === "nett" ? "Nett" : "Gross"}
+            </span>
+          </div>
+
+          {/* Rows */}
           {standings.length === 0 ? (
             <p className="px-4 py-8 text-center text-white/20 text-sm">No scores yet</p>
           ) : standings.map(({ player, byRound, hasAny, totalSF, totalGross, totalNett, hasNR, badges }, i) => {
