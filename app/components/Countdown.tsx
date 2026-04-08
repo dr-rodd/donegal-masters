@@ -68,7 +68,7 @@ export default function Countdown({ children }: { children: React.ReactNode }) {
           <div className="overflow-hidden flex flex-col items-center">
 
             {/* Divider above timer */}
-            <div className="flex items-center gap-4 mb-5">
+            <div className="flex items-center gap-4 mb-2">
               <div className="h-px w-16 bg-gold/40" />
               <div className="w-1.5 h-1.5 rounded-full bg-gold/60" />
               <div className="h-px w-16 bg-gold/40" />
@@ -101,13 +101,13 @@ export default function Countdown({ children }: { children: React.ReactNode }) {
             ) : null}
 
             {/* Spacer so divider below timer has breathing room */}
-            <div className="mt-5" />
+            <div className="mt-2" />
           </div>
         </div>
       )}
 
       {/* ── Divider always present above nav ── */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex items-center gap-4 mb-3">
         <div className="h-px w-16 bg-gold/40" />
         <div className="w-1.5 h-1.5 rounded-full bg-gold/60" />
         <div className="h-px w-16 bg-gold/40" />
