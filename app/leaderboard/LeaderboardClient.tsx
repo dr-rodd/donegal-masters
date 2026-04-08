@@ -248,7 +248,7 @@ function ScorecardModal({ team, round, holes, scores, roundHandicaps, compositeH
       <div className="absolute inset-0 bg-black/70" />
       <div
         className="relative bg-[#0a1a0e] rounded-t-2xl flex flex-col max-h-[90vh]"
-        style={{ paddingTop: "env(safe-area-inset-top)" }}
+        style={{ paddingTop: "max(env(safe-area-inset-top), 16px)" }}
         onClick={e => e.stopPropagation()}
       >
         {/* ① Title + close — always visible, never scrolls */}
