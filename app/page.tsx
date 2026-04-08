@@ -6,7 +6,7 @@ import SettingsButton from "./components/SettingsButton";
 export default function Home() {
   return (
     <main
-      className="relative min-h-dvh flex flex-col items-center justify-center px-6 pt-10 pb-10"
+      className="relative min-h-dvh flex flex-col items-center justify-center px-2 pt-4 pb-10"
       style={{
         backgroundImage: "url(/rosapenna.jpg)",
         backgroundSize: "cover",
@@ -28,12 +28,12 @@ export default function Home() {
           width={400}
           height={400}
           priority
-          className="w-[90vw] sm:w-96 h-auto mb-2"
+          className="w-full sm:w-[420px] h-auto mb-0"
           style={{ filter: "brightness(0) saturate(100%) invert(74%) sepia(27%) saturate(739%) hue-rotate(5deg) brightness(95%) contrast(95%)" }}
         />
 
         {/* Subtitle */}
-        <p className="text-white/80 text-sm sm:text-lg tracking-[0.3em] uppercase mb-1 [text-shadow:0_2px_12px_rgba(0,0,0,0.9)]">
+        <p className="text-white/80 text-sm sm:text-lg tracking-[0.3em] uppercase mb-1 mt-1 [text-shadow:0_2px_12px_rgba(0,0,0,0.9)]">
           16 – 18 April 2026
         </p>
         <p className="text-white/60 text-xs tracking-[0.2em] uppercase mb-6 [text-shadow:0_2px_8px_rgba(0,0,0,0.9)]">
