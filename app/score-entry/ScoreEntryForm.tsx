@@ -849,7 +849,7 @@ export default function ScoreEntryForm({ players, courses }: { players: Player[]
       {(phase === "entering" || phase === "submitting") && (
         <>
           {/* Sticky header */}
-          <div className="sticky top-[61px] z-10 bg-[#0a1a0e] border border-[#1e3d28] rounded-sm px-4 py-3 mb-4 flex items-center justify-between">
+          <div className="sticky top-[77px] z-10 bg-[#0a1a0e] border border-[#1e3d28] rounded-sm px-4 py-3 mb-4 flex items-center justify-between">
             <div>
               <p className="text-white font-semibold text-base">{player?.name}</p>
               <div className="flex items-center gap-2 mt-0.5">

@@ -444,7 +444,7 @@ export default function LiveLeaderboardPanel({
       ) : (
         <div className="border border-[#1e3d28]">
           {/* Column headers — sticky below main nav */}
-          <div className="sticky top-[57px] z-10 flex items-center gap-3 px-4 py-2 bg-[#0a1a0e] border-b border-[#1e3d28]">
+          <div className="sticky top-[77px] z-10 flex items-center gap-3 px-4 py-2 bg-[#0a1a0e] border-b border-[#1e3d28]">
             <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 w-6 flex-shrink-0">Pos</span>
             <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 flex-1 min-w-0">Player</span>
             <span className="text-[10px] tracking-[0.15em] uppercase text-white/30 flex-shrink-0 min-w-[3.5rem] text-center">Score</span>

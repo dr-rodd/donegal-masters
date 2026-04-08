@@ -939,10 +939,10 @@ export default function LiveScoringFlow({
       const { player, playingHcp } = editSetup
 
       return (
-        <div className="flex flex-col" style={{ minHeight: "calc(100dvh - 57px)" }}>
+        <div className="flex flex-col" style={{ minHeight: "calc(100dvh - 77px)" }}>
 
           {/* Sub-header */}
-          <div className="sticky top-[57px] z-10 bg-[#0a1a0e] border-b border-[#1e3d28] px-4 py-3 flex items-center justify-between">
+          <div className="sticky top-[77px] z-10 bg-[#0a1a0e] border-b border-[#1e3d28] px-4 py-3 flex items-center justify-between">
             <BackButton onClick={() => setEditingPlayerId(null)} />
             <div className="flex items-center gap-2">
               {player.teams && (
@@ -1174,7 +1174,7 @@ export default function LiveScoringFlow({
               </div>
 
               {/* Sticky: player details row + column header row */}
-              <div className="sticky top-[57px] z-10">
+              <div className="sticky top-[77px] z-10">
 
                 {/* Player details row */}
                 <div className="flex items-end gap-4 px-4 py-2.5 border-b border-[#D4CBBA]" style={{ background: "#EAE4D5" }}>
