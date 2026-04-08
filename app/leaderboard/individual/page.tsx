@@ -25,7 +25,7 @@ export default async function IndividualPage() {
           <h1 className="font-[family-name:var(--font-playfair)] text-xl sm:text-2xl text-white tracking-wide">
             Individual Standings
           </h1>
-          <span className="text-white/30 text-xs tracking-widest uppercase hidden sm:block">2026</span>
+          <div className="w-11" />
         </div>
       </div>
 
