@@ -531,14 +531,16 @@ export default function IndividualClient({ rounds, players, holes, scores, round
                         e.stopPropagation()
                         if (canOpenRound) navigate(player.id, j)
                       }}
-                      className={`flex flex-col items-center justify-center text-sm font-semibold tabular-nums rounded-sm py-1 transition-colors
+                      className={`flex items-baseline justify-center gap-0.5 text-sm font-semibold tabular-nums rounded-sm py-1 transition-colors
                         ${canOpenRound ? "cursor-pointer active:bg-white/10" : ""}
                         ${hasRound ? "text-white/70" : "text-white/20 font-normal"}`}
                     >
                       {hasRound ? (
                         <>
                           {val}
-                          {r.hasNR && <span className="text-orange-400/60 text-[8px] leading-none">NR</span>}
+                          {r.hasNR && viewMode === "strokes" && strokesView === "gross" && (
+                            <span className="text-orange-400/60 text-[8px] leading-none">NR</span>
+                          )}
                         </>
                       ) : "—"}
                     </div>
