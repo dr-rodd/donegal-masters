@@ -11,10 +11,11 @@ export default async function ScorecardPage({
   searchParams,
 }: {
   params: Promise<{ playerId: string }>
-  searchParams: Promise<{ from?: string }>
+  searchParams: Promise<{ from?: string; round?: string }>
 }) {
   const { playerId } = await params
-  const { from } = await searchParams
+  const { from, round } = await searchParams
+  const initialRoundIdx = round ? Math.max(0, parseInt(round, 10)) : 0
 
   const [playerRes, roundsRes, holesRes, scoresRes, hcpsRes, teesRes, compositeHolesRes] = await Promise.all([
     supabase.from("players").select("id, name, role, gender, handicap, is_composite, teams(name, color)").eq("id", playerId).single(),
@@ -61,6 +62,7 @@ export default async function ScorecardPage({
           roundHandicaps={hcpsRes.data ?? []}
           tees={(teesRes.data ?? []) as any}
           compositeHoles={compositeHolesRes.data ?? []}
+          initialRoundIdx={initialRoundIdx}
         />
       </div>
     </div>

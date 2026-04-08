@@ -37,6 +37,7 @@ interface Props {
   roundHandicaps: RoundHcp[]
   tees: Tee[]
   compositeHoles?: CompositeHole[]
+  initialRoundIdx?: number
 }
 
 // ─── Constants ─────────────────────────────────────────────────
@@ -111,8 +112,8 @@ function SubtotalRow({
 
 // ─── Main component ────────────────────────────────────────────
 
-export default function ScorecardClient({ player, rounds, holes, scores, roundHandicaps, tees, compositeHoles = [] }: Props) {
-  const [{ idx, dir }, setNav] = useState({ idx: 0, dir: "" })
+export default function ScorecardClient({ player, rounds, holes, scores, roundHandicaps, tees, compositeHoles = [], initialRoundIdx = 0 }: Props) {
+  const [{ idx, dir }, setNav] = useState({ idx: Math.min(initialRoundIdx, Math.max(0, rounds.length - 1)), dir: "" })
   const touchStartX = useRef(0)
 
   function goTo(newIdx: number) {
