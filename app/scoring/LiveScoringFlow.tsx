@@ -883,7 +883,7 @@ export default function LiveScoringFlow({
 
     return (
       <div
-        className="overflow-hidden"
+        className="overflow-x-hidden"
         onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX }}
         onTouchEnd={(e) => {
           if (touchStartX.current === null) return
@@ -1342,7 +1342,7 @@ function HoleCard({
   }
 
   return (
-    <div className="max-w-lg mx-auto w-full px-4 py-6 flex flex-col gap-4">
+    <div className="max-w-lg mx-auto w-full px-4 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] flex flex-col gap-4">
 
       {/* One tile per player */}
       <div className="flex flex-col gap-3">
