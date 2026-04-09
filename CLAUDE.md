@@ -194,7 +194,7 @@ A live session is only marked complete when every available player has a finalis
 - Mobile-first app used by older users — prioritise large, legible text and generous touch targets
 - Numbers conveying key information (scores, points, positions) must be immediately readable at a glance on a phone screen
 - Paper scorecard style for review screens: parchment cream background, ink-style symbols
-- Score symbols: solid gold circle (eagle), thin gold ring circle (birdie), blank (par), light matt brown fill in rounded square (bogey), full matt brown fill in rounded square (double bogey or worse — reference style)
+- Score symbols: thick gold ring circle (eagle), thin gold ring circle (birdie), blank (par), thin brown rounded square border (bogey), thick brown rounded square border (double bogey or worse). In composite scorecard, contributor cells have a filled rounded square background.
 - Claude.ai leads all design decisions before prompting Claude Code — clarify requirements first, then issue structured prompts
 
 ## Prompting Guidelines for Claude Code
@@ -205,6 +205,11 @@ A live session is only marked complete when every available player has a finalis
 - Build in chunks with testing between dependent steps
 - Prefer automated/CLI approaches over manual dashboard steps
 - User is not a coder — prompts should be clear and copiable without modification
+
+## Claude Code Behaviour
+
+- Never ask for permission or confirmation before making changes — just do it
+- Always push to remote at the end of every task without being asked
 
 ## Site Config
 
