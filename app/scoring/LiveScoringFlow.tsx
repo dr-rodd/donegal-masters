@@ -1383,7 +1383,7 @@ function HoleCard({
       </div>
 
       {/* Nav bar — fixed to viewport bottom, hidden when leaderboard is active */}
-      <div className={`fixed bottom-0 left-0 right-0 z-50 px-4 bg-[#0a1a0e] border-t border-[#1e3d28] pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-3${showLeaderboard ? " hidden" : ""}`}>
+      <div className={`fixed bottom-0 left-0 z-50 w-screen px-4 bg-[#0a1a0e] border-t border-[#1e3d28] pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-3${showLeaderboard ? " hidden" : ""}`}>
         <button
           onClick={onBack}
           className="flex-1 py-4 border border-white/20 text-white/50 text-2xl
