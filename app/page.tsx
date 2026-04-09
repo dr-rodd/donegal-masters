@@ -20,6 +20,13 @@ export default function Home() {
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center text-center w-full">
 
+        {/* Est. ornament */}
+        <div className="flex items-center gap-4 mb-4">
+          <div className="h-px w-14 bg-gold opacity-70" />
+          <span className="text-gold text-xs tracking-[0.3em] uppercase">Est. 2023</span>
+          <div className="h-px w-14 bg-gold opacity-70" />
+        </div>
+
         {/* Logo */}
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img
@@ -27,13 +34,6 @@ export default function Home() {
           alt="The Donegal Masters"
           style={{ width: "95vw", maxWidth: "360px", marginLeft: "auto", marginRight: "auto", height: "auto", display: "block", filter: "brightness(0) saturate(100%) invert(74%) sepia(27%) saturate(739%) hue-rotate(5deg) brightness(95%) contrast(95%)" }}
         />
-
-        {/* Est. ornament */}
-        <div className="flex items-center gap-4 mt-3 mb-3">
-          <div className="h-px w-14 bg-gold opacity-70" />
-          <span className="text-gold text-xs tracking-[0.3em] uppercase">Est. 2023</span>
-          <div className="h-px w-14 bg-gold opacity-70" />
-        </div>
 
         {/* Subtitle */}
         <p className="text-white/80 text-sm sm:text-lg tracking-[0.3em] uppercase mb-0 [text-shadow:0_2px_12px_rgba(0,0,0,0.9)]">
