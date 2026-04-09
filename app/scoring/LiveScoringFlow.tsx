@@ -1343,8 +1343,8 @@ function HoleCard({
 
   return (
     <>
-      {/* Tiles — bottom padding reserves space for the fixed nav bar */}
-      <div className="max-w-lg mx-auto w-full px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] flex flex-col gap-3">
+      {/* Tiles + inline back button — bottom padding reserves space for fixed footer */}
+      <div className="max-w-lg mx-auto w-full px-4 pt-4 pb-[calc(4rem+env(safe-area-inset-bottom,0px))] flex flex-col gap-3">
         {playerSetups.map(({ player, playingHcp, tee }) => {
           const hs   = holeScores[player.id] ?? { gross: null, isNR: false, stableford: null }
           const ePar = effectivePar(hole, player.gender, courseId)
@@ -1367,22 +1367,24 @@ function HoleCard({
             />
           )
         })}
-      </div>
 
-      {/* Fixed nav bar — always anchored to viewport bottom */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 px-4 bg-[#0a1a0e] border-t border-[#1e3d28] pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-3">
+        {/* Back button — inline, scrolls with content */}
         <button
           onClick={onBack}
-          className="flex-1 py-4 border border-white/20 text-white/50 text-2xl
+          className="w-full py-3 border border-white/20 text-white/50 text-2xl
             hover:border-white/40 hover:text-white/70 active:bg-white/5 transition-colors rounded-sm"
           aria-label="Previous hole"
         >
           ←
         </button>
+      </div>
+
+      {/* Fixed footer — next hole only */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 px-4 bg-[#0a1a0e] border-t border-[#1e3d28] pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom,0px))]">
         <button
           onClick={() => onSubmit(holeScores)}
           disabled={!allHaveGross}
-          className="flex-[2] py-4 bg-[#C9A84C] text-black text-2xl font-bold
+          className="w-full py-3 bg-[#C9A84C] text-black text-2xl font-bold
             hover:bg-[#d4b05a] disabled:opacity-30 disabled:cursor-not-allowed
             active:scale-[0.98] transition-all rounded-sm"
           aria-label="Next hole"
