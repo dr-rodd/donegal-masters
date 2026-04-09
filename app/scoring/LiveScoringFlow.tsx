@@ -908,6 +908,7 @@ export default function LiveScoringFlow({
               runningTotals={runningTotals}
               onSubmit={handleHoleSubmit}
               onBack={handleHoleBack}
+              showLeaderboard={showLeaderboard}
             />
           </div>
           {/* Right panel: live leaderboard */}
@@ -1315,7 +1316,7 @@ export default function LiveScoringFlow({
 
 function HoleCard({
   hole, playerSetups, courseId,
-  existingScores, runningTotals, onSubmit, onBack,
+  existingScores, runningTotals, onSubmit, onBack, showLeaderboard,
 }: {
   hole: Hole
   playerSetups: PlayerSetup[]; courseId: string
@@ -1323,6 +1324,7 @@ function HoleCard({
   runningTotals: Record<string, number>
   onSubmit: (scores: Record<string, HoleScore>) => void
   onBack: () => void
+  showLeaderboard: boolean
 }) {
   const [holeScores, setHoleScores] = useState<Record<string, HoleScore>>(() => {
     const init: Record<string, HoleScore> = {}
@@ -1370,8 +1372,8 @@ function HoleCard({
         })}
       </div>
 
-      {/* Sticky nav bar — always visible at viewport bottom */}
-      <div className="fixed bottom-0 left-0 right-0 z-50 px-4 bg-[#0a1a0e] border-t border-[#1e3d28] pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-3">
+      {/* Nav bar — fixed to viewport bottom, hidden when leaderboard is active */}
+      <div className={`fixed bottom-0 left-0 right-0 z-50 px-4 bg-[#0a1a0e] border-t border-[#1e3d28] pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-3${showLeaderboard ? " hidden" : ""}`}>
         <button
           onClick={onBack}
           className="flex-1 py-4 border border-white/20 text-white/50 text-2xl
