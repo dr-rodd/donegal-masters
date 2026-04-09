@@ -9,7 +9,7 @@ export default function Home() {
       style={{
         backgroundImage: "url(/rosapenna.jpg)",
         backgroundSize: "cover",
-        backgroundPosition: "center",
+        backgroundPosition: "center 30%",
       }}
     >
       {/* Dark overlay */}
