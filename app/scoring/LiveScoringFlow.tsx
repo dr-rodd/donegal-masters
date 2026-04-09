@@ -1342,10 +1342,9 @@ function HoleCard({
   }
 
   return (
-    <div className="max-w-lg mx-auto w-full px-4 pt-4 pb-2 flex flex-col gap-4">
-
-      {/* One tile per player */}
-      <div className="flex flex-col gap-3">
+    <>
+      {/* Tiles — bottom padding reserves space for the fixed nav bar */}
+      <div className="max-w-lg mx-auto w-full px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] flex flex-col gap-3">
         {playerSetups.map(({ player, playingHcp, tee }) => {
           const hs   = holeScores[player.id] ?? { gross: null, isNR: false, stableford: null }
           const ePar = effectivePar(hole, player.gender, courseId)
@@ -1370,8 +1369,8 @@ function HoleCard({
         })}
       </div>
 
-      {/* Sticky nav bar — always visible at viewport bottom */}
-      <div className="sticky bottom-0 -mx-4 px-4 bg-[#0a1a0e] border-t border-[#1e3d28] pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-3">
+      {/* Fixed nav bar — always anchored to viewport bottom */}
+      <div className="fixed bottom-0 left-0 right-0 z-50 px-4 bg-[#0a1a0e] border-t border-[#1e3d28] pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-3">
         <button
           onClick={onBack}
           className="flex-1 py-4 border border-white/20 text-white/50 text-2xl
@@ -1391,8 +1390,7 @@ function HoleCard({
           →
         </button>
       </div>
-
-    </div>
+    </>
   )
 }
 
