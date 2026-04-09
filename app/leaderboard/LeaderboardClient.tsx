@@ -69,20 +69,16 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
   const dark  = SC_DARK
   const grid  = SC_GRID
 
-  const scoreSymbol = (gross: number | null, par: number, contributor = false, isNR = false) => {
+  const scoreSymbol = (gross: number | null, par: number, isNR = false) => {
     if (isNR) return <span className="inline-flex items-center justify-center w-10 h-10 border border-orange-500/60 rounded-sm text-orange-500 text-sm font-semibold">NR</span>
     if (gross === null) return <span className={`${muted} text-xl`} style={sf}>—</span>
     const diff = gross - par
     const n = <span className="text-xl font-semibold leading-none">{gross}</span>
-    const ring = contributor ? " ring-2 ring-[#C9A84C] ring-offset-1 ring-offset-[#F5F0E8]" : ""
-    if (diff <= -2) return <span className={`w-10 h-10 rounded-full bg-[#C9A84C] flex items-center justify-center text-[#3A3A2E]${ring}`}>{n}</span>
-    if (diff === -1) return <span className={`w-10 h-10 rounded-full border border-[#C9A84C] flex items-center justify-center text-[#5A4F3A]${ring}`}>{n}</span>
-    if (diff === 0) {
-      if (contributor) return <span className={`w-10 h-10 rounded-full border-2 border-[#C9A84C] flex items-center justify-center text-[#3A3A2E]`}>{n}</span>
-      return <span className={`${dark} text-xl font-semibold`} style={sf}>{gross}</span>
-    }
-    if (diff === 1)  return <span className={`w-10 h-10 bg-[#E8DCBC]/50 rounded-md flex items-center justify-center text-[#5A4F3A]${ring}`}>{n}</span>
-    return               <span className={`w-10 h-10 bg-[#E8DCBC] rounded-md flex items-center justify-center text-[#5A4F3A]${ring}`}>{n}</span>
+    if (diff <= -2) return <span className="w-10 h-10 rounded-full border-2 border-[#C9A84C] flex items-center justify-center text-[#7B5C1E]">{n}</span>
+    if (diff === -1) return <span className="w-10 h-10 rounded-full border border-[#C9A84C] flex items-center justify-center text-[#7B5C1E]">{n}</span>
+    if (diff === 0)  return <span className={`${dark} text-xl font-semibold`} style={sf}>{gross}</span>
+    if (diff === 1)  return <span className="w-10 h-10 rounded-md border border-[#9B8860] flex items-center justify-center text-[#5A4F3A]">{n}</span>
+    return               <span className="w-10 h-10 rounded-md border-2 border-[#9B8860] flex items-center justify-center text-[#5A4F3A]">{n}</span>
   }
 
   const ptsColor = (pts: number | null) =>
@@ -165,9 +161,9 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
           <span className={`text-lg font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
           <span className={`text-lg ${muted}`} style={sf}>{hole.par}</span>
           {grossScores.map((gross, pi) => (
-            <span key={pi} className="flex flex-col items-center justify-center -my-3 py-3 gap-0.5">
+            <span key={pi} className={`flex flex-col items-center justify-center -my-3 py-3 gap-0.5${contributors[pi] ? " bg-[#E8DCBC]/60 rounded-md" : ""}`}>
               <span className="flex items-center gap-0.5">
-                {scoreSymbol(gross, hole.par, contributors[pi], isNRScores[pi])}
+                {scoreSymbol(gross, hole.par, isNRScores[pi])}
                 {stablefordScores[pi] !== null && (
                   <sup className={`text-sm leading-none ${muted}`} style={sf}>{stablefordScores[pi]}</sup>
                 )}
@@ -197,9 +193,9 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
           <span className={`text-lg font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
           <span className={`text-lg ${muted}`} style={sf}>{hole.par}</span>
           {grossScores.map((gross, pi) => (
-            <span key={pi} className="flex flex-col items-center justify-center -my-3 py-3 gap-0.5">
+            <span key={pi} className={`flex flex-col items-center justify-center -my-3 py-3 gap-0.5${contributors[pi] ? " bg-[#E8DCBC]/60 rounded-md" : ""}`}>
               <span className="flex items-center gap-0.5">
-                {scoreSymbol(gross, hole.par, contributors[pi], isNRScores[pi])}
+                {scoreSymbol(gross, hole.par, isNRScores[pi])}
                 {stablefordScores[pi] !== null && (
                   <sup className={`text-sm leading-none ${muted}`} style={sf}>{stablefordScores[pi]}</sup>
                 )}
