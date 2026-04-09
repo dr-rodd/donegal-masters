@@ -1149,11 +1149,21 @@ export default function LiveScoringFlow({
             if (gross === null) return <span className="text-[#A89880] text-base">—</span>
             const diff = gross - ePar
             const n = <span className="text-base font-semibold leading-none">{gross}</span>
-            if (diff <= -2) return <span className="w-7 h-7 rounded-full border-2 border-[#C9A84C] flex items-center justify-center text-[#7B5C1E]">{n}</span>
+            if (diff <= -2) return (
+              <span className="relative inline-flex items-center justify-center w-7 h-7 rounded-full border border-[#C9A84C]">
+                <span className="absolute inset-[2px] rounded-full border border-[#C9A84C]" />
+                <span className="relative text-[10px] font-semibold leading-none text-[#7B5C1E]">{gross}</span>
+              </span>
+            )
             if (diff === -1) return <span className="w-7 h-7 rounded-full border border-[#C9A84C] flex items-center justify-center text-[#7B5C1E]">{n}</span>
             if (diff === 0)  return <span className="text-[#3A3A2E] text-sm font-semibold" style={{ fontFamily: "Georgia, serif" }}>{gross}</span>
             if (diff === 1)  return <span className="w-7 h-7 rounded-md border border-[#9B8860] flex items-center justify-center text-[#5A4F3A]">{n}</span>
-            return               <span className="w-7 h-7 rounded-md border-2 border-[#9B8860] flex items-center justify-center text-[#5A4F3A]">{n}</span>
+            return (
+              <span className="relative inline-flex items-center justify-center w-7 h-7 rounded-md border border-[#9B8860]">
+                <span className="absolute inset-[2px] rounded-sm border border-[#9B8860]" />
+                <span className="relative text-[10px] font-semibold leading-none text-[#5A4F3A]">{gross}</span>
+              </span>
+            )
           }
 
           const ptsColor = (pts: number | null) =>

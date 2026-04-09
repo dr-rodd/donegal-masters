@@ -135,11 +135,21 @@ export function InlineScorecard({
     if (gross === null) return <span className={`${muted} text-sm`} style={sf}>—</span>
     const diff = gross - ePar
     const n = <span className="text-sm font-semibold leading-none">{gross}</span>
-    if (diff <= -2) return <span className="w-6 h-6 rounded-full bg-[#C9A84C] flex items-center justify-center text-[#3A3A2E]">{n}</span>
-    if (diff === -1) return <span className="w-6 h-6 rounded-full border border-[#C9A84C] flex items-center justify-center text-[#5A4F3A]">{n}</span>
+    if (diff <= -2) return (
+      <span className="relative inline-flex items-center justify-center w-6 h-6 rounded-full border border-[#C9A84C]">
+        <span className="absolute inset-[2px] rounded-full border border-[#C9A84C]" />
+        <span className="relative text-[10px] font-semibold leading-none text-[#7B5C1E]">{gross}</span>
+      </span>
+    )
+    if (diff === -1) return <span className="w-6 h-6 rounded-full border border-[#C9A84C] flex items-center justify-center text-[#7B5C1E]">{n}</span>
     if (diff === 0)  return <span className={`${dark} text-sm font-semibold`} style={sf}>{gross}</span>
-    if (diff === 1)  return <span className="w-6 h-6 bg-[#E8DCBC]/50 rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
-    return               <span className="w-6 h-6 bg-[#E8DCBC] rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
+    if (diff === 1)  return <span className="w-6 h-6 rounded-md border border-[#9B8860] flex items-center justify-center text-[#5A4F3A]">{n}</span>
+    return (
+      <span className="relative inline-flex items-center justify-center w-6 h-6 rounded-md border border-[#9B8860]">
+        <span className="absolute inset-[2px] rounded-sm border border-[#9B8860]" />
+        <span className="relative text-[10px] font-semibold leading-none text-[#5A4F3A]">{gross}</span>
+      </span>
+    )
   }
 
   const ptsColor = (pts: number | null) =>
