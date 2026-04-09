@@ -866,7 +866,7 @@ export default function LiveScoringFlow({
         const si = effectiveSI(hole, player.gender, courseId)
         updated[player.id] = {
           ...hs,
-          stableford: hs.gross !== null ? calcStableford(hs.gross, p, si, playingHcp) : null,
+          stableford: hs?.isNR ? 0 : hs?.gross != null ? calcStableford(hs.gross, p, si, playingHcp) : null,
         }
       }
       setScores(prev => ({ ...prev, [holeIdx]: updated }))
