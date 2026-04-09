@@ -1342,7 +1342,7 @@ function HoleCard({
   }
 
   return (
-    <div className="max-w-lg mx-auto w-full px-4 pt-4 pb-2 flex flex-col gap-4">
+    <div className="max-w-lg mx-auto w-full px-4 pt-4 pb-0 flex flex-col gap-4">
 
       {/* One tile per player */}
       <div className="flex flex-col gap-3">
