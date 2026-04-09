@@ -1,5 +1,4 @@
 import Link from "next/link";
-import Image from "next/image";
 import Countdown from "./components/Countdown";
 import SettingsButton from "./components/SettingsButton";
 
@@ -22,14 +21,11 @@ export default function Home() {
       <div className="relative z-10 flex flex-col items-center text-center w-full">
 
         {/* Logo */}
-        <Image
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img
           src="/Retro_donegal_masters_logo.png"
           alt="The Donegal Masters"
-          width={400}
-          height={400}
-          priority
-          className="h-auto mb-0"
-          style={{ width: "100%", filter: "brightness(0) saturate(100%) invert(74%) sepia(27%) saturate(739%) hue-rotate(5deg) brightness(95%) contrast(95%)" }}
+          style={{ width: "100vw", height: "auto", maxWidth: "100vw", display: "block", filter: "brightness(0) saturate(100%) invert(74%) sepia(27%) saturate(739%) hue-rotate(5deg) brightness(95%) contrast(95%)" }}
         />
 
         {/* Subtitle */}
