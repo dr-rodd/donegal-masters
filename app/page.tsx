@@ -6,7 +6,7 @@ import SettingsButton from "./components/SettingsButton";
 export default function Home() {
   return (
     <main
-      className="relative min-h-dvh flex flex-col items-center justify-center px-3 pt-5 pb-5"
+      className="relative min-h-dvh flex flex-col items-center justify-center pt-5 pb-5"
       style={{
         backgroundImage: "url(/rosapenna.jpg)",
         backgroundSize: "cover",
@@ -29,8 +29,7 @@ export default function Home() {
           height={400}
           priority
           className="h-auto mb-0"
-          style={{ width: "90vw" }}
-          style={{ filter: "brightness(0) saturate(100%) invert(74%) sepia(27%) saturate(739%) hue-rotate(5deg) brightness(95%) contrast(95%)" }}
+          style={{ width: "100%", filter: "brightness(0) saturate(100%) invert(74%) sepia(27%) saturate(739%) hue-rotate(5deg) brightness(95%) contrast(95%)" }}
         />
 
         {/* Subtitle */}
