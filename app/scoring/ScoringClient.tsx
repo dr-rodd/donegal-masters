@@ -84,7 +84,7 @@ export default function ScoringClient({ players, rounds, holes, tees, roundHandi
     <div className="min-h-dvh bg-[#0a1a0e] text-white">
       {/* Sticky header */}
       <div className="border-b border-[#1e3d28] sticky top-0 z-20 bg-[#0a1a0e]">
-        <div className="max-w-lg mx-auto px-4 py-2 flex items-center justify-between">
+        <div className="max-w-lg mx-auto px-4 py-4 flex items-center justify-between">
           {headerLeft}
           <h1 className="font-[family-name:var(--font-playfair)] text-lg text-white tracking-wide">
             Scoring

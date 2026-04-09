@@ -815,6 +815,9 @@ export default function LiveScoringFlow({
 
   // ─── Hole by hole ─────────────────────────────────────────
 
+  const [isHoleReady, setIsHoleReady] = useState(false)
+  const holeSubmitRef = useRef<(() => void) | null>(null)
+
   if (step === "holes" && courseHoles.length > 0) {
     const hole = courseHoles[holeIdx]
     const existingHoleScores = scores[holeIdx] ?? {}
@@ -882,47 +885,68 @@ export default function LiveScoringFlow({
     }
 
     return (
-      <div
-        className="overflow-x-hidden"
-        onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX }}
-        onTouchEnd={(e) => {
-          if (touchStartX.current === null) return
-          const delta = e.changedTouches[0].clientX - touchStartX.current
-          touchStartX.current = null
-          if (delta < -60 && !showLeaderboard) { onLeaderboardChange(true); return }
-          if (delta > 60 && showLeaderboard) { onLeaderboardChange(false); return }
-        }}
-      >
+      <>
+        {/* Swipe panels — overflow-x clips right panel; nav lives outside so sticky works */}
         <div
-          className="flex transition-transform duration-300 ease-out"
-          style={{ width: "200%", transform: showLeaderboard ? "translateX(-50%)" : "translateX(0)" }}
+          className="overflow-x-hidden"
+          onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX }}
+          onTouchEnd={(e) => {
+            if (touchStartX.current === null) return
+            const delta = e.changedTouches[0].clientX - touchStartX.current
+            touchStartX.current = null
+            if (delta < -60 && !showLeaderboard) { onLeaderboardChange(true); return }
+            if (delta > 60 && showLeaderboard) { onLeaderboardChange(false); return }
+          }}
         >
-          {/* Left panel: hole score entry */}
-          <div style={{ width: "50%" }}>
-            <HoleCard
-              key={hole.id}
-              hole={hole}
-              playerSetups={playerSetups}
-              courseId={courseId}
-              existingScores={existingHoleScores}
-              runningTotals={runningTotals}
-              onSubmit={handleHoleSubmit}
-              onBack={handleHoleBack}
-            />
-          </div>
-          {/* Right panel: live leaderboard */}
-          <div style={{ width: "50%" }}>
-            {liveRound && (
-              <LiveLeaderboardPanel
-                liveRound={liveRound}
-                players={players}
-                holes={holes}
-                roundHandicaps={roundHandicaps}
+          <div
+            className="flex transition-transform duration-300 ease-out"
+            style={{ width: "200%", transform: showLeaderboard ? "translateX(-50%)" : "translateX(0)" }}
+          >
+            <div style={{ width: "50%" }}>
+              <HoleCard
+                key={hole.id}
+                hole={hole}
+                playerSetups={playerSetups}
+                courseId={courseId}
+                existingScores={existingHoleScores}
+                runningTotals={runningTotals}
+                onSubmit={handleHoleSubmit}
+                onBack={handleHoleBack}
+                onReadyChange={setIsHoleReady}
+                submitRef={holeSubmitRef}
               />
-            )}
+            </div>
+            <div style={{ width: "50%" }}>
+              {liveRound && (
+                <LiveLeaderboardPanel
+                  liveRound={liveRound}
+                  players={players}
+                  holes={holes}
+                  roundHandicaps={roundHandicaps}
+                />
+              )}
+            </div>
           </div>
         </div>
-      </div>
+
+        {/* Nav bar — sibling of overflow container so sticky works correctly */}
+        <div className="sticky bottom-0 bg-[#0a1a0e] border-t border-[#1e3d28] px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-3">
+          <button
+            onClick={handleHoleBack}
+            className="flex-1 py-4 border border-white/20 text-white/50 text-2xl
+              hover:border-white/40 hover:text-white/70 active:bg-white/5 transition-colors rounded-sm"
+            aria-label="Previous hole"
+          >←</button>
+          <button
+            onClick={() => holeSubmitRef.current?.()}
+            disabled={!isHoleReady}
+            className="flex-[2] py-4 bg-[#C9A84C] text-black text-2xl font-bold
+              hover:bg-[#d4b05a] disabled:opacity-30 disabled:cursor-not-allowed
+              active:scale-[0.98] transition-all rounded-sm"
+            aria-label="Next hole"
+          >→</button>
+        </div>
+      </>
     )
   }
 
@@ -1316,6 +1340,7 @@ export default function LiveScoringFlow({
 function HoleCard({
   hole, playerSetups, courseId,
   existingScores, runningTotals, onSubmit, onBack,
+  onReadyChange, submitRef,
 }: {
   hole: Hole
   playerSetups: PlayerSetup[]; courseId: string
@@ -1323,6 +1348,8 @@ function HoleCard({
   runningTotals: Record<string, number>
   onSubmit: (scores: Record<string, HoleScore>) => void
   onBack: () => void
+  onReadyChange?: (ready: boolean) => void
+  submitRef?: React.MutableRefObject<(() => void) | null>
 }) {
   const [holeScores, setHoleScores] = useState<Record<string, HoleScore>>(() => {
     const init: Record<string, HoleScore> = {}
@@ -1337,61 +1364,37 @@ function HoleCard({
     return hs?.gross !== null || hs?.isNR === true
   })
 
+  useEffect(() => { onReadyChange?.(allHaveGross) }, [allHaveGross, onReadyChange])
+  useEffect(() => { if (submitRef) submitRef.current = () => onSubmit(holeScores) })
+
   function set(pid: string, update: Partial<HoleScore>) {
     setHoleScores(prev => ({ ...prev, [pid]: { ...prev[pid], ...update } }))
   }
 
   return (
-    <div className="max-w-lg mx-auto w-full px-4 pt-4 pb-2 flex flex-col gap-4">
-
-      {/* One tile per player */}
-      <div className="flex flex-col gap-3">
-        {playerSetups.map(({ player, playingHcp, tee }) => {
-          const hs   = holeScores[player.id] ?? { gross: null, isNR: false, stableford: null }
-          const ePar = effectivePar(hole, player.gender, courseId)
-          const eSI  = effectiveSI(hole, player.gender, courseId)
-          return (
-            <LivePlayerTile
-              key={player.id}
-              hole={hole}
-              effectivePar={ePar}
-              effectiveSI={eSI}
-              playerName={player.name}
-              teamColor={player.teams?.color}
-              score={hs.gross}
-              isNR={hs.isNR}
-              playingHcp={playingHcp}
-              runningTotal={runningTotals[player.id] ?? 0}
-              yardage={yardageForTee(hole, tee.name)}
-              onChange={v  => set(player.id, { gross: v, isNR: false })}
-              onToggleNR={() => set(player.id, hs.isNR ? { isNR: false, gross: null } : { isNR: true, gross: null })}
-            />
-          )
-        })}
-      </div>
-
-      {/* Sticky nav bar — always visible at viewport bottom */}
-      <div className="sticky bottom-0 -mx-4 px-4 bg-[#0a1a0e] border-t border-[#1e3d28] pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-3">
-        <button
-          onClick={onBack}
-          className="flex-1 py-4 border border-white/20 text-white/50 text-2xl
-            hover:border-white/40 hover:text-white/70 active:bg-white/5 transition-colors rounded-sm"
-          aria-label="Previous hole"
-        >
-          ←
-        </button>
-        <button
-          onClick={() => onSubmit(holeScores)}
-          disabled={!allHaveGross}
-          className="flex-[2] py-4 bg-[#C9A84C] text-black text-2xl font-bold
-            hover:bg-[#d4b05a] disabled:opacity-30 disabled:cursor-not-allowed
-            active:scale-[0.98] transition-all rounded-sm"
-          aria-label="Next hole"
-        >
-          →
-        </button>
-      </div>
-
+    <div className="max-w-lg mx-auto w-full px-4 pt-4 pb-4 flex flex-col gap-3">
+      {playerSetups.map(({ player, playingHcp, tee }) => {
+        const hs   = holeScores[player.id] ?? { gross: null, isNR: false, stableford: null }
+        const ePar = effectivePar(hole, player.gender, courseId)
+        const eSI  = effectiveSI(hole, player.gender, courseId)
+        return (
+          <LivePlayerTile
+            key={player.id}
+            hole={hole}
+            effectivePar={ePar}
+            effectiveSI={eSI}
+            playerName={player.name}
+            teamColor={player.teams?.color}
+            score={hs.gross}
+            isNR={hs.isNR}
+            playingHcp={playingHcp}
+            runningTotal={runningTotals[player.id] ?? 0}
+            yardage={yardageForTee(hole, tee.name)}
+            onChange={v  => set(player.id, { gross: v, isNR: false })}
+            onToggleNR={() => set(player.id, hs.isNR ? { isNR: false, gross: null } : { isNR: true, gross: null })}
+          />
+        )
+      })}
     </div>
   )
 }
