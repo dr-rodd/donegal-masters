@@ -68,7 +68,7 @@ export default function Home() {
               href="/leaderboard"
               className="w-[312px] text-center py-[18px] border-2 border-white/70 text-white text-sm tracking-[0.25em] uppercase rounded-xl hover:border-gold hover:text-gold transition-colors duration-300 opacity-80"
             >
-              Leaderboard
+              Leaderboard *
             </Link>
           </nav>
         </Countdown>
