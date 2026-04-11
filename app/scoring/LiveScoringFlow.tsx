@@ -52,6 +52,8 @@ interface Props {
   /** Called whenever the active hole changes (step=holes). Receives (-1, 0)
    *  when not in the holes step so the parent can clear any hole display. */
   onHoleChange?: (holeIdx: number, totalHoles: number) => void
+  longestDriveHole?: number | null
+  nearestPinHole?: number | null
 }
 
 type LiveStep = "activate" | "setup" | "holes" | "summary" | "committed" | "resuming"
@@ -214,6 +216,8 @@ export default function LiveScoringFlow({
   showLeaderboard, onLeaderboardChange,
   autoResume = false,
   onHoleChange,
+  longestDriveHole,
+  nearestPinHole,
 }: Props) {
   const [liveRound, setLiveRound] = useState<ActiveLiveRound | null>(activeLiveRound)
   const [step, setStep] = useState<LiveStep>(
@@ -909,6 +913,8 @@ export default function LiveScoringFlow({
               onSubmit={handleHoleSubmit}
               onBack={handleHoleBack}
               showLeaderboard={showLeaderboard}
+              longestDriveHole={longestDriveHole}
+              nearestPinHole={nearestPinHole}
             />
           </div>
           {/* Right panel: live leaderboard */}
@@ -1327,6 +1333,7 @@ export default function LiveScoringFlow({
 function HoleCard({
   hole, playerSetups, courseId,
   existingScores, runningTotals, onSubmit, onBack, showLeaderboard,
+  longestDriveHole, nearestPinHole,
 }: {
   hole: Hole
   playerSetups: PlayerSetup[]; courseId: string
@@ -1335,6 +1342,8 @@ function HoleCard({
   onSubmit: (scores: Record<string, HoleScore>) => void
   onBack: () => void
   showLeaderboard: boolean
+  longestDriveHole?: number | null
+  nearestPinHole?: number | null
 }) {
   const [holeScores, setHoleScores] = useState<Record<string, HoleScore>>(() => {
     const init: Record<string, HoleScore> = {}
@@ -1343,11 +1352,17 @@ function HoleCard({
     }
     return init
   })
+  const [competitionAlertDismissed, setCompetitionAlertDismissed] = useState(false)
 
   const allHaveGross = playerSetups.every(({ player }) => {
     const hs = holeScores[player.id]
     return hs?.gross !== null || hs?.isNR === true
   })
+
+  const isLongestDrive = longestDriveHole === hole.hole_number
+  const isNearestPin   = nearestPinHole   === hole.hole_number
+  const isCompetitionHole = isLongestDrive || isNearestPin
+  const showCompetitionAlert = isCompetitionHole && !competitionAlertDismissed
 
   function set(pid: string, update: Partial<HoleScore>) {
     setHoleScores(prev => ({ ...prev, [pid]: { ...prev[pid], ...update } }))
@@ -1355,6 +1370,23 @@ function HoleCard({
 
   return (
     <div className="max-w-lg mx-auto w-full px-4 pt-4 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] flex flex-col gap-4">
+
+      {/* Competition hole alert */}
+      {showCompetitionAlert && (
+        <div className="border border-[#C9A84C]/50 bg-[#C9A84C]/10 rounded-sm px-4 py-3 flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{isLongestDrive ? "🏌️" : "📍"}</span>
+            <p className="text-[#C9A84C] text-sm font-medium">
+              Note: Hole {hole.hole_number} — {isLongestDrive ? "Longest Drive" : "Nearest the Pin"}
+            </p>
+          </div>
+          <button
+            onClick={() => setCompetitionAlertDismissed(true)}
+            className="text-white/30 hover:text-white/60 text-lg leading-none flex-shrink-0"
+            aria-label="Dismiss"
+          >×</button>
+        </div>
+      )}
 
       {/* One tile per player */}
       <div className="flex flex-col gap-3">
@@ -1375,6 +1407,8 @@ function HoleCard({
               playingHcp={playingHcp}
               runningTotal={runningTotals[player.id] ?? 0}
               yardage={yardageForTee(hole, tee.name)}
+              isLongestDrive={isLongestDrive}
+              isNearestPin={isNearestPin}
               onChange={v  => set(player.id, { gross: v, isNR: false })}
               onToggleNR={() => set(player.id, hs.isNR ? { isNR: false, gross: null } : { isNR: true, gross: null })}
             />
@@ -1416,6 +1450,7 @@ function HoleCard({
 function LivePlayerTile({
   hole, effectivePar, effectiveSI, playerName, teamColor,
   score, isNR, playingHcp, yardage, runningTotal,
+  isLongestDrive, isNearestPin,
   onChange, onToggleNR,
 }: {
   hole: Hole
@@ -1428,6 +1463,8 @@ function LivePlayerTile({
   playingHcp: number
   yardage?: number | null
   runningTotal: number
+  isLongestDrive?: boolean
+  isNearestPin?: boolean
   onChange: (v: number | null) => void
   onToggleNR: () => void
 }) {
@@ -1480,12 +1517,14 @@ function LivePlayerTile({
 
         {/* Row 1: hole info + NR toggle */}
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
-          <div className="flex items-baseline gap-3">
+          <div className="flex items-center gap-3">
             <span className="text-white/50 text-base">
               Par <span className="text-white font-semibold">{effectivePar}</span>
             </span>
             <span className="text-white/30 text-base">SI {effectiveSI}</span>
             {yardage && <span className="text-white/25 text-sm">{yardage} yds</span>}
+            {isLongestDrive && <span className="text-lg" title="Longest Drive">🏌️</span>}
+            {isNearestPin   && <span className="text-lg" title="Nearest the Pin">📍</span>}
           </div>
           <button
             onClick={onToggleNR}

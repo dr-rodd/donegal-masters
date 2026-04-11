@@ -78,6 +78,25 @@ export default function CourseDashboardClient({
   const [settingsWorking, setSettingsWorking]             = useState(false)
   const [settingsError, setSettingsError]                 = useState<string | null>(null)
 
+  // Competition holes — persisted to localStorage by round id
+  const activeRound = rounds.find(r => r.courses?.id === courseId)
+  const storageKey = activeRound ? `competition_holes_${activeRound.id}` : null
+  const [longestDriveHole, setLongestDriveHole] = useState<number | null>(() => {
+    if (typeof window === "undefined" || !storageKey) return null
+    try { return JSON.parse(localStorage.getItem(storageKey) ?? "{}").longestDrive ?? null } catch { return null }
+  })
+  const [nearestPinHole, setNearestPinHole] = useState<number | null>(() => {
+    if (typeof window === "undefined" || !storageKey) return null
+    try { return JSON.parse(localStorage.getItem(storageKey) ?? "{}").nearestPin ?? null } catch { return null }
+  })
+
+  function saveCompetitionHoles(ld: number | null, np: number | null) {
+    setLongestDriveHole(ld)
+    setNearestPinHole(np)
+    if (!storageKey) return
+    localStorage.setItem(storageKey, JSON.stringify({ longestDrive: ld, nearestPin: np }))
+  }
+
   const nonComposite = players.filter(p => !p.is_composite)
 
   // Only pass this course's round to LiveScoringFlow so the "activate" step
@@ -855,6 +874,45 @@ export default function CourseDashboardClient({
                   )}
                 </section>
 
+                {/* ── Competition Holes ── */}
+                <section>
+                  <p className="text-white/30 text-xs tracking-[0.2em] uppercase mb-3">Competition Holes</p>
+                  <div className="space-y-3">
+                    <div className="flex items-center justify-between border border-[#1e3d28] px-4 py-3 rounded-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">🏌️</span>
+                        <span className="text-white/70 text-sm">Longest Drive</span>
+                      </div>
+                      <select
+                        value={longestDriveHole ?? ""}
+                        onChange={e => saveCompetitionHoles(e.target.value ? Number(e.target.value) : null, nearestPinHole)}
+                        className="bg-[#0d2015] border border-[#1e3d28] text-white/80 text-sm rounded-sm px-3 py-1.5 min-w-[90px]"
+                      >
+                        <option value="">— None —</option>
+                        {Array.from({ length: 18 }, (_, i) => i + 1).map(n => (
+                          <option key={n} value={n}>Hole {n}</option>
+                        ))}
+                      </select>
+                    </div>
+                    <div className="flex items-center justify-between border border-[#1e3d28] px-4 py-3 rounded-sm">
+                      <div className="flex items-center gap-2">
+                        <span className="text-lg">📍</span>
+                        <span className="text-white/70 text-sm">Nearest the Pin</span>
+                      </div>
+                      <select
+                        value={nearestPinHole ?? ""}
+                        onChange={e => saveCompetitionHoles(longestDriveHole, e.target.value ? Number(e.target.value) : null)}
+                        className="bg-[#0d2015] border border-[#1e3d28] text-white/80 text-sm rounded-sm px-3 py-1.5 min-w-[90px]"
+                      >
+                        <option value="">— None —</option>
+                        {Array.from({ length: 18 }, (_, i) => i + 1).map(n => (
+                          <option key={n} value={n}>Hole {n}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+                </section>
+
                 {settingsError && (
                   <p className="text-red-400 text-sm text-center pt-1">{settingsError}</p>
                 )}
@@ -881,6 +939,8 @@ export default function CourseDashboardClient({
           showLeaderboard={showLiveLeaderboard}
           onLeaderboardChange={setShowLiveLeaderboard}
           onHoleChange={(idx, total) => setLiveHole(idx >= 0 ? { idx, total } : null)}
+          longestDriveHole={longestDriveHole}
+          nearestPinHole={nearestPinHole}
         />
       )}
 
