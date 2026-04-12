@@ -350,7 +350,6 @@ export default function LiveScoringFlow({
         return
       }
 
-      // DIAGNOSTIC: fetch all scores for this round, not filtered by player_id
       const { data: existingScores } = await supabase
         .from("live_scores")
         .select("player_id, hole_number, gross_score, stableford_points, no_return")
