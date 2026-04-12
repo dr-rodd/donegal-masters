@@ -361,7 +361,7 @@ export default function LiveScoringFlow({
       // DIAGNOSTIC
       const first = existingScores?.[0]
       setResumeDebug(
-        `round_id: ${rId} | rows: ${existingScores?.length ?? 0} | first: hole ${first?.hole_number ?? "—"} gross ${first?.gross_score ?? "—"}`
+        `RESUME liveRound.id: ${rId} | rows: ${existingScores?.length ?? 0} | first: hole ${first?.hole_number ?? "—"} gross ${first?.gross_score ?? "—"}`
       )
 
       // Pick tees: first gender-matching tee for the course (playing_handicap
