@@ -2,7 +2,6 @@
 
 import { useState } from "react"
 import Link from "next/link"
-import ScoreEntryForm from "@/app/score-entry/ScoreEntryForm"
 import LiveScoringFlow from "./LiveScoringFlow"
 import LiveLeaderboardPanel from "./LiveLeaderboardPanel"
 import BackButton from "@/app/components/BackButton"
@@ -45,7 +44,7 @@ interface Props {
   activeLiveRound: ActiveLiveRound | null
 }
 
-type View = "landing" | "standard" | "live" | "leaderboard"
+type View = "landing" | "live" | "leaderboard"
 
 export default function ScoringClient({ players, rounds, holes, tees, roundHandicaps, activeLiveRound }: Props) {
   const [view, setView] = useState<View>("landing")
@@ -98,14 +97,9 @@ export default function ScoringClient({ players, rounds, holes, tees, roundHandi
         <Landing
           isLiveActive={isLiveActive}
           liveRound={liveRound}
-          onStandard={() => setView("standard")}
           onLive={() => setView("live")}
           onWatchLive={() => setView("leaderboard")}
         />
-      )}
-
-      {view === "standard" && (
-        <ScoreEntryForm players={nonComposite as any} courses={courses} />
       )}
 
       {view === "live" && (
@@ -140,11 +134,10 @@ export default function ScoringClient({ players, rounds, holes, tees, roundHandi
 // ─── Landing ──────────────────────────────────────────────
 
 function Landing({
-  isLiveActive, liveRound, onStandard, onLive, onWatchLive
+  isLiveActive, liveRound, onLive, onWatchLive
 }: {
   isLiveActive: boolean
   liveRound: ActiveLiveRound | null
-  onStandard: () => void
   onLive: () => void
   onWatchLive: () => void
 }) {
@@ -157,21 +150,6 @@ function Landing({
 
   return (
     <div className="flex flex-col items-center justify-center gap-6 px-6 py-16 min-h-[calc(100dvh-57px)]">
-      <div className="text-center mb-2">
-        <p className="text-white/30 text-xs tracking-[0.25em] uppercase">Choose entry mode</p>
-      </div>
-
-      {/* Standard Entry */}
-      <button
-        onClick={onStandard}
-        className="w-full max-w-xs py-5 border border-[#C9A84C]/50 text-[#C9A84C] tracking-[0.2em] uppercase text-sm hover:bg-[#C9A84C]/10 transition-colors"
-      >
-        Standard Entry
-        <div className="text-[10px] text-white/40 normal-case tracking-normal mt-1 font-normal">
-          18-hole scorecard entry
-        </div>
-      </button>
-
       {/* Live Scoring */}
       <button
         onClick={onLive}
