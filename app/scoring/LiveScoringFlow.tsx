@@ -237,7 +237,6 @@ export default function LiveScoringFlow({
   const [holeIdx, setHoleIdx] = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [closeConfirm, setCloseConfirm] = useState(false)
   const [selectedSummaryPlayerId, setSelectedSummaryPlayerId] = useState("")
 
   // Edit mode (within summary)
@@ -462,27 +461,6 @@ export default function LiveScoringFlow({
     setStep("setup")
   }
 
-  // ─── Close round ─────────────────────────────────────────
-
-  async function handleCloseRound() {
-    if (!liveRound) return
-    setSaving(true)
-    await Promise.all([
-      supabase
-        .from("live_rounds")
-        .update({ status: "closed", closed_at: new Date().toISOString() })
-        .eq("id", liveRound.id),
-      supabase
-        .from("live_player_locks")
-        .delete()
-        .eq("live_round_id", liveRound.id),
-    ])
-    setSaving(false)
-    setCloseConfirm(false)
-    resetFlow()
-    onBack()
-  }
-
   // ─── Commit ───────────────────────────────────────────────
 
   // ─── Edit mode helpers ────────────────────────────────────
@@ -626,27 +604,6 @@ export default function LiveScoringFlow({
     } finally {
       setSaving(false)
     }
-  }
-
-  // ─── Close confirm overlay ────────────────────────────────
-
-  if (closeConfirm) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 py-12">
-        <div className="text-center">
-          <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white mb-2">Discard Scorecard?</h2>
-          <p className="text-white/40 text-base">This voids the scorecard and releases all players. Scores will not be saved.</p>
-        </div>
-        <div className="flex gap-3 w-full max-w-xs">
-          <button onClick={() => setCloseConfirm(false)} className="flex-1 py-3 border border-white/20 text-white/60 text-base uppercase tracking-wider hover:border-white/40 transition-colors">
-            Cancel
-          </button>
-          <button onClick={handleCloseRound} disabled={saving} className="flex-1 py-3 bg-red-900/60 border border-red-700/50 text-red-300 text-base uppercase tracking-wider hover:bg-red-900/80 disabled:opacity-50 transition-colors">
-            {saving ? "Voiding…" : "Discard"}
-          </button>
-        </div>
-      </div>
-    )
   }
 
   // ─── Leaderboard panel (non-holes steps) ─────────────────
@@ -833,9 +790,6 @@ export default function LiveScoringFlow({
           Start Round →
         </button>
 
-        <button onClick={() => setCloseConfirm(true)} className="text-center text-white/20 text-sm tracking-widest uppercase hover:text-red-400/60 transition-colors">
-          Close Live Round
-        </button>
       </div>
     )
   }
@@ -1369,9 +1323,6 @@ export default function LiveScoringFlow({
           className="mt-4 px-8 py-3 border border-[#C9A84C]/50 text-[#C9A84C] text-sm tracking-[0.2em] uppercase hover:bg-[#C9A84C]/10 transition-colors"
         >
           Score Another Player
-        </button>
-        <button onClick={() => setCloseConfirm(true)} className="text-white/20 text-sm tracking-widest uppercase hover:text-red-400/60 transition-colors">
-          Close Live Round
         </button>
       </div>
     )
