@@ -45,31 +45,22 @@ export default function Home() {
 
         {/* Countdown collapses when expired; nav always in DOM below it */}
         <Countdown>
-          <nav className="flex flex-col gap-3">
-            <Link
-              href="/teams"
-              className="w-[312px] text-center py-[18px] border-2 border-white/70 text-white text-sm tracking-[0.25em] uppercase rounded-xl hover:border-gold hover:text-gold transition-colors duration-300 opacity-80"
-            >
-              Team Selection
-            </Link>
-            <Link
-              href="/tee-times"
-              className="w-[312px] text-center py-[18px] border-2 border-white/70 text-white text-sm tracking-[0.25em] uppercase rounded-xl hover:border-gold hover:text-gold transition-colors duration-300 opacity-80"
-            >
-              Tee Times
-            </Link>
-            <Link
-              href="/scoring"
-              className="w-[312px] text-center py-[18px] border-2 border-white/70 text-white text-sm tracking-[0.25em] uppercase rounded-xl hover:border-gold hover:text-gold transition-colors duration-300 opacity-80"
-            >
-              Scoring
-            </Link>
-            <Link
-              href="/leaderboard"
-              className="w-[312px] text-center py-[18px] border-2 border-white/70 text-white text-sm tracking-[0.25em] uppercase rounded-xl hover:border-gold hover:text-gold transition-colors duration-300 opacity-80"
-            >
-              Leaderboard
-            </Link>
+          <nav className="flex flex-col gap-3 w-[300px]">
+            {([
+              { href: "/teams",       label: "Team Selection" },
+              { href: "/tee-times",   label: "Tee Times"      },
+              { href: "/scoring",     label: "Scoring"        },
+              { href: "/leaderboard", label: "Leaderboard"    },
+            ] as const).map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                className="flex items-center justify-center w-full py-4 px-6 bg-[#0a1a0e]/65 border border-[#C9A84C]/40 text-white text-[15px] tracking-widest uppercase rounded-xl font-[family-name:var(--font-playfair)] hover:bg-[#0a1a0e]/85 hover:border-[#C9A84C] transition-all duration-300"
+                style={{ boxShadow: "inset 0 1px 0 rgba(201,168,76,0.10), 0 2px 16px rgba(0,0,0,0.35)" }}
+              >
+                {label}
+              </Link>
+            ))}
           </nav>
         </Countdown>
 
