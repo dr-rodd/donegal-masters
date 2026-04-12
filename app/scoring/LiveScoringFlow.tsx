@@ -237,9 +237,6 @@ export default function LiveScoringFlow({
   const [holeIdx, setHoleIdx] = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-
-  // DIAGNOSTIC
-  const [resumeDebug, setResumeDebug] = useState<string | null>(null)
   const [selectedSummaryPlayerId, setSelectedSummaryPlayerId] = useState("")
 
   // Edit mode (within summary)
@@ -359,16 +356,7 @@ export default function LiveScoringFlow({
         .eq("round_id", rId)
         .in("player_id", lockedIds)
 
-      // DIAGNOSTIC
-      if (resumeErr) {
-        console.error("RESUME ERROR", resumeErr)
-        setResumeDebug(`RESUME ERROR code:${resumeErr.code} msg:${resumeErr.message} hint:${resumeErr.hint ?? "—"} details:${resumeErr.details ?? "—"}`)
-        return
-      }
-      const first = existingScores?.[0]
-      setResumeDebug(
-        `round_id: ${rId} | rows: ${existingScores?.length ?? 0} | first: hole ${first?.hole_number ?? "—"} gross ${first?.gross_score ?? "—"}`
-      )
+      if (resumeErr) return
 
       // Pick tees: first gender-matching tee for the course (playing_handicap
       // already stored in round_handicaps so tee choice only affects yardage display)
@@ -407,17 +395,7 @@ export default function LiveScoringFlow({
       setLockedPlayerIds(lockedIds)
       setSelectedPlayerIds(lockedIds)
       setPlayerTeeIds(teeMap)
-
-      // DIAGNOSTIC
-      const holesSummary = Object.entries(scoreState)
-        .map(([idx, pMap]) => `h${Number(idx)+1}:[${Object.entries(pMap).map(([,s]) => s.gross).join(",")}]`)
-        .join(" ")
-      console.log("doResume scoreState before setScores:", scoreState)
-      console.log("doResume resumeIdx:", resumeIdx)
-      setResumeDebug(`RESUME round_id:${liveRound!.round_id} | id:${liveRound!.id} | players:[${lockedIds.join(",")}] | rows:${existingScores?.length ?? 0} | holeIdx→${resumeIdx} | scores:{${holesSummary || "empty"}}`)
-
       setScores(scoreState)
-      console.log("doResume setScores called")
 
       if (resumeIdx >= cHoles.length) {
         setHoleIdx(cHoles.length - 1)
@@ -650,26 +628,11 @@ export default function LiveScoringFlow({
 
   if (step === "resuming") {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[calc(100dvh-57px)] gap-4 px-4">
+      <div className="flex items-center justify-center min-h-[calc(100dvh-57px)]">
         <p className="text-white/30 text-base tracking-wide">Loading scorecard…</p>
-        {resumeDebug && (
-          <p className="text-yellow-300 text-xs text-center bg-black/80 px-3 py-2 rounded">{resumeDebug}</p>
-        )}
       </div>
     )
   }
-
-  // DIAGNOSTIC overlay — persists after resume completes
-  const debugOverlay = resumeDebug ? (
-    <div className="fixed top-16 left-0 right-0 z-[999] flex justify-center px-4">
-      <textarea
-        readOnly
-        value={resumeDebug}
-        className="text-yellow-300 text-xs bg-black/90 px-3 py-2 rounded w-full max-w-[90vw] break-all resize-none"
-        rows={4}
-      />
-    </div>
-  ) : null
 
   // ─── Activate step ────────────────────────────────────────
 
@@ -911,7 +874,6 @@ export default function LiveScoringFlow({
 
     return (
       <>
-      {debugOverlay}
       <div
         className="overflow-x-hidden"
         onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX }}
