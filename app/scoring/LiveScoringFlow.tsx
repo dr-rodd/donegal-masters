@@ -54,6 +54,8 @@ interface Props {
   onHoleChange?: (holeIdx: number, totalHoles: number) => void
   longestDriveHole?: number | null
   nearestPinHole?: number | null
+  longestDriveWinner?: string | null
+  nearestPinWinner?: string | null
 }
 
 type LiveStep = "activate" | "setup" | "holes" | "summary" | "committed" | "resuming"
@@ -218,6 +220,8 @@ export default function LiveScoringFlow({
   onHoleChange,
   longestDriveHole,
   nearestPinHole,
+  longestDriveWinner,
+  nearestPinWinner,
 }: Props) {
   const [liveRound, setLiveRound] = useState<ActiveLiveRound | null>(activeLiveRound)
   const [step, setStep] = useState<LiveStep>(
@@ -638,6 +642,8 @@ export default function LiveScoringFlow({
         holes={holes}
         roundHandicaps={roundHandicaps}
         onClose={() => onLeaderboardChange(false)}
+        longestDriveWinner={longestDriveWinner}
+        nearestPinWinner={nearestPinWinner}
       />
     )
   }
@@ -925,6 +931,8 @@ export default function LiveScoringFlow({
                 players={players}
                 holes={holes}
                 roundHandicaps={roundHandicaps}
+                longestDriveWinner={longestDriveWinner}
+                nearestPinWinner={nearestPinWinner}
               />
             )}
           </div>
@@ -1364,6 +1372,11 @@ function HoleCard({
   const isCompetitionHole = isLongestDrive || isNearestPin
   const showCompetitionAlert = isCompetitionHole && !competitionAlertDismissed
 
+  const nextHoleNum = hole.hole_number + 1
+  const nextIsLongestDrive = longestDriveHole === nextHoleNum
+  const nextIsNearestPin   = nearestPinHole   === nextHoleNum
+  const showNextHoleAlert  = (nextIsLongestDrive || nextIsNearestPin) && nextHoleNum <= 18
+
   function set(pid: string, update: Partial<HoleScore>) {
     setHoleScores(prev => ({ ...prev, [pid]: { ...prev[pid], ...update } }))
   }
@@ -1371,11 +1384,11 @@ function HoleCard({
   return (
     <div className="max-w-lg mx-auto w-full px-4 pt-4 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] flex flex-col gap-4">
 
-      {/* Competition hole alert */}
+      {/* Competition hole alert — current hole */}
       {showCompetitionAlert && (
         <div className="border border-[#C9A84C]/50 bg-[#C9A84C]/10 rounded-sm px-4 py-3 flex items-start justify-between gap-3">
           <div className="flex items-center gap-2">
-            <span className="text-lg">{isLongestDrive ? "🏌️" : "📍"}</span>
+            <span className="text-lg">{isLongestDrive ? "🏌️" : "⛳️"}</span>
             <p className="text-[#C9A84C] text-sm font-medium">
               Note: Hole {hole.hole_number} — {isLongestDrive ? "Longest Drive" : "Nearest the Pin"}
             </p>
@@ -1385,6 +1398,16 @@ function HoleCard({
             className="text-white/30 hover:text-white/60 text-lg leading-none flex-shrink-0"
             aria-label="Dismiss"
           >×</button>
+        </div>
+      )}
+
+      {/* Next-hole preview banner */}
+      {showNextHoleAlert && (
+        <div className="border border-white/15 bg-white/5 rounded-sm px-4 py-2.5 flex items-center gap-2">
+          <span className="text-base">{nextIsLongestDrive ? "🏌️" : "⛳️"}</span>
+          <p className="text-white/50 text-xs">
+            Next hole: {nextIsLongestDrive ? "Longest Drive" : "Nearest the Pin"}
+          </p>
         </div>
       )}
 
@@ -1524,7 +1547,7 @@ function LivePlayerTile({
             <span className="text-white/30 text-base">SI {effectiveSI}</span>
             {yardage && <span className="text-white/25 text-sm">{yardage} yds</span>}
             {isLongestDrive && <span className="text-lg" title="Longest Drive">🏌️</span>}
-            {isNearestPin   && <span className="text-lg" title="Nearest the Pin">📍</span>}
+            {isNearestPin   && <span className="text-lg" title="Nearest the Pin">⛳️</span>}
           </div>
           <button
             onClick={onToggleNR}

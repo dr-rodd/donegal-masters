@@ -269,12 +269,15 @@ interface Props {
   roundHandicaps: RoundHandicap[]
   onClose?: () => void
   showBackButton?: boolean
+  longestDriveWinner?: string | null
+  nearestPinWinner?: string | null
 }
 
 // ─── Component ────────────────────────────────────────────
 
 export default function LiveLeaderboardPanel({
   liveRound, players, holes, roundHandicaps, onClose, showBackButton = false,
+  longestDriveWinner, nearestPinWinner,
 }: Props) {
   const [liveScores, setLiveScores]     = useState<LiveScoreRow[]>([])
   const [validPlayerIds, setValidPlayerIds] = useState<Set<string>>(new Set())
@@ -523,7 +526,7 @@ export default function LiveLeaderboardPanel({
                     {positions[idx]}
                   </span>
 
-                  {/* Col 2: team dot + name */}
+                  {/* Col 2: team dot + name + competition winner badges */}
                   <div className="flex items-center gap-2 flex-1 min-w-0">
                     {player.teams && (
                       <span
@@ -532,6 +535,8 @@ export default function LiveLeaderboardPanel({
                       />
                     )}
                     <span className="text-base text-white/80 truncate">{player.name}</span>
+                    {longestDriveWinner === player.id && <span className="text-base flex-shrink-0" title="Longest Drive">🏌️</span>}
+                    {nearestPinWinner  === player.id && <span className="text-base flex-shrink-0" title="Nearest the Pin">⛳️</span>}
                   </div>
 
                   {/* Col 3: relative score pill */}

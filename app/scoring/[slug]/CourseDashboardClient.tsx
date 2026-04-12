@@ -89,12 +89,26 @@ export default function CourseDashboardClient({
     if (typeof window === "undefined" || !storageKey) return null
     try { return JSON.parse(localStorage.getItem(storageKey) ?? "{}").nearestPin ?? null } catch { return null }
   })
+  const [longestDriveWinner, setLongestDriveWinner] = useState<string | null>(() => {
+    if (typeof window === "undefined" || !storageKey) return null
+    try { return JSON.parse(localStorage.getItem(storageKey) ?? "{}").longestDriveWinner ?? null } catch { return null }
+  })
+  const [nearestPinWinner, setNearestPinWinner] = useState<string | null>(() => {
+    if (typeof window === "undefined" || !storageKey) return null
+    try { return JSON.parse(localStorage.getItem(storageKey) ?? "{}").nearestPinWinner ?? null } catch { return null }
+  })
 
-  function saveCompetitionHoles(ld: number | null, np: number | null) {
+  function saveCompetitionHoles(
+    ld: number | null, np: number | null,
+    ldw: string | null = longestDriveWinner,
+    npw: string | null = nearestPinWinner,
+  ) {
     setLongestDriveHole(ld)
     setNearestPinHole(np)
+    setLongestDriveWinner(ldw)
+    setNearestPinWinner(npw)
     if (!storageKey) return
-    localStorage.setItem(storageKey, JSON.stringify({ longestDrive: ld, nearestPin: np }))
+    localStorage.setItem(storageKey, JSON.stringify({ longestDrive: ld, nearestPin: np, longestDriveWinner: ldw, nearestPinWinner: npw }))
   }
 
   const nonComposite = players.filter(p => !p.is_composite)
@@ -878,6 +892,7 @@ export default function CourseDashboardClient({
                 <section>
                   <p className="text-white/30 text-xs tracking-[0.2em] uppercase mb-3">Competition Holes</p>
                   <div className="space-y-3">
+                    {/* Longest Drive — hole */}
                     <div className="flex items-center justify-between border border-[#1e3d28] px-4 py-3 rounded-sm">
                       <div className="flex items-center gap-2">
                         <span className="text-lg">🏌️</span>
@@ -894,9 +909,26 @@ export default function CourseDashboardClient({
                         ))}
                       </select>
                     </div>
+                    {/* Longest Drive — winner */}
+                    {longestDriveHole && (
+                      <div className="flex items-center justify-between border border-[#1e3d28]/60 px-4 py-2.5 rounded-sm bg-white/[0.02]">
+                        <span className="text-white/50 text-sm pl-7">Winner</span>
+                        <select
+                          value={longestDriveWinner ?? ""}
+                          onChange={e => saveCompetitionHoles(longestDriveHole, nearestPinHole, e.target.value || null, nearestPinWinner)}
+                          className="bg-[#0d2015] border border-[#1e3d28] text-white/80 text-sm rounded-sm px-3 py-1.5 min-w-[130px]"
+                        >
+                          <option value="">— Not yet —</option>
+                          {nonComposite.map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
+                    {/* Nearest the Pin — hole */}
                     <div className="flex items-center justify-between border border-[#1e3d28] px-4 py-3 rounded-sm">
                       <div className="flex items-center gap-2">
-                        <span className="text-lg">📍</span>
+                        <span className="text-lg">⛳️</span>
                         <span className="text-white/70 text-sm">Nearest the Pin</span>
                       </div>
                       <select
@@ -910,6 +942,22 @@ export default function CourseDashboardClient({
                         ))}
                       </select>
                     </div>
+                    {/* Nearest the Pin — winner */}
+                    {nearestPinHole && (
+                      <div className="flex items-center justify-between border border-[#1e3d28]/60 px-4 py-2.5 rounded-sm bg-white/[0.02]">
+                        <span className="text-white/50 text-sm pl-7">Winner</span>
+                        <select
+                          value={nearestPinWinner ?? ""}
+                          onChange={e => saveCompetitionHoles(longestDriveHole, nearestPinHole, longestDriveWinner, e.target.value || null)}
+                          className="bg-[#0d2015] border border-[#1e3d28] text-white/80 text-sm rounded-sm px-3 py-1.5 min-w-[130px]"
+                        >
+                          <option value="">— Not yet —</option>
+                          {nonComposite.map(p => (
+                            <option key={p.id} value={p.id}>{p.name}</option>
+                          ))}
+                        </select>
+                      </div>
+                    )}
                   </div>
                 </section>
 
@@ -941,6 +989,8 @@ export default function CourseDashboardClient({
           onHoleChange={(idx, total) => setLiveHole(idx >= 0 ? { idx, total } : null)}
           longestDriveHole={longestDriveHole}
           nearestPinHole={nearestPinHole}
+          longestDriveWinner={longestDriveWinner}
+          nearestPinWinner={nearestPinWinner}
         />
       )}
 
@@ -953,6 +1003,8 @@ export default function CourseDashboardClient({
           roundHandicaps={roundHandicaps}
           onClose={goBack}
           showBackButton={false}
+          longestDriveWinner={longestDriveWinner}
+          nearestPinWinner={nearestPinWinner}
         />
       )}
 
