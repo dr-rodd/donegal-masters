@@ -1,7 +1,7 @@
 "use client"
 
-import { useState } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useRef } from "react"
+import ScoreShape from "@/app/components/ScoreShape"
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -11,24 +11,56 @@ type StrokesView = "gross" | "nett"
 type Course  = { id: string; name: string }
 type Round   = { id: string; round_number: number; courses: Course | null }
 type Team    = { name: string; color: string }
-type Player  = { id: string; name: string; role: string; handicap: number; team_id: string | null; is_composite?: boolean; teams: Team | null }
-type Hole    = { id: string; hole_number: number; par: number; stroke_index: number; course_id: string }
+type Player  = { id: string; name: string; role: string; handicap: number; gender: string; team_id: string | null; is_composite?: boolean; teams: Team | null }
+type Hole    = {
+  id: string; hole_number: number; par: number; stroke_index: number; course_id: string
+  yardage_black?: number; yardage_blue?: number; yardage_white?: number; yardage_red?: number
+  yardage_sandstone?: number; yardage_slate?: number; yardage_granite?: number; yardage_claret?: number
+}
+type Tee     = { id: string; course_id: string; name: string; gender: string; par: number }
 type RoundHcp = { round_id: string; player_id: string; playing_handicap: number }
 type Score   = { player_id: string; hole_id: string; round_id: string; stableford_points: number; gross_score: number; no_return: boolean }
+type CompositeHole = { composite_player_id: string; hole_id: string; round_id: string; source_player_name: string }
 
 interface Props {
-  rounds:        Round[]
-  players:       Player[]
-  holes:         Hole[]
-  scores:        Score[]
+  rounds:         Round[]
+  players:        Player[]
+  holes:          Hole[]
+  scores:         Score[]
   roundHandicaps: RoundHcp[]
+  tees:           Tee[]
+  compositeHoles: CompositeHole[]
 }
 
-// ─── Constants ─────────────────────────────────────────────────
+// ─── Scorecard helpers ─────────────────────────────────────────
+
+const COURSE_SHORT: Record<string, string> = {
+  "Old Tom Morris":    "Old Tom",
+  "St Patricks Links": "St Patrick",
+  "Sandy Hills":       "Sandy Hills",
+}
+const TEE_PREF_M = ["blue", "white", "black", "sandstone", "slate", "granite", "claret", "red"]
+const TEE_PREF_F = ["red", "sandstone", "claret", "white", "blue", "black"]
+
+function defaultTee(tees: Tee[], courseId: string, gender: string): Tee | null {
+  const ct = tees.filter(t => t.course_id === courseId)
+  const prefs = gender === "F" ? TEE_PREF_F : TEE_PREF_M
+  for (const p of prefs) {
+    const t = ct.find(x => x.name.toLowerCase() === p)
+    if (t) return t
+  }
+  return ct[0] ?? null
+}
+
+function getYardage(hole: Hole, teeName: string): number | null {
+  const key = `yardage_${teeName.toLowerCase()}` as keyof Hole
+  const v = hole[key]
+  return typeof v === "number" ? v : null
+}
+
+// ─── Leaderboard helpers ───────────────────────────────────────
 
 const displayName = (p: Player) => p.is_composite ? p.name.replace(/^Composite\s+/i, "") : p.name
-
-// ─── Helpers ───────────────────────────────────────────────────
 
 function playerRoundStableford(playerId: string, roundId: string, scores: Score[]) {
   return scores
@@ -40,7 +72,7 @@ function shotsReceived(si: number, hcp: number) {
   return Math.floor(hcp / 18) + (si <= hcp % 18 ? 1 : 0)
 }
 
-function nrGross(hole: Hole, playingHandicap: number): number {
+function nrGrossCalc(hole: Hole, playingHandicap: number): number {
   return hole.par + 2 + shotsReceived(hole.stroke_index, playingHandicap)
 }
 
@@ -51,7 +83,7 @@ function playerRoundGross(playerId: string, roundId: string, scores: Score[], ho
     .reduce((sum, s) => {
       if (s.no_return) {
         const hole = holes.find(h => h.id === s.hole_id)
-        return sum + (hole ? nrGross(hole, ph) : 0)
+        return sum + (hole ? nrGrossCalc(hole, ph) : 0)
       }
       return sum + s.gross_score
     }, 0)
@@ -72,7 +104,7 @@ function playerTotalGross(playerId: string, scores: Score[], holes: Hole[], roun
       if (s.no_return) {
         const hole = holes.find(h => h.id === s.hole_id)
         const ph = roundHandicaps.find(h => h.player_id === playerId && h.round_id === s.round_id)?.playing_handicap ?? 0
-        return sum + (hole ? nrGross(hole, ph) : 0)
+        return sum + (hole ? nrGrossCalc(hole, ph) : 0)
       }
       return sum + s.gross_score
     }, 0)
@@ -123,6 +155,269 @@ function statusLabel(status: number): string {
 function statusColor(status: number) {
   if (status === 0) return "text-white/40"
   return status > 0 ? "text-[#C9A84C]" : "text-rose-400"
+}
+
+// ─── Subtotal row (scorecard) ──────────────────────────────────
+
+function SubtotalRow({
+  label, par, yards, gross, pts, hasScores, hasNR, isTotal,
+}: {
+  label: string; par: number; yards: number | null
+  gross: number; pts: number; hasScores: boolean; hasNR?: boolean; isTotal?: boolean
+}) {
+  const crimson = "font-[family-name:var(--font-crimson)]"
+  const bg = isTotal ? "bg-[#1a3a22]" : "bg-gray-100"
+  const textLabel = isTotal ? "text-white/70" : "text-gray-500"
+  const textData  = isTotal ? "text-white" : "text-gray-700"
+  const textPts   = isTotal ? "text-[#C9A84C] font-semibold" : "text-[#2d6a4f] font-semibold"
+  return (
+    <tr className={`border-t-2 ${isTotal ? "border-[#1e3a22]" : "border-gray-200"} ${bg}`}>
+      <td className={`py-2 px-3 text-sm uppercase tracking-wider font-semibold ${textLabel} font-[family-name:var(--font-playfair)]`}>{label}</td>
+      <td className={`text-center py-2 px-2 ${isTotal ? "text-lg" : "text-base"} font-semibold ${textData} ${crimson}`}>{par}</td>
+      <td className="py-2 px-2" />
+      <td className={`text-center py-2 px-2 text-base ${textData} ${crimson}`}>{yards ?? "—"}</td>
+      <td className={`text-center py-2 px-2 ${isTotal ? "text-lg" : "text-base"} font-semibold ${textData} ${crimson}`}>
+        {hasScores ? <>{gross > 0 ? gross : "—"}{hasNR && <span className="text-orange-500 text-[9px] ml-0.5">NR</span>}</> : "—"}
+      </td>
+      <td className={`text-center py-2 px-2 ${isTotal ? "text-lg font-bold" : "text-base"} ${textPts} ${crimson}`}>
+        {hasScores ? pts : "—"}
+      </td>
+    </tr>
+  )
+}
+
+// ─── Scorecard modal ───────────────────────────────────────────
+
+function ScorecardModal({ player, rounds, holes, scores, roundHandicaps, tees, compositeHoles, initialRoundIdx, onClose }: {
+  player: Player
+  rounds: Round[]
+  holes: Hole[]
+  scores: Score[]
+  roundHandicaps: RoundHcp[]
+  tees: Tee[]
+  compositeHoles: CompositeHole[]
+  initialRoundIdx: number
+  onClose: () => void
+}) {
+  const [roundIdx, setRoundIdx] = useState(Math.min(initialRoundIdx, Math.max(0, rounds.length - 1)))
+  const touchStartX = useRef(0)
+
+  function goTo(i: number) {
+    if (i < 0 || i >= rounds.length || i === roundIdx) return
+    setRoundIdx(i)
+  }
+
+  const round = rounds[roundIdx]
+  if (!round) return null
+
+  const courseId   = round.courses?.id ?? ""
+  const courseName = round.courses?.name ?? ""
+
+  // Composite initials map for this round
+  const compositeMap: Record<string, string> = {}
+  if (player.is_composite) {
+    for (const ch of compositeHoles) {
+      if (ch.composite_player_id === player.id && ch.round_id === round.id) {
+        const initials = ch.source_player_name
+          .split(" ").map(w => w[0]).join("").toUpperCase().slice(0, 2)
+        compositeMap[ch.hole_id] = initials
+      }
+    }
+  }
+
+  const courseHoles  = holes.filter(h => h.course_id === courseId).sort((a, b) => a.hole_number - b.hole_number)
+  const roundScores  = scores.filter(s => s.player_id === player.id && s.round_id === round.id)
+  const playingHcp   = roundHandicaps.find(h => h.player_id === player.id && h.round_id === round.id)?.playing_handicap ?? null
+  const tee          = defaultTee(tees, courseId, player.gender)
+  const hasScores    = roundScores.length > 0
+  const front        = courseHoles.slice(0, 9)
+  const back         = courseHoles.slice(9, 18)
+
+  function holeScore(hole: Hole): Score | null {
+    return roundScores.find(s => s.hole_id === hole.id) ?? null
+  }
+  function nrGross(hole: Hole): number {
+    const ph = playingHcp ?? 0
+    return hole.par + 2 + Math.floor(ph / 18) + (hole.stroke_index <= ph % 18 ? 1 : 0)
+  }
+  function sumGross(hs: Hole[]) {
+    return hs.reduce((sum, h) => {
+      const s = holeScore(h)
+      return s ? sum + (s.no_return ? nrGross(h) : s.gross_score) : sum
+    }, 0)
+  }
+  function sumPts(hs: Hole[]) {
+    return hs.reduce((sum, h) => sum + (holeScore(h)?.stableford_points ?? 0), 0)
+  }
+  function sumPar(hs: Hole[]) {
+    return hs.reduce((sum, h) => sum + h.par, 0)
+  }
+  function sumYards(hs: Hole[]): number | null {
+    if (!tee) return null
+    let total = 0
+    for (const h of hs) {
+      const y = getYardage(h, tee.name)
+      if (y == null) return null
+      total += y
+    }
+    return total
+  }
+
+  const outPar    = sumPar(front);  const inPar    = sumPar(back)
+  const outGross  = sumGross(front); const inGross  = sumGross(back)
+  const outPts    = sumPts(front);   const inPts    = sumPts(back)
+  const outYards  = sumYards(front); const inYards  = sumYards(back)
+  const totalPar   = outPar + inPar
+  const totalGross = outGross + inGross
+  const totalPts   = outPts + inPts
+  const totalYards = outYards != null && inYards != null ? outYards + inYards : null
+  const hasNR      = roundScores.some(s => s.no_return)
+  const crimson    = "font-[family-name:var(--font-crimson)]"
+
+  const HoleRow = ({ hole, i }: { hole: Hole; i: number }) => {
+    const s    = holeScore(hole)
+    const pts  = s?.stableford_points ?? null
+    const initials = compositeMap[hole.id]
+    return (
+      <tr className={`border-t border-gray-100 ${i % 2 === 0 ? "bg-white" : "bg-gray-50/40"}`}>
+        <td className={`py-2.5 px-3 text-lg font-semibold text-gray-700 ${crimson}`}>
+          <div className="flex items-center gap-1">
+            {hole.hole_number}
+            {initials && (
+              <span className="text-[9px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-0.5 rounded-sm leading-tight">{initials}</span>
+            )}
+          </div>
+        </td>
+        <td className={`text-center py-2.5 px-2 text-base text-gray-500 ${crimson}`}>{hole.par}</td>
+        <td className={`text-center py-2.5 px-2 text-sm text-gray-300 ${crimson}`}>{hole.stroke_index}</td>
+        <td className={`text-center py-2.5 px-2 text-sm text-gray-400 ${crimson}`}>
+          {tee ? (getYardage(hole, tee.name) ?? "—") : "—"}
+        </td>
+        <td className="text-center py-1.5 px-2">
+          {s
+            ? s.no_return
+              ? <span className={`inline-flex items-center justify-center w-7 h-7 border border-orange-500/60 rounded-sm text-orange-500 text-xs font-semibold ${crimson}`}>NR</span>
+              : <ScoreShape gross={s.gross_score} par={hole.par} />
+            : <span className="text-gray-200 text-sm">—</span>
+          }
+        </td>
+        <td className={`text-center py-2.5 px-2 text-lg font-semibold ${crimson} ${
+          pts == null ? "text-gray-200" : pts >= 3 ? "text-[#2d6a4f]" : pts === 0 ? "text-gray-300" : "text-gray-500"
+        }`}>
+          {pts != null ? pts : "—"}
+        </td>
+      </tr>
+    )
+  }
+
+  return (
+    <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
+      <div className="absolute inset-0 bg-black/70" />
+      <div
+        className="relative bg-[#0a1a0e] rounded-t-2xl flex flex-col max-h-[90vh]"
+        style={{ paddingTop: "max(env(safe-area-inset-top), 8px)" }}
+        onClick={e => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div className="flex-shrink-0 flex items-center justify-between px-4 pt-4 pb-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span
+              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+              style={{ backgroundColor: player.teams?.color ?? "#6b7280" }}
+            />
+            <span className="font-[family-name:var(--font-playfair)] text-xl text-white truncate">
+              {displayName(player)}
+            </span>
+            {player.is_composite && (
+              <span className="text-[11px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-1 rounded-sm leading-tight flex-shrink-0">C</span>
+            )}
+          </div>
+          <button
+            onClick={onClose}
+            className="text-white/50 hover:text-white transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center text-xl flex-shrink-0"
+          >✕</button>
+        </div>
+
+        {/* Round tabs */}
+        <div className="flex-shrink-0 flex gap-1.5 px-4 pb-3">
+          {rounds.map((r, i) => {
+            const short = COURSE_SHORT[r.courses?.name ?? ""] ?? (r.courses?.name ?? `Round ${r.round_number}`)
+            const active = i === roundIdx
+            return (
+              <button
+                key={r.id}
+                onClick={() => goTo(i)}
+                className={`flex-1 py-2 px-2 rounded-sm text-center transition-colors border ${
+                  active
+                    ? "bg-[#C9A84C]/15 border-[#C9A84C]/40 text-[#C9A84C]"
+                    : "bg-white/[0.03] border-[#1e3d28] text-white/35"
+                }`}
+              >
+                <div className="font-[family-name:var(--font-playfair)] text-sm font-semibold leading-tight">{short}</div>
+                <div className={`text-[10px] mt-0.5 tracking-[0.15em] uppercase ${active ? "text-[#C9A84C]/50" : "text-white/20"}`}>
+                  Day {r.round_number}
+                </div>
+              </button>
+            )
+          })}
+        </div>
+
+        {/* Scrollable scorecard */}
+        <div
+          className="flex-1 overflow-y-auto min-h-0"
+          onTouchStart={e => { touchStartX.current = e.touches[0].clientX }}
+          onTouchEnd={e => {
+            const dx = e.changedTouches[0].clientX - touchStartX.current
+            if (Math.abs(dx) > 60) goTo(roundIdx + (dx < 0 ? 1 : -1))
+          }}
+        >
+          <div className="px-4 pb-8">
+            <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
+
+              {/* Card header */}
+              <div className="bg-[#1a3a22] px-4 py-3 flex items-center justify-between">
+                <span className="font-[family-name:var(--font-playfair)] text-white text-base">{courseName}</span>
+                <div className={`flex items-center gap-3 text-sm ${crimson}`}>
+                  {tee && <span className="text-[#C9A84C]/80 capitalize">{tee.name.toLowerCase()} tees</span>}
+                  {playingHcp != null && <span className="text-white/40">hcp {playingHcp}</span>}
+                </div>
+              </div>
+
+              {courseHoles.length === 0 ? (
+                <p className="text-gray-300 text-sm text-center py-10">Course data unavailable</p>
+              ) : (
+                <table className="w-full border-collapse">
+                  <thead>
+                    <tr className="border-b-2 border-gray-200 bg-gray-50">
+                      <th className="text-left py-2 px-3 text-sm font-semibold text-gray-400 uppercase tracking-wide font-[family-name:var(--font-playfair)] w-10">Hole</th>
+                      <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-9">Par</th>
+                      <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-9">SI</th>
+                      <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-12">Yds</th>
+                      <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide">Score</th>
+                      <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-10">Pts</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {front.map((hole, i) => <HoleRow key={hole.id} hole={hole} i={i} />)}
+                    <SubtotalRow label="Out" par={outPar} yards={outYards} gross={outGross} pts={outPts} hasScores={hasScores} />
+                    {back.map((hole, i) => <HoleRow key={hole.id} hole={hole} i={i} />)}
+                    <SubtotalRow label="In" par={inPar} yards={inYards} gross={inGross} pts={inPts} hasScores={hasScores} />
+                    <SubtotalRow label="Total" par={totalPar} yards={totalYards} gross={totalGross} pts={totalPts} hasScores={hasScores} hasNR={hasNR} isTotal />
+                  </tbody>
+                </table>
+              )}
+
+              {!hasScores && courseHoles.length > 0 && (
+                <p className={`text-center text-gray-300 text-sm py-4 border-t border-gray-100 ${crimson}`}>
+                  No scores recorded yet
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
 }
 
 // ─── Matchplay ─────────────────────────────────────────────────
@@ -251,8 +546,8 @@ function MatchplaySection({ playerA, playerB, rounds, holes, scores, noShots, on
                 <tbody>
                   {holeResults.map(({ hole, aScore, bScore, result, status }) => {
                     const hasScores = aScore !== undefined && bScore !== undefined
-                    const aPts = aScore?.stableford_points ?? null
-                    const bPts = bScore?.stableford_points ?? null
+                    const aPts  = aScore?.stableford_points ?? null
+                    const bPts  = bScore?.stableford_points ?? null
                     const aGross = aScore?.gross_score ?? null
                     const bGross = bScore?.gross_score ?? null
 
@@ -303,13 +598,13 @@ function MatchplaySection({ playerA, playerB, rounds, holes, scores, noShots, on
 
 // ─── Main component ────────────────────────────────────────────
 
-export default function IndividualClient({ rounds, players, holes, scores, roundHandicaps }: Props) {
-  const router = useRouter()
+export default function IndividualClient({ rounds, players, holes, scores, roundHandicaps, tees, compositeHoles }: Props) {
   const [viewMode, setViewMode]       = useState<ViewMode>("stableford")
   const [strokesView, setStrokesView] = useState<StrokesView>("gross")
   const [playerAId, setPlayerAId]     = useState("")
   const [playerBId, setPlayerBId]     = useState("")
   const [noShots, setNoShots]         = useState(false)
+  const [modal, setModal]             = useState<{ playerId: string; roundIdx: number } | null>(null)
 
   const standings = players
     .map(p => {
@@ -368,197 +663,211 @@ export default function IndividualClient({ rounds, players, holes, scores, round
     return s.totalGross
   }
 
-  function navigate(playerId: string, roundIdx: number) {
-    console.log(`[TAP] ${Date.now()} navigate triggered — playerId=${playerId} roundIdx=${roundIdx}`)
-    router.push(`/scorecard/${playerId}?from=individual&round=${roundIdx}`)
-  }
+  const modalPlayer = modal ? players.find(p => p.id === modal.playerId) ?? null : null
 
   const playerA = players.find(p => p.id === playerAId)
   const playerB = players.find(p => p.id === playerBId)
 
   return (
-    <div className="space-y-10">
+    <>
+      <div className="space-y-10">
 
-      {/* ── Individual standings ── */}
-      <section>
+        {/* ── Individual standings ── */}
+        <section>
 
-        {/* Mode toggle */}
-        <div className="flex border border-[#1e3d28] overflow-hidden mb-3">
-          <button
-            onClick={() => setViewMode("stableford")}
-            className={`flex-1 py-2.5 text-sm tracking-[0.15em] uppercase transition-colors
-              ${viewMode === "stableford" ? "bg-[#1e3d28] text-[#C9A84C]" : "text-white/40 hover:text-white/60"}`}
-          >
-            Stableford
-          </button>
-          <button
-            onClick={() => setViewMode("strokes")}
-            className={`flex-1 py-2.5 text-sm tracking-[0.15em] uppercase transition-colors border-l border-[#1e3d28]
-              ${viewMode === "strokes" ? "bg-[#1e3d28] text-[#C9A84C]" : "text-white/40 hover:text-white/60"}`}
-          >
-            Strokes
-          </button>
-        </div>
-
-        {/* Strokes sub-toggle */}
-        {viewMode === "strokes" && (
-          <div className="flex rounded-full border border-[#1e3d28] overflow-hidden mb-4">
+          {/* Mode toggle */}
+          <div className="flex border border-[#1e3d28] overflow-hidden mb-3">
             <button
-              onClick={() => setStrokesView("gross")}
-              className={`px-3 py-1 text-[10px] tracking-[0.1em] uppercase transition-colors
-                ${strokesView === "gross" ? "bg-[#1e3d28] text-white/70" : "text-white/30 hover:text-white/50"}`}
+              onClick={() => setViewMode("stableford")}
+              className={`flex-1 py-2.5 text-sm tracking-[0.15em] uppercase transition-colors
+                ${viewMode === "stableford" ? "bg-[#1e3d28] text-[#C9A84C]" : "text-white/40 hover:text-white/60"}`}
             >
-              Gross
+              Stableford
             </button>
             <button
-              onClick={() => setStrokesView("nett")}
-              className={`px-3 py-1 text-[10px] tracking-[0.1em] uppercase transition-colors border-l border-[#1e3d28]
-                ${strokesView === "nett" ? "bg-[#1e3d28] text-white/70" : "text-white/30 hover:text-white/50"}`}
+              onClick={() => setViewMode("strokes")}
+              className={`flex-1 py-2.5 text-sm tracking-[0.15em] uppercase transition-colors border-l border-[#1e3d28]
+                ${viewMode === "strokes" ? "bg-[#1e3d28] text-[#C9A84C]" : "text-white/40 hover:text-white/60"}`}
             >
-              Nett
+              Strokes
             </button>
           </div>
-        )}
 
-        {/* Card: sticky column header + rows */}
-        <div className="border border-[#1e3d28]">
-
-          {/* Sticky column headers — first child so rows cannot scroll under it */}
-          <div className="sticky top-0 z-10 grid grid-cols-[20px_1fr_44px_44px_44px_60px] gap-x-2 items-center px-3 py-1 bg-[#0a1a0e] border-b border-[#1e3d28]">
-            <span className="text-[10px] tracking-widest uppercase text-white/25">Pos</span>
-            <span className="text-[10px] tracking-widest uppercase text-white/25">Player</span>
-            {rounds.map(r => (
-              <span key={r.id} className="text-xs text-white/25 text-center tabular-nums">{r.round_number}</span>
-            ))}
-            <span className="text-[10px] tracking-widest uppercase text-[#C9A84C]/50 text-right">
-              {viewMode === "stableford" ? "Tot" : strokesView === "nett" ? "Nett" : "Gross"}
-            </span>
-          </div>
-
-          {/* Rows */}
-          {standings.length === 0 ? (
-            <p className="px-4 py-8 text-center text-white/20 text-sm">No scores yet</p>
-          ) : standings.map(({ player, byRound, hasAny, totalSF, totalGross, totalNett, hasNR, badges }, i) => {
-            const totValue = getTotValue({ player, byRound, hasAny, totalSF, totalGross, totalNett, hasNR, badges })
-            const emojiStr = "🦅".repeat(badges.eagles) + "🦤".repeat(badges.birdies)
-            const canOpen = hasAny
-
-            return (
-              <div
-                key={player.id}
-                onClick={() => canOpen && navigate(player.id, 0)}
-                className={`grid grid-cols-[20px_1fr_44px_44px_44px_60px] gap-x-2 items-center px-3 py-1
-                  border-b border-[#1e3d28] last:border-b-0
-                  ${canOpen ? "cursor-pointer active:bg-white/5 transition-colors" : ""}`}
+          {/* Strokes sub-toggle */}
+          {viewMode === "strokes" && (
+            <div className="flex rounded-full border border-[#1e3d28] overflow-hidden mb-4">
+              <button
+                onClick={() => setStrokesView("gross")}
+                className={`px-3 py-1 text-[10px] tracking-[0.1em] uppercase transition-colors
+                  ${strokesView === "gross" ? "bg-[#1e3d28] text-white/70" : "text-white/30 hover:text-white/50"}`}
               >
-                {/* Pos */}
-                <span className="text-white/40 text-base font-semibold tabular-nums">
-                  {positions[i]}
-                </span>
+                Gross
+              </button>
+              <button
+                onClick={() => setStrokesView("nett")}
+                className={`px-3 py-1 text-[10px] tracking-[0.1em] uppercase transition-colors border-l border-[#1e3d28]
+                  ${strokesView === "nett" ? "bg-[#1e3d28] text-white/70" : "text-white/30 hover:text-white/50"}`}
+              >
+                Nett
+              </button>
+            </div>
+          )}
 
-                {/* Name */}
-                <div className="flex items-center gap-2 min-w-0">
-                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams?.color ?? "#6b7280" }} />
-                  <span className="text-lg text-white/80 truncate">{displayName(player)}</span>
-                  {emojiStr && <span className="text-[0.55em] leading-none flex-shrink-0">{emojiStr}</span>}
-                  {player.is_composite && (
-                    <span className="text-[9px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-0.5 rounded-sm leading-tight flex-shrink-0">C</span>
-                  )}
+          {/* Card: sticky column header + rows */}
+          <div className="border border-[#1e3d28]">
+
+            {/* Sticky column headers */}
+            <div className="sticky top-0 z-10 grid grid-cols-[20px_1fr_44px_44px_44px_60px] gap-x-2 items-center px-3 py-1 bg-[#0a1a0e] border-b border-[#1e3d28]">
+              <span className="text-[10px] tracking-widest uppercase text-white/25">Pos</span>
+              <span className="text-[10px] tracking-widests uppercase text-white/25">Player</span>
+              {rounds.map(r => (
+                <span key={r.id} className="text-xs text-white/25 text-center tabular-nums">{r.round_number}</span>
+              ))}
+              <span className="text-[10px] tracking-widests uppercase text-[#C9A84C]/50 text-right">
+                {viewMode === "stableford" ? "Tot" : strokesView === "nett" ? "Nett" : "Gross"}
+              </span>
+            </div>
+
+            {/* Rows */}
+            {standings.length === 0 ? (
+              <p className="px-4 py-8 text-center text-white/20 text-sm">No scores yet</p>
+            ) : standings.map(({ player, byRound, hasAny, totalSF, totalGross, totalNett, hasNR, badges }, i) => {
+              const totValue = getTotValue({ player, byRound, hasAny, totalSF, totalGross, totalNett, hasNR, badges })
+              const emojiStr = "🦅".repeat(badges.eagles) + "🦤".repeat(badges.birdies)
+              const canOpen  = hasAny
+
+              return (
+                <div
+                  key={player.id}
+                  onClick={() => canOpen && setModal({ playerId: player.id, roundIdx: 0 })}
+                  className={`grid grid-cols-[20px_1fr_44px_44px_44px_60px] gap-x-2 items-center px-3 py-1
+                    border-b border-[#1e3d28] last:border-b-0
+                    ${canOpen ? "cursor-pointer active:bg-white/5 transition-colors" : ""}`}
+                >
+                  {/* Pos */}
+                  <span className="text-white/40 text-base font-semibold tabular-nums">
+                    {positions[i]}
+                  </span>
+
+                  {/* Name */}
+                  <div className="flex items-center gap-2 min-w-0">
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams?.color ?? "#6b7280" }} />
+                    <span className="text-lg text-white/80 truncate">{displayName(player)}</span>
+                    {emojiStr && <span className="text-[0.55em] leading-none flex-shrink-0">{emojiStr}</span>}
+                    {player.is_composite && (
+                      <span className="text-[9px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-0.5 rounded-sm leading-tight flex-shrink-0">C</span>
+                    )}
+                  </div>
+
+                  {/* R1, R2, R3 */}
+                  {byRound.map((r, j) => {
+                    const val = getRoundValue(r)
+                    const hasRound    = r.sf !== null
+                    const canOpenRound = hasRound
+                    return (
+                      <div
+                        key={j}
+                        onClick={e => {
+                          e.stopPropagation()
+                          if (canOpenRound) setModal({ playerId: player.id, roundIdx: j })
+                        }}
+                        className={`flex items-baseline justify-center gap-0.5 text-2xl font-semibold tabular-nums rounded-sm py-0.5 transition-colors
+                          ${canOpenRound ? "cursor-pointer active:bg-white/10" : ""}
+                          ${hasRound ? "text-white/70" : "text-white/20 font-normal"}`}
+                      >
+                        {hasRound ? (
+                          <>
+                            {val}
+                            {r.hasNR && viewMode === "strokes" && strokesView === "gross" && (
+                              <span className="text-orange-400/60 text-[8px] leading-none">NR</span>
+                            )}
+                          </>
+                        ) : "—"}
+                      </div>
+                    )
+                  })}
+
+                  {/* TOT */}
+                  <span className={`text-right font-[family-name:var(--font-playfair)] tabular-nums
+                    ${hasAny ? "text-[#C9A84C] text-2xl font-bold" : "text-white/20 text-sm font-normal"}`}>
+                    {hasAny ? totValue : "—"}
+                  </span>
                 </div>
-
-                {/* R1, R2, R3 */}
-                {byRound.map((r, j) => {
-                  const val = getRoundValue(r)
-                  const hasRound = r.sf !== null
-                  const canOpenRound = hasRound
-                  return (
-                    <div
-                      key={j}
-                      onClick={e => {
-                        e.stopPropagation()
-                        if (canOpenRound) navigate(player.id, j)
-                      }}
-                      className={`flex items-baseline justify-center gap-0.5 text-2xl font-semibold tabular-nums rounded-sm py-0.5 transition-colors
-                        ${canOpenRound ? "cursor-pointer active:bg-white/10" : ""}
-                        ${hasRound ? "text-white/70" : "text-white/20 font-normal"}`}
-                    >
-                      {hasRound ? (
-                        <>
-                          {val}
-                          {r.hasNR && viewMode === "strokes" && strokesView === "gross" && (
-                            <span className="text-orange-400/60 text-[8px] leading-none">NR</span>
-                          )}
-                        </>
-                      ) : "—"}
-                    </div>
-                  )
-                })}
-
-                {/* TOT */}
-                <span className={`text-right font-[family-name:var(--font-playfair)] tabular-nums
-                  ${hasAny ? "text-[#C9A84C] text-2xl font-bold" : "text-white/20 text-sm font-normal"}`}>
-                  {hasAny ? totValue : "—"}
-                </span>
-              </div>
-            )
-          })}
-        </div>
-      </section>
-
-      {/* ── Matchplay ── */}
-      <section>
-        <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white mb-5">Matchplay</h2>
-
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
-          <div>
-            <label className="block text-sm tracking-[0.2em] uppercase text-white/30 mb-1.5">Player A</label>
-            <select
-              value={playerAId}
-              onChange={e => { setPlayerAId(e.target.value); setNoShots(false) }}
-              className="w-full bg-[#0f2418] border border-[#1e3d28] text-white px-4 py-3 rounded-sm appearance-none focus:outline-none focus:border-[#C9A84C] text-sm"
-            >
-              <option value="">Select player…</option>
-              {players.map(p => (
-                <option key={p.id} value={p.id} disabled={p.id === playerBId}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              )
+            })}
           </div>
-          <div>
-            <label className="block text-sm tracking-[0.2em] uppercase text-white/30 mb-1.5">Player B</label>
-            <select
-              value={playerBId}
-              onChange={e => { setPlayerBId(e.target.value); setNoShots(false) }}
-              className="w-full bg-[#0f2418] border border-[#1e3d28] text-white px-4 py-3 rounded-sm appearance-none focus:outline-none focus:border-[#C9A84C] text-sm"
-            >
-              <option value="">Select player…</option>
-              {players.map(p => (
-                <option key={p.id} value={p.id} disabled={p.id === playerAId}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+        </section>
 
-        {playerA && playerB ? (
-          <MatchplaySection
-            playerA={playerA}
-            playerB={playerB}
-            rounds={rounds}
-            holes={holes}
-            scores={scores}
-            noShots={noShots}
-            onToggleNoShots={() => setNoShots(v => !v)}
-          />
-        ) : (
-          <div className="border border-[#1e3d28] bg-[#0f2418] rounded-sm px-4 py-10 text-center text-white/20 text-sm">
-            Select two players to view matchplay
-          </div>
-        )}
-      </section>
+        {/* ── Matchplay ── */}
+        <section>
+          <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white mb-5">Matchplay</h2>
 
-    </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+            <div>
+              <label className="block text-sm tracking-[0.2em] uppercase text-white/30 mb-1.5">Player A</label>
+              <select
+                value={playerAId}
+                onChange={e => { setPlayerAId(e.target.value); setNoShots(false) }}
+                className="w-full bg-[#0f2418] border border-[#1e3d28] text-white px-4 py-3 rounded-sm appearance-none focus:outline-none focus:border-[#C9A84C] text-sm"
+              >
+                <option value="">Select player…</option>
+                {players.map(p => (
+                  <option key={p.id} value={p.id} disabled={p.id === playerBId}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm tracking-[0.2em] uppercase text-white/30 mb-1.5">Player B</label>
+              <select
+                value={playerBId}
+                onChange={e => { setPlayerBId(e.target.value); setNoShots(false) }}
+                className="w-full bg-[#0f2418] border border-[#1e3d28] text-white px-4 py-3 rounded-sm appearance-none focus:outline-none focus:border-[#C9A84C] text-sm"
+              >
+                <option value="">Select player…</option>
+                {players.map(p => (
+                  <option key={p.id} value={p.id} disabled={p.id === playerAId}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {playerA && playerB ? (
+            <MatchplaySection
+              playerA={playerA}
+              playerB={playerB}
+              rounds={rounds}
+              holes={holes}
+              scores={scores}
+              noShots={noShots}
+              onToggleNoShots={() => setNoShots(v => !v)}
+            />
+          ) : (
+            <div className="border border-[#1e3d28] bg-[#0f2418] rounded-sm px-4 py-10 text-center text-white/20 text-sm">
+              Select two players to view matchplay
+            </div>
+          )}
+        </section>
+
+      </div>
+
+      {/* Scorecard modal */}
+      {modal && modalPlayer && (
+        <ScorecardModal
+          player={modalPlayer}
+          rounds={rounds}
+          holes={holes}
+          scores={scores}
+          roundHandicaps={roundHandicaps}
+          tees={tees}
+          compositeHoles={compositeHoles}
+          initialRoundIdx={modal.roundIdx}
+          onClose={() => setModal(null)}
+        />
+      )}
+    </>
   )
 }

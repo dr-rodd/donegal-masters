@@ -17,8 +17,6 @@ export default async function ScorecardPage({
   const { from, round } = await searchParams
   const initialRoundIdx = round ? Math.max(0, parseInt(round, 10)) : 0
 
-  const fetchStart = Date.now()
-  console.log(`[SCORECARD FETCH] ${fetchStart} — starting 7 parallel queries for playerId=${playerId}`)
   const [playerRes, roundsRes, holesRes, scoresRes, hcpsRes, teesRes, compositeHolesRes] = await Promise.all([
     supabase.from("players").select("id, name, role, gender, handicap, is_composite, teams(name, color)").eq("id", playerId).single(),
     supabase.from("rounds").select("id, round_number, status, courses(id, name)").order("round_number"),
@@ -28,7 +26,7 @@ export default async function ScorecardPage({
     supabase.from("tees").select("id, course_id, name, gender, par"),
     supabase.from("composite_holes").select("hole_id, round_id, source_player_name").eq("composite_player_id", playerId),
   ])
-  console.log(`[SCORECARD FETCH] ${Date.now()} — all queries complete, took ${Date.now() - fetchStart}ms`)
+
 
   if (!playerRes.data) notFound()
 
