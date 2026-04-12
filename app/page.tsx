@@ -32,7 +32,7 @@ export default function Home() {
         <img
           src="/Retro_donegal_masters_logo.png"
           alt="The Donegal Masters"
-          style={{ width: "95vw", maxWidth: "360px", marginLeft: "auto", marginRight: "auto", height: "auto", display: "block", filter: "brightness(0) saturate(100%) invert(74%) sepia(27%) saturate(739%) hue-rotate(5deg) brightness(95%) contrast(95%)" }}
+          style={{ width: "90vw", marginLeft: "auto", marginRight: "auto", height: "auto", display: "block", filter: "brightness(0) saturate(100%) invert(74%) sepia(27%) saturate(739%) hue-rotate(5deg) brightness(95%) contrast(95%)" }}
         />
 
         {/* Subtitle */}

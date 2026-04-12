@@ -491,7 +491,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
                 {/* Name */}
                 <div className="flex items-center gap-2 min-w-0">
                   <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ROLE_DOT[player.role] ?? "bg-white/30"}`} />
-                  <span className="text-base text-white/80 truncate">{displayName(player)}</span>
+                  <span className="text-lg text-white/80 truncate">{displayName(player)}</span>
                   {emojiStr && <span className="text-[0.55em] leading-none flex-shrink-0">{emojiStr}</span>}
                   {player.is_composite && (
                     <span className="text-[9px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-0.5 rounded-sm leading-tight flex-shrink-0">C</span>
