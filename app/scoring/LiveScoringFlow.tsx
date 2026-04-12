@@ -820,7 +820,6 @@ export default function LiveScoringFlow({
     }
 
     async function handleHoleSubmit(holeScores: Record<string, HoleScore>) {
-      // Save to live_scores (non-blocking)
       const rows = playerSetups
         .map(({ player, playingHcp }) => {
           const hs = holeScores[player.id]
@@ -835,11 +834,20 @@ export default function LiveScoringFlow({
             committed: false,
           }
         }).filter(Boolean)
+
       if (rows.length > 0) {
-        supabase.from("live_scores").upsert(rows as any, { onConflict: "player_id,round_id,hole_number" })
-          .then(() => {}) // fire and forget
+        setSaving(true)
+        const { error: saveErr } = await supabase
+          .from("live_scores")
+          .upsert(rows as any, { onConflict: "player_id,round_id,hole_number" })
+        setSaving(false)
+        if (saveErr) {
+          setError(`Failed to save hole ${hole.hole_number} — please try again`)
+          return
+        }
       }
 
+      setError(null)
       const updated: Record<string, HoleScore> = {}
       for (const { player, playingHcp } of playerSetups) {
         const hs = holeScores[player.id]
@@ -914,25 +922,31 @@ export default function LiveScoringFlow({
 
       {/* Nav bar — rendered OUTSIDE overflow-x-hidden so iOS touch zones are correct */}
       {!showLeaderboard && (
-        <div className="fixed bottom-0 left-0 z-50 w-screen px-4 bg-[#0a1a0e] border-t border-[#1e3d28] pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-3">
-          <button
-            onClick={handleHoleBack}
-            className="flex-1 py-4 border border-white/20 text-white/50 text-2xl
-              hover:border-white/40 hover:text-white/70 active:bg-white/5 transition-colors rounded-sm"
-            aria-label="Previous hole"
-          >
-            ←
-          </button>
-          <button
-            onClick={() => handleHoleSubmit(latestScoresRef.current)}
-            disabled={!holesReady}
-            className="flex-[2] py-4 bg-[#C9A84C] text-black text-2xl font-bold
-              hover:bg-[#d4b05a] disabled:opacity-30 disabled:cursor-not-allowed
-              active:scale-[0.98] transition-all rounded-sm"
-            aria-label="Next hole"
-          >
-            →
-          </button>
+        <div className="fixed bottom-0 left-0 z-50 w-screen px-4 bg-[#0a1a0e] border-t border-[#1e3d28] pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex flex-col gap-2">
+          {error && (
+            <p className="text-red-400 text-sm text-center">{error}</p>
+          )}
+          <div className="flex gap-3">
+            <button
+              onClick={handleHoleBack}
+              disabled={saving}
+              className="flex-1 py-4 border border-white/20 text-white/50 text-2xl
+                hover:border-white/40 hover:text-white/70 active:bg-white/5 disabled:opacity-30 transition-colors rounded-sm"
+              aria-label="Previous hole"
+            >
+              ←
+            </button>
+            <button
+              onClick={() => handleHoleSubmit(latestScoresRef.current)}
+              disabled={!holesReady || saving}
+              className="flex-[2] py-4 bg-[#C9A84C] text-black text-2xl font-bold
+                hover:bg-[#d4b05a] disabled:opacity-30 disabled:cursor-not-allowed
+                active:scale-[0.98] transition-all rounded-sm"
+              aria-label="Next hole"
+            >
+              {saving ? "…" : "→"}
+            </button>
+          </div>
         </div>
       )}
       </>
