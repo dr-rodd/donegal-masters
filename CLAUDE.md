@@ -230,3 +230,8 @@ Composite players have team_id = NULL. PostgREST nested queries like teams.selec
 
 ### Score symbols (all scorecards)
 Eagle: double circle. Birdie: single thin ring. Par: plain. Bogey: thin rounded square. Double bogey+: thick rounded square. Applied via shared ScoreShape component.
+
+## iOS Safari Gotchas
+
+- `transform` (even identity like `translateX(0)`) creates a new stacking context and containing block in iOS Safari. Combined with `overflow: hidden` on a parent, this breaks touch hit-testing — taps don't register until a scroll shifts the coordinate space. Use margin-based positioning instead of transform for slide/tab animations.
+- `overflow-x: clip` on a containing block is treated by WebKit as clipping hit-testing for `position: sticky` descendants — elements render correctly but touch events fall through.
