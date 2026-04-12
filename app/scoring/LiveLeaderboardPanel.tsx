@@ -528,12 +528,10 @@ export default function LiveLeaderboardPanel({
 
                   {/* Col 2: team dot + name + competition winner badges */}
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    {player.teams && (
-                      <span
-                        className="w-2 h-2 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: player.teams.color }}
-                      />
-                    )}
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: player.teams?.color ?? "#6b7280" }}
+                    />
                     <span className="text-base text-white/80 truncate">{player.name}</span>
                     {longestDriveWinner === player.id && <span className="text-base flex-shrink-0" title="Longest Drive">🏌️</span>}
                     {nearestPinWinner  === player.id && <span className="text-base flex-shrink-0" title="Nearest the Pin">⛳️</span>}

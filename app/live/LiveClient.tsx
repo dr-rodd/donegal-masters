@@ -455,9 +455,7 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
                           : "border-white/20 text-white/60 hover:border-white/40"}`}
                     >
                       <div className="flex items-center gap-2">
-                        {p.teams && (
-                          <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.teams.color }} />
-                        )}
+                        <span className="w-2 h-2 rounded-full" style={{ backgroundColor: p.teams?.color ?? "#6b7280" }} />
                         <span>{p.name}</span>
                       </div>
                       <span className="text-sm opacity-50">HCP {p.handicap}</span>
@@ -545,9 +543,7 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
           {totalPts.map(({ player, pts }) => (
             <div key={player.id} className="flex items-center justify-between px-4 py-3">
               <div className="flex items-center gap-2">
-                {player.teams && (
-                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: player.teams.color }} />
-                )}
+                <span className="w-2 h-2 rounded-full" style={{ backgroundColor: player.teams?.color ?? "#6b7280" }} />
                 <span className="text-base text-white/80">{player.name}</span>
               </div>
               <div className="text-right">
@@ -770,9 +766,7 @@ function HoleCard({
               {/* Player name + HCP dots */}
               <div className="flex items-center justify-between mb-4">
                 <div className="flex items-center gap-2">
-                  {player.teams && (
-                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: player.teams.color }} />
-                  )}
+                  <span className="w-2 h-2 rounded-full" style={{ backgroundColor: player.teams?.color ?? "#6b7280" }} />
                   <span className="text-base text-white/80">{player.name}</span>
                 </div>
                 <div className="flex items-center gap-1 text-sm text-white/30">
@@ -992,9 +986,7 @@ function LiveLeaderboard({ players, rounds, holes, roundHandicaps }: LiveLeaderb
                 <div key={player.id} className="flex items-center gap-3 px-4 py-3">
                   <span className="text-white/40 text-lg font-semibold w-6 text-center">{idx + 1}</span>
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    {player.teams && (
-                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams.color }} />
-                    )}
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams?.color ?? "#6b7280" }} />
                     <span className="text-base text-white/80 truncate">{player.name}</span>
                   </div>
                   <div className="text-right">

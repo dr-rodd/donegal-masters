@@ -26,20 +26,7 @@ interface Props {
 
 // ─── Constants ─────────────────────────────────────────────────
 
-const ROLE_FILTERS = [
-  { key: "all", label: "All" },
-  { key: "dad", label: "Dads" },
-  { key: "mum", label: "Mums" },
-  { key: "son", label: "Sons" },
-] as const
-
 const displayName = (p: Player) => p.is_composite ? p.name.replace(/^Composite\s+/i, "") : p.name
-
-const ROLE_DOT: Record<string, string> = {
-  dad: "bg-blue-400",
-  mum: "bg-rose-400",
-  son: "bg-emerald-400",
-}
 
 // ─── Helpers ───────────────────────────────────────────────────
 
@@ -318,16 +305,13 @@ function MatchplaySection({ playerA, playerB, rounds, holes, scores, noShots, on
 
 export default function IndividualClient({ rounds, players, holes, scores, roundHandicaps }: Props) {
   const router = useRouter()
-  const [filter, setFilter]           = useState<"all" | "dad" | "mum" | "son">("all")
   const [viewMode, setViewMode]       = useState<ViewMode>("stableford")
   const [strokesView, setStrokesView] = useState<StrokesView>("gross")
   const [playerAId, setPlayerAId]     = useState("")
   const [playerBId, setPlayerBId]     = useState("")
   const [noShots, setNoShots]         = useState(false)
 
-  const filteredPlayers = filter === "all" ? players : players.filter(p => p.role === filter)
-
-  const standings = filteredPlayers
+  const standings = players
     .map(p => {
       const byRound = rounds.map(r => {
         const hasRoundScores = scores.some(s => s.player_id === p.id && s.round_id === r.id)
@@ -415,42 +399,25 @@ export default function IndividualClient({ rounds, players, holes, scores, round
           </button>
         </div>
 
-        {/* Strokes sub-toggle + role filters */}
-        <div className="flex items-center gap-3 mb-4 flex-wrap">
-          {viewMode === "strokes" && (
-            <div className="flex rounded-full border border-[#1e3d28] overflow-hidden">
-              <button
-                onClick={() => setStrokesView("gross")}
-                className={`px-3 py-1 text-[10px] tracking-[0.1em] uppercase transition-colors
-                  ${strokesView === "gross" ? "bg-[#1e3d28] text-white/70" : "text-white/30 hover:text-white/50"}`}
-              >
-                Gross
-              </button>
-              <button
-                onClick={() => setStrokesView("nett")}
-                className={`px-3 py-1 text-[10px] tracking-[0.1em] uppercase transition-colors border-l border-[#1e3d28]
-                  ${strokesView === "nett" ? "bg-[#1e3d28] text-white/70" : "text-white/30 hover:text-white/50"}`}
-              >
-                Nett
-              </button>
-            </div>
-          )}
-
-          <div className="flex gap-1.5">
-            {ROLE_FILTERS.map(f => (
-              <button
-                key={f.key}
-                onClick={() => setFilter(f.key as any)}
-                className={`px-3 py-1 text-sm tracking-wide border rounded-sm transition-colors
-                  ${filter === f.key
-                    ? "border-[#C9A84C]/60 bg-[#C9A84C]/10 text-[#C9A84C]"
-                    : "border-[#1e3d28] text-white/35 hover:text-white/60"}`}
-              >
-                {f.label}
-              </button>
-            ))}
+        {/* Strokes sub-toggle */}
+        {viewMode === "strokes" && (
+          <div className="flex rounded-full border border-[#1e3d28] overflow-hidden mb-4">
+            <button
+              onClick={() => setStrokesView("gross")}
+              className={`px-3 py-1 text-[10px] tracking-[0.1em] uppercase transition-colors
+                ${strokesView === "gross" ? "bg-[#1e3d28] text-white/70" : "text-white/30 hover:text-white/50"}`}
+            >
+              Gross
+            </button>
+            <button
+              onClick={() => setStrokesView("nett")}
+              className={`px-3 py-1 text-[10px] tracking-[0.1em] uppercase transition-colors border-l border-[#1e3d28]
+                ${strokesView === "nett" ? "bg-[#1e3d28] text-white/70" : "text-white/30 hover:text-white/50"}`}
+            >
+              Nett
+            </button>
           </div>
-        </div>
+        )}
 
         {/* Card: sticky column header + rows */}
         <div className="border border-[#1e3d28]">
@@ -490,7 +457,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
 
                 {/* Name */}
                 <div className="flex items-center gap-2 min-w-0">
-                  <span className={`w-2 h-2 rounded-full flex-shrink-0 ${ROLE_DOT[player.role] ?? "bg-white/30"}`} />
+                  <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams?.color ?? "#6b7280" }} />
                   <span className="text-lg text-white/80 truncate">{displayName(player)}</span>
                   {emojiStr && <span className="text-[0.55em] leading-none flex-shrink-0">{emojiStr}</span>}
                   {player.is_composite && (
@@ -552,7 +519,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
               <option value="">Select player…</option>
               {players.map(p => (
                 <option key={p.id} value={p.id} disabled={p.id === playerBId}>
-                  {p.name} ({p.role})
+                  {p.name}
                 </option>
               ))}
             </select>
@@ -567,7 +534,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
               <option value="">Select player…</option>
               {players.map(p => (
                 <option key={p.id} value={p.id} disabled={p.id === playerAId}>
-                  {p.name} ({p.role})
+                  {p.name}
                 </option>
               ))}
             </select>

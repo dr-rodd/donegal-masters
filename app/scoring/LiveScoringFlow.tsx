@@ -731,9 +731,7 @@ export default function LiveScoringFlow({
                       : "border-white/20 text-white/60 hover:border-white/40"}`}
                 >
                   <div className="flex items-center gap-2">
-                    {player.teams && (
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: player.teams.color }} />
-                    )}
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: player.teams?.color ?? "#6b7280" }} />
                     <span>{player.name}</span>
                   </div>
                   <span className="text-sm opacity-50">HCP {player.handicap}</span>
@@ -974,9 +972,7 @@ export default function LiveScoringFlow({
           <div className="sticky top-[77px] z-10 bg-[#0a1a0e] border-b border-[#1e3d28] px-4 py-3 flex items-center justify-between">
             <BackButton onClick={() => setEditingPlayerId(null)} />
             <div className="flex items-center gap-2">
-              {player.teams && (
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams.color }} />
-              )}
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams?.color ?? "#6b7280" }} />
               <span className="text-white/80 text-base font-semibold">{player.name}</span>
             </div>
             <div className="w-[60px]" />
@@ -1114,9 +1110,7 @@ export default function LiveScoringFlow({
                       : "border-[#1e3d28] bg-[#0f2418] hover:border-white/20"}`}
                 >
                   <div className="flex items-center gap-1.5 mb-1">
-                    {player.teams && (
-                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams.color }} />
-                    )}
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams?.color ?? "#6b7280" }} />
                     <span className={`text-base font-medium leading-tight ${isSel ? "text-white" : "text-white/55"}`}>
                       {player.name.split(" ")[0]}
                     </span>
