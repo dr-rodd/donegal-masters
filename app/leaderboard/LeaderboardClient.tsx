@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, Fragment } from "react"
+import { useState, useRef, Fragment } from "react"
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -36,6 +36,14 @@ const PC_HEADER  = "#D5D2CB"   // column header / subtotal row bg
 const PC_BORDER  = "#C8C5BD"   // row border
 const PC_GOLD_LO = "rgba(201,168,76,0.18)"   // Out/In bg
 const PC_GOLD_HI = "rgba(201,168,76,0.32)"   // Tot bg
+
+// ─── Course short names ────────────────────────────────────────
+
+const COURSE_SHORT: Record<string, string> = {
+  "Old Tom Morris":    "Old Tom",
+  "St Patricks Links": "St Patrick's",
+  "Sandy Hills":       "Sandy Hills",
+}
 
 // ─── Player helpers ────────────────────────────────────────────
 
@@ -249,7 +257,7 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
       </div>
 
       {/* Tot row */}
-      <div className={`${grid} px-3 py-2 items-center`} style={{ background: PC_GOLD_HI }}>
+      <div className={`${grid} px-3 py-2 items-center rounded-b-xl`} style={{ background: PC_GOLD_HI }}>
         <span className="text-xs font-bold tracking-widest uppercase text-[#4A3810]" style={sf}>Tot</span>
         <span className="text-sm font-bold text-[#4A3810]" style={sf}>{front9Par + back9Par}</span>
         {players.map((_, pi) => (
@@ -266,127 +274,125 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
 
 // ─── Scorecard modal ───────────────────────────────────────────
 
-function ScorecardModal({ team, round, holes, scores, roundHandicaps, compositeHoles, allTeams, onClose }: {
-  team: Team; round: Round; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]
+function ScorecardModal({ team, rounds, holes, scores, roundHandicaps, compositeHoles, allTeams, onClose }: {
+  team: Team; rounds: Round[]; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]
   compositeHoles: CompositeHole[]; allTeams: Team[]; onClose: () => void
 }) {
+  const [roundIdx, setRoundIdx] = useState(0)
+  const touchStartX = useRef(0)
   const players = sortedPlayers(team.players)
+
+  function goTo(i: number) {
+    if (i < 0 || i >= rounds.length || i === roundIdx) return
+    setRoundIdx(i)
+  }
+
+  const round = rounds[roundIdx]
+  if (!round) return null
 
   return (
     <div className="fixed inset-0 z-50 flex flex-col justify-end" onClick={onClose}>
       <div className="absolute inset-0 bg-black/70" />
       <div
         className="relative bg-[#0a1a0e] rounded-t-2xl flex flex-col max-h-[90vh]"
-        style={{ paddingTop: "max(env(safe-area-inset-top), 16px)" }}
+        style={{ paddingTop: "max(env(safe-area-inset-top), 8px)" }}
         onClick={e => e.stopPropagation()}
       >
-        {/* ① Title + close — always visible */}
-        <div className="flex-shrink-0 flex items-center justify-between px-4 pt-5 pb-3">
-          <div className="min-w-0 flex items-baseline gap-3 flex-wrap">
-            <p className="font-[family-name:var(--font-playfair)] text-white text-2xl leading-tight truncate">
+        {/* Header */}
+        <div className="flex-shrink-0 flex items-center justify-between px-4 pt-4 pb-2">
+          <div className="flex items-center gap-2 min-w-0">
+            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
+            <span className="font-[family-name:var(--font-playfair)] text-xl text-white truncate">
               {!isDefaultTeamName(team.name) ? team.name : players.map(p => displayName(p)).join(" · ")}
-            </p>
-            <div className="flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
-              <p className="text-[#C9A84C] text-base">
-                {round.courses?.name ?? `Round ${round.round_number}`}
-              </p>
-            </div>
+            </span>
           </div>
           <button
             onClick={onClose}
             className="text-white/50 hover:text-white transition-colors min-w-[44px] min-h-[44px] flex items-center justify-center text-xl flex-shrink-0"
-          >
-            ✕
-          </button>
+          >✕</button>
         </div>
 
-        {/* Parchment card */}
-        <div className="flex flex-col flex-1 min-h-0 rounded-t-xl overflow-hidden" style={{ background: PC_BG }}>
+        {/* Round tabs */}
+        <div className="flex-shrink-0 flex gap-1.5 px-4 pb-3">
+          {rounds.map((r, i) => {
+            const short = COURSE_SHORT[r.courses?.name ?? ""] ?? (r.courses?.name ?? `Round ${r.round_number}`)
+            const active = i === roundIdx
+            return (
+              <button
+                key={r.id}
+                onClick={() => goTo(i)}
+                className={`flex-1 py-2 px-2 rounded-sm text-center transition-colors border ${
+                  active
+                    ? "bg-[#C9A84C]/15 border-[#C9A84C]/40 text-[#C9A84C]"
+                    : "bg-white/[0.03] border-[#1e3d28] text-white/35"
+                }`}
+              >
+                <div className="font-[family-name:var(--font-playfair)] text-sm font-semibold leading-tight">{short}</div>
+                <div className={`text-[10px] mt-0.5 tracking-[0.15em] uppercase ${active ? "text-[#C9A84C]/50" : "text-white/20"}`}>
+                  Day {r.round_number}
+                </div>
+              </button>
+            )
+          })}
+        </div>
 
-          {/* ② Column headers — always visible */}
-          <div className={`flex-shrink-0 ${SC_GRID} px-3 py-1.5 border-b`} style={{ background: PC_HEADER, borderColor: PC_BORDER }}>
-            {(["Hole", "Par"] as const).map(h => (
-              <span key={h} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${SC_MUTED}`} style={SC_SF}>{h}</span>
-            ))}
-            {[1, 2, 3].map(n => (
-              <span key={n} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${SC_MUTED} text-center`} style={SC_SF}>{n}</span>
-            ))}
-            <span className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${SC_MUTED} text-right`} style={SC_SF}>TOT</span>
+        {/* Scrollable scorecard */}
+        <div
+          className="flex-1 overflow-y-auto min-h-0"
+          onTouchStart={e => { touchStartX.current = e.touches[0].clientX }}
+          onTouchEnd={e => {
+            const dx = e.changedTouches[0].clientX - touchStartX.current
+            if (Math.abs(dx) > 60) goTo(roundIdx + (dx < 0 ? 1 : -1))
+          }}
+        >
+          <div className="px-4 pb-8">
+
+            {/* Players legend — numbered to match column numbers in grid */}
+            <div className="py-2.5 space-y-1">
+              {players.map((p, i) => (
+                <div key={p.id} className="flex items-center gap-2">
+                  <span className="text-[#C9A84C]/60 text-sm font-bold font-[family-name:var(--font-playfair)] w-3">{i + 1}</span>
+                  <span className="text-white/60 text-sm">{displayName(p)}</span>
+                </div>
+              ))}
+            </div>
+
+            {/* Scorecard */}
+            <div className="shadow-2xl flex flex-col">
+
+              {/* Dark green header bar */}
+              <div className="rounded-t-xl bg-[#1a3a22] px-4 py-3">
+                <p className="font-[family-name:var(--font-playfair)] text-white text-base">
+                  {round.courses?.name ?? `Round ${round.round_number}`}
+                </p>
+              </div>
+
+              {/* Column headers */}
+              <div className={`${SC_GRID} px-3 py-1.5 border-b`} style={{ background: PC_HEADER, borderColor: PC_BORDER }}>
+                {(["Hole", "Par"] as const).map(h => (
+                  <span key={h} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${SC_MUTED}`} style={SC_SF}>{h}</span>
+                ))}
+                {[1, 2, 3].map(n => (
+                  <span key={n} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${SC_MUTED} text-center`} style={SC_SF}>{n}</span>
+                ))}
+                <span className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${SC_MUTED} text-right`} style={SC_SF}>TOT</span>
+              </div>
+
+              {/* Score rows */}
+              <CompositeScorecard
+                team={team}
+                round={round}
+                holes={holes}
+                scores={scores}
+                roundHandicaps={roundHandicaps}
+                compositeHoles={compositeHoles}
+                allTeams={allTeams}
+              />
+
+            </div>
           </div>
-
-          {/* ③ Score rows — scrolls */}
-          <div className="overflow-y-auto flex-1 pb-8">
-            <CompositeScorecard
-              team={team}
-              round={round}
-              holes={holes}
-              scores={scores}
-              roundHandicaps={roundHandicaps}
-              compositeHoles={compositeHoles}
-              allTeams={allTeams}
-            />
-          </div>
-
         </div>
       </div>
-    </div>
-  )
-}
-
-// ─── Course tiles ──────────────────────────────────────────────
-
-function CourseTiles({ team, rounds, holes, scores, roundHandicaps, onTileClick }: {
-  team: Team; rounds: Round[]; holes: Hole[]; scores: Score[]; roundHandicaps: RoundHcp[]
-  onTileClick: (round: Round) => void
-}) {
-  const roundsByNumber: Record<number, Round> = {}
-  rounds.forEach(r => { roundsByNumber[r.round_number] = r })
-
-  return (
-    <div className="px-3 pb-4 pt-2 space-y-2 bg-[#070f09]">
-      {[1, 2, 3].map(num => {
-        const round = roundsByNumber[num]
-        if (!round) {
-          return (
-            <div key={num} className="w-full rounded-sm border border-[#1e3d28] bg-[#0f2418] px-5 py-4 opacity-40">
-              <p className="font-[family-name:var(--font-playfair)] text-white/30 text-base">Round {num}</p>
-              <p className="text-white/20 text-sm mt-0.5">Not scheduled</p>
-            </div>
-          )
-        }
-        const courseHoles = holes.filter(h => h.course_id === round.courses?.id)
-        const pts = teamRoundPts(team, courseHoles, scores, round.id)
-        const hasScores = pts > 0
-        return (
-          <button
-            key={round.id}
-            onClick={() => onTileClick(round)}
-            className={`w-full text-left rounded-sm border transition-all duration-200 overflow-hidden active:opacity-75
-              ${hasScores
-                ? "border-[#C9A84C]/50 shadow-[0_0_16px_rgba(201,168,76,0.10)] bg-[#0f2418]"
-                : "border-[#1e3d28] bg-[#0f2418]"
-              }`}
-          >
-            <div className="px-5 py-4 flex items-center justify-between gap-4">
-              <div className="min-w-0">
-                <p className="font-[family-name:var(--font-playfair)] text-white text-base leading-tight">
-                  {round.courses?.name ?? `Round ${num}`}
-                </p>
-                <p className={`text-sm mt-1 ${hasScores ? "text-[#C9A84C]" : "text-white/25"}`}>
-                  {hasScores ? "Scores submitted" : "No scores yet"}
-                </p>
-              </div>
-              <div className="flex-shrink-0 flex items-center gap-3">
-                {hasScores && (
-                  <span className="font-[family-name:var(--font-playfair)] text-[#C9A84C] text-xl font-bold">{pts}</span>
-                )}
-                <span className="text-white/30 text-sm">View →</span>
-              </div>
-            </div>
-          </button>
-        )
-      })}
     </div>
   )
 }
@@ -394,8 +400,7 @@ function CourseTiles({ team, rounds, holes, scores, roundHandicaps, onTileClick 
 // ─── Main component ────────────────────────────────────────────
 
 export default function LeaderboardClient({ rounds, teams, holes, scores, roundHandicaps, tees, compositeHoles }: Props) {
-  const [expandedTeamId, setExpandedTeamId] = useState<string | null>(null)
-  const [modal, setModal] = useState<{ team: Team; round: Round } | null>(null)
+  const [modal, setModal] = useState<{ team: Team } | null>(null)
 
   const sortedRounds = [...rounds].sort((a, b) => a.round_number - b.round_number)
   const roundsByNumber: Record<number, Round> = {}
@@ -410,10 +415,6 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
     const total = Object.values(roundPts).reduce((s, p) => s + p, 0)
     return { team, roundPts, total }
   }).sort((a, b) => b.total - a.total)
-
-  function toggleTeam(teamId: string) {
-    setExpandedTeamId(prev => prev === teamId ? null : teamId)
-  }
 
   return (
     <>
@@ -430,72 +431,54 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
 
         {/* Team rows */}
         {rows.map(({ team, roundPts, total }, i) => {
-          const isExpanded = expandedTeamId === team.id
-          const isLast     = i === rows.length - 1
-          const members    = sortedPlayers(team.players).filter(p => !p.is_composite)
+          const isLast  = i === rows.length - 1
+          const members = sortedPlayers(team.players).filter(p => !p.is_composite)
           const showCustomName = !isDefaultTeamName(team.name)
 
           return (
-            <Fragment key={team.id}>
-              <button
-                onClick={() => toggleTeam(team.id)}
-                className={`w-full grid grid-cols-[24px_1fr_40px_40px_40px_52px] gap-x-2 items-center px-3 py-2 text-left active:bg-white/5 transition-colors
-                  ${!isLast || isExpanded ? "border-b border-[#1e3d28]" : ""}`}
-              >
-                {/* Pos */}
-                <span className="text-white/40 text-sm font-semibold tabular-nums self-center">
-                  {i + 1}
-                </span>
+            <button
+              key={team.id}
+              onClick={() => setModal({ team })}
+              className={`w-full grid grid-cols-[24px_1fr_40px_40px_40px_52px] gap-x-2 items-center px-3 py-2 text-left active:bg-white/5 transition-colors
+                ${!isLast ? "border-b border-[#1e3d28]" : ""}`}
+            >
+              {/* Pos */}
+              <span className="text-white/40 text-sm font-semibold tabular-nums self-center">
+                {i + 1}
+              </span>
 
-                {/* Team identity — single dot + vertical player list */}
-                <div className="min-w-0 py-1 flex items-start gap-2">
-                  <span className="w-2 h-2 rounded-full flex-shrink-0 mt-[5px]" style={{ backgroundColor: team.color }} />
-                  <div className="min-w-0 flex-1">
-                    {showCustomName && (
-                      <p className="text-white/25 text-[10px] tracking-[0.15em] uppercase mb-1 leading-none">{team.name}</p>
-                    )}
-                    <div className="space-y-0.5">
-                      {members.map(p => (
-                        <div key={p.id} className="flex items-baseline gap-1.5">
-                          <span className="text-base text-white/70 truncate leading-snug">{displayName(p)}</span>
-                          {!p.is_composite && (
-                            <span className="text-base text-white/35 tabular-nums flex-shrink-0">{p.handicap}</span>
-                          )}
-                        </div>
-                      ))}
-                    </div>
+              {/* Team identity — single dot + vertical player list */}
+              <div className="min-w-0 py-1 flex items-start gap-2">
+                <span className="w-2 h-2 rounded-full flex-shrink-0 mt-[5px]" style={{ backgroundColor: team.color }} />
+                <div className="min-w-0 flex-1">
+                  {showCustomName && (
+                    <p className="text-white/25 text-[10px] tracking-[0.15em] uppercase mb-1 leading-none">{team.name}</p>
+                  )}
+                  <div className="space-y-0.5">
+                    {members.map(p => (
+                      <div key={p.id} className="flex items-baseline gap-1.5">
+                        <span className="text-base text-white/70 truncate leading-snug">{displayName(p)}</span>
+                      </div>
+                    ))}
                   </div>
                 </div>
+              </div>
 
-                {/* Per-round points */}
-                {[1, 2, 3].map(n => {
-                  const pts = roundPts[n] ?? 0
-                  return (
-                    <span key={n} className={`text-center tabular-nums text-lg font-semibold self-center ${pts > 0 ? "text-white/70" : "text-white/20"}`}>
-                      {pts > 0 ? pts : "—"}
-                    </span>
-                  )
-                })}
+              {/* Per-round points */}
+              {[1, 2, 3].map(n => {
+                const pts = roundPts[n] ?? 0
+                return (
+                  <span key={n} className={`text-center tabular-nums text-xl font-semibold self-center ${pts > 0 ? "text-white/70" : "text-white/20"}`}>
+                    {pts > 0 ? pts : "—"}
+                  </span>
+                )
+              })}
 
-                {/* Total */}
-                <span className={`text-right tabular-nums self-center font-bold ${total > 0 ? "text-xl text-[#C9A84C]" : "text-base text-white/20"}`}>
-                  {total > 0 ? total : "—"}
-                </span>
-              </button>
-
-              {isExpanded && (
-                <div className={!isLast ? "border-b border-[#1e3d28]" : ""}>
-                  <CourseTiles
-                    team={team}
-                    rounds={sortedRounds}
-                    holes={holes}
-                    scores={scores}
-                    roundHandicaps={roundHandicaps}
-                    onTileClick={round => setModal({ team, round })}
-                  />
-                </div>
-              )}
-            </Fragment>
+              {/* Total */}
+              <span className={`text-right tabular-nums self-center font-bold ${total > 0 ? "text-2xl text-[#C9A84C]" : "text-base text-white/20"}`}>
+                {total > 0 ? total : "—"}
+              </span>
+            </button>
           )
         })}
       </div>
@@ -504,7 +487,7 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
       {modal && (
         <ScorecardModal
           team={modal.team}
-          round={modal.round}
+          rounds={sortedRounds}
           holes={holes}
           scores={scores}
           roundHandicaps={roundHandicaps}
