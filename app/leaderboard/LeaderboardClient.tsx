@@ -286,9 +286,12 @@ function ScorecardModal({ team, round, holes, scores, roundHandicaps, compositeH
             <p className="font-[family-name:var(--font-playfair)] text-white text-2xl leading-tight truncate">
               {!isDefaultTeamName(team.name) ? team.name : players.map(p => displayName(p)).join(" · ")}
             </p>
-            <p className="text-[#C9A84C] text-base truncate">
-              {round.courses?.name ?? `Round ${round.round_number}`}
-            </p>
+            <div className="flex items-center gap-1.5">
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
+              <p className="text-[#C9A84C] text-base">
+                {round.courses?.name ?? `Round ${round.round_number}`}
+              </p>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -301,29 +304,7 @@ function ScorecardModal({ team, round, holes, scores, roundHandicaps, compositeH
         {/* Parchment card */}
         <div className="flex flex-col flex-1 min-h-0 rounded-t-xl overflow-hidden" style={{ background: PC_BG }}>
 
-          {/* ② Players — vertical list, always visible */}
-          <div className="flex-shrink-0 px-3 pt-2.5 pb-2 border-b" style={{ background: PC_HEADER, borderColor: PC_BORDER }}>
-            {players.map((p, i) => {
-              const hcp = roundHandicaps.find(rh => rh.player_id === p.id && rh.round_id === round.id)?.playing_handicap
-              return (
-                <div key={p.id} className="flex items-center gap-2 py-0.5">
-                  <span
-                    className="w-2 h-2 rounded-full flex-shrink-0"
-                    style={{ backgroundColor: team.color }}
-                  />
-                  <span className="text-sm font-semibold text-[#2C2C1E] flex-1" style={SC_SF}>
-                    {p.name.split(" ")[0]}
-                  </span>
-                  <span className={`text-[10px] ${SC_MUTED}`} style={SC_SF}>
-                    hcp {hcp ?? "—"}
-                  </span>
-                  <span className={`text-[10px] ${SC_MUTED} w-4 text-right`} style={SC_SF}>{i + 1}</span>
-                </div>
-              )
-            })}
-          </div>
-
-          {/* ③ Column headers — always visible */}
+          {/* ② Column headers — always visible */}
           <div className={`flex-shrink-0 ${SC_GRID} px-3 py-1.5 border-b`} style={{ background: PC_HEADER, borderColor: PC_BORDER }}>
             {(["Hole", "Par"] as const).map(h => (
               <span key={h} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${SC_MUTED}`} style={SC_SF}>{h}</span>
@@ -334,7 +315,7 @@ function ScorecardModal({ team, round, holes, scores, roundHandicaps, compositeH
             <span className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${SC_MUTED} text-right`} style={SC_SF}>TOT</span>
           </div>
 
-          {/* Score rows — scrolls */}
+          {/* ③ Score rows — scrolls */}
           <div className="overflow-y-auto flex-1 pb-8">
             <CompositeScorecard
               team={team}
@@ -466,18 +447,23 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
                   {i + 1}
                 </span>
 
-                {/* Team identity — vertical player list */}
-                <div className="min-w-0 py-1">
-                  {showCustomName && (
-                    <p className="text-white/25 text-[10px] tracking-[0.15em] uppercase mb-1 leading-none">{team.name}</p>
-                  )}
-                  <div className="space-y-0.5">
-                    {members.map(p => (
-                      <div key={p.id} className="flex items-center gap-1.5">
-                        <span className="w-1.5 h-1.5 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
-                        <span className="text-sm text-white/70 truncate leading-snug">{displayName(p)}</span>
-                      </div>
-                    ))}
+                {/* Team identity — single dot + vertical player list */}
+                <div className="min-w-0 py-1 flex items-start gap-2">
+                  <span className="w-2 h-2 rounded-full flex-shrink-0 mt-[5px]" style={{ backgroundColor: team.color }} />
+                  <div className="min-w-0 flex-1">
+                    {showCustomName && (
+                      <p className="text-white/25 text-[10px] tracking-[0.15em] uppercase mb-1 leading-none">{team.name}</p>
+                    )}
+                    <div className="space-y-0.5">
+                      {members.map(p => (
+                        <div key={p.id} className="flex items-baseline gap-1.5">
+                          <span className="text-base text-white/70 truncate leading-snug">{displayName(p)}</span>
+                          {!p.is_composite && (
+                            <span className="text-base text-white/35 tabular-nums flex-shrink-0">{p.handicap}</span>
+                          )}
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 </div>
 

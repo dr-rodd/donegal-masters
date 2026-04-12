@@ -36,7 +36,7 @@ interface Props {
 
 const COURSE_SHORT: Record<string, string> = {
   "Old Tom Morris":    "Old Tom",
-  "St Patricks Links": "St Patrick",
+  "St Patricks Links": "St Patrick's",
   "Sandy Hills":       "Sandy Hills",
 }
 const TEE_PREF_M = ["blue", "white", "black", "sandstone", "slate", "granite", "claret", "red"]
@@ -202,6 +202,9 @@ function ScorecardModal({ player, rounds, holes, scores, roundHandicaps, tees, c
   const [roundIdx, setRoundIdx] = useState(Math.min(initialRoundIdx, Math.max(0, rounds.length - 1)))
   const touchStartX = useRef(0)
 
+  const { birdies, eagles } = playerBadges(player.id, scores, holes)
+  const emojiStr = "🦅".repeat(eagles) + "🦤".repeat(birdies)
+
   function goTo(i: number) {
     if (i < 0 || i >= rounds.length || i === roundIdx) return
     setRoundIdx(i)
@@ -328,6 +331,7 @@ function ScorecardModal({ player, rounds, holes, scores, roundHandicaps, tees, c
             <span className="font-[family-name:var(--font-playfair)] text-xl text-white truncate">
               {displayName(player)}
             </span>
+            {emojiStr && <span className="text-sm flex-shrink-0">{emojiStr}</span>}
             {player.is_composite && (
               <span className="text-[11px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-1 rounded-sm leading-tight flex-shrink-0">C</span>
             )}
@@ -733,7 +737,6 @@ export default function IndividualClient({ rounds, players, holes, scores, round
               <p className="px-4 py-8 text-center text-white/20 text-sm">No scores yet</p>
             ) : standings.map(({ player, byRound, hasAny, totalSF, totalGross, totalNett, hasNR, badges }, i) => {
               const totValue = getTotValue({ player, byRound, hasAny, totalSF, totalGross, totalNett, hasNR, badges })
-              const emojiStr = "🦅".repeat(badges.eagles) + "🦤".repeat(badges.birdies)
               const canOpen  = hasAny
 
               return (
@@ -753,7 +756,6 @@ export default function IndividualClient({ rounds, players, holes, scores, round
                   <div className="flex items-center gap-2 min-w-0">
                     <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams?.color ?? "#6b7280" }} />
                     <span className="text-lg text-white/80 truncate">{displayName(player)}</span>
-                    {emojiStr && <span className="text-[0.55em] leading-none flex-shrink-0">{emojiStr}</span>}
                     {player.is_composite && (
                       <span className="text-[9px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-0.5 rounded-sm leading-tight flex-shrink-0">C</span>
                     )}
