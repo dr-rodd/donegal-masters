@@ -322,10 +322,10 @@ function ScorecardModal({ player, rounds, holes, scores, roundHandicaps, tees, c
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex-shrink-0 flex items-start justify-between px-4 pt-5 pb-2">
+        <div className="flex-shrink-0 flex items-center justify-between px-4 pt-5 pb-2">
           <div className="flex items-center gap-2 min-w-0 flex-1">
             <span
-              className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5"
+              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
               style={{ backgroundColor: player.teams?.color ?? "#6b7280" }}
             />
             <span className="font-[family-name:var(--font-playfair)] text-xl text-white leading-snug">
