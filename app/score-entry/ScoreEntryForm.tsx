@@ -768,7 +768,7 @@ export default function ScoreEntryForm({ players, courses }: { players: Player[]
   }
 
   return (
-    <div className="w-full max-w-lg mx-auto px-4 pb-16">
+    <div className="w-full max-w-lg mx-auto px-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))]">
 
       {/* Progress steps */}
       <div className="flex items-center gap-2 py-6">
@@ -895,13 +895,14 @@ export default function ScoreEntryForm({ players, courses }: { players: Player[]
 
           {error && <p className="text-red-400 text-xs mt-4">{error}</p>}
 
-          <button onClick={handleSubmit} disabled={phase === "submitting"}
-            className="w-full mt-6 py-4 border border-[#C9A84C] text-[#C9A84C] text-sm tracking-[0.25em] uppercase hover:bg-[#C9A84C] hover:text-black transition-colors disabled:opacity-50">
-            {phase === "submitting" ? "Saving…" : `Submit Scorecard · ${totalPts} pts`}
-          </button>
-
-          <div className="flex justify-center mt-3">
+          {/* Fixed footer — always visible without scrolling */}
+          <div className="fixed bottom-0 left-0 z-50 w-full bg-[#0a1a0e] border-t border-[#1e3d28] px-4 pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-3">
             <BackButton onClick={() => setPhase("selecting")} />
+            <button onClick={handleSubmit} disabled={phase === "submitting"}
+              className="flex-1 py-4 bg-[#C9A84C] text-black text-sm tracking-[0.25em] uppercase font-bold
+                hover:bg-[#d4b05a] disabled:opacity-50 transition-colors rounded-sm">
+              {phase === "submitting" ? "Saving…" : `Submit · ${totalPts} pts`}
+            </button>
           </div>
         </>
       )}
