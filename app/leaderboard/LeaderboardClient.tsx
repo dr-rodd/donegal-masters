@@ -86,7 +86,7 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
     return (
       <span className="relative inline-flex items-center justify-center w-10 h-10 rounded-md border border-[#9B8860]">
         <span className="absolute inset-[3px] rounded-sm border border-[#9B8860]" />
-        <span className="relative text-base font-semibold leading-none text-[#5A4F3A]">{gross}</span>
+        <span className="relative text-xl font-semibold leading-none text-[#5A4F3A]">{gross}</span>
       </span>
     )
   }

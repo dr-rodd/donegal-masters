@@ -1189,7 +1189,7 @@ export default function LiveScoringFlow({
             return (
               <span className="relative inline-flex items-center justify-center w-7 h-7 rounded-md border border-[#9B8860]">
                 <span className="absolute inset-[2px] rounded-sm border border-[#9B8860]" />
-                <span className="relative text-[10px] font-semibold leading-none text-[#5A4F3A]">{gross}</span>
+                <span className="relative text-base font-semibold leading-none text-[#5A4F3A]">{gross}</span>
               </span>
             )
           }
