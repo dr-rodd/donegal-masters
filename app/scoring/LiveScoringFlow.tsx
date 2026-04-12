@@ -408,7 +408,7 @@ export default function LiveScoringFlow({
         .join(" ")
       console.log("doResume scoreState before setScores:", scoreState)
       console.log("doResume resumeIdx:", resumeIdx)
-      setResumeDebug(`RESUME rows:${existingScores?.length ?? 0} holeIdx→${resumeIdx} scores:{${holesSummary || "empty"}}`)
+      setResumeDebug(`RESUME round_id:${liveRound!.round_id} | id:${liveRound!.id} | rows:${existingScores?.length ?? 0} | holeIdx→${resumeIdx} | scores:{${holesSummary || "empty"}}`)
 
       setScores(scoreState)
       console.log("doResume setScores called")
