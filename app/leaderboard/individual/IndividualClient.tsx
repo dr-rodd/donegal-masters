@@ -318,23 +318,23 @@ function ScorecardModal({ player, rounds, holes, scores, roundHandicaps, tees, c
       <div className="absolute inset-0 bg-black/70" />
       <div
         className="relative bg-[#0a1a0e] rounded-t-2xl flex flex-col max-h-[90vh]"
-        style={{ paddingTop: "max(env(safe-area-inset-top), 8px)" }}
+        style={{ paddingTop: "max(env(safe-area-inset-top), 20px)" }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex-shrink-0 flex items-center justify-between px-4 pt-4 pb-2">
-          <div className="flex items-center gap-2 min-w-0">
+        <div className="flex-shrink-0 flex items-start justify-between px-4 pt-5 pb-2">
+          <div className="flex items-center gap-2 min-w-0 flex-1">
             <span
-              className="w-2.5 h-2.5 rounded-full flex-shrink-0"
+              className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5"
               style={{ backgroundColor: player.teams?.color ?? "#6b7280" }}
             />
-            <span className="font-[family-name:var(--font-playfair)] text-xl text-white truncate">
+            <span className="font-[family-name:var(--font-playfair)] text-xl text-white leading-snug">
               {displayName(player)}
+              {emojiStr && <span className="text-sm ml-1.5">{emojiStr}</span>}
+              {player.is_composite && (
+                <span className="text-[11px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-1 rounded-sm leading-tight ml-1.5">C</span>
+              )}
             </span>
-            {emojiStr && <span className="text-sm flex-shrink-0">{emojiStr}</span>}
-            {player.is_composite && (
-              <span className="text-[11px] font-bold text-[#C9A84C] border border-[#C9A84C]/40 px-1 rounded-sm leading-tight flex-shrink-0">C</span>
-            )}
           </div>
           <button
             onClick={onClose}

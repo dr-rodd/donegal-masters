@@ -306,7 +306,7 @@ function ScorecardModal({ team, rounds, holes, scores, roundHandicaps, composite
             )}
             <div className="flex items-center gap-2">
               <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5" style={{ backgroundColor: team.color }} />
-              <span className="font-[family-name:var(--font-playfair)] text-base text-white leading-snug">
+              <span className="font-[family-name:var(--font-playfair)] text-xl text-white leading-snug">
                 {players.map((p, i) => `${i + 1}. ${displayName(p)}`).join("   ")}
               </span>
             </div>
@@ -353,14 +353,14 @@ function ScorecardModal({ team, rounds, holes, scores, roundHandicaps, composite
           <div className="px-4 pb-8">
             <div className="shadow-2xl flex flex-col">
 
-              {/* Column headers — sticky at top of scroll area; no Hole label (implied); full-opacity text */}
-              <div className={`sticky top-0 z-10 rounded-t-xl ${SC_GRID} px-3 py-2 border-b`} style={{ background: PC_HEADER, borderColor: PC_BORDER }}>
-                <span />
-                <span className={`text-xs tracking-[0.15em] uppercase font-semibold ${SC_DARK}`} style={SC_SF}>Par</span>
+              {/* Column headers — sticky at top of scroll area; full-opacity solid bg */}
+              <div className={`sticky top-0 z-10 rounded-t-xl ${SC_GRID} px-3 py-2 border-b bg-[#D5D2CB]`} style={{ borderColor: PC_BORDER }}>
+                <span className={`text-sm tracking-[0.15em] font-semibold ${SC_DARK}`} style={SC_SF}>#</span>
+                <span className={`text-sm tracking-[0.15em] uppercase font-semibold ${SC_DARK}`} style={SC_SF}>Par</span>
                 {[1, 2, 3].map(n => (
-                  <span key={n} className={`text-xs tracking-[0.15em] uppercase font-semibold ${SC_DARK} text-center`} style={SC_SF}>{n}</span>
+                  <span key={n} className={`text-sm tracking-[0.15em] uppercase font-semibold ${SC_DARK} text-center`} style={SC_SF}>{n}</span>
                 ))}
-                <span className={`text-xs tracking-[0.15em] uppercase font-semibold ${SC_DARK} text-right`} style={SC_SF}>TOT</span>
+                <span className={`text-sm tracking-[0.15em] uppercase font-semibold ${SC_DARK} text-right`} style={SC_SF}>TOT</span>
               </div>
 
               {/* Score rows */}
