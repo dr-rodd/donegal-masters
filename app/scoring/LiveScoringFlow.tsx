@@ -656,10 +656,13 @@ export default function LiveScoringFlow({
 
   // DIAGNOSTIC overlay — persists after resume completes
   const debugOverlay = resumeDebug ? (
-    <div className="fixed top-16 left-0 right-0 z-[999] flex justify-center pointer-events-none">
-      <p className="text-yellow-300 text-xs text-center bg-black/90 px-3 py-2 rounded max-w-[90vw] break-all">
-        {resumeDebug}
-      </p>
+    <div className="fixed top-16 left-0 right-0 z-[999] flex justify-center px-4">
+      <textarea
+        readOnly
+        value={resumeDebug}
+        className="text-yellow-300 text-xs bg-black/90 px-3 py-2 rounded w-full max-w-[90vw] break-all resize-none"
+        rows={4}
+      />
     </div>
   ) : null
 
