@@ -401,7 +401,17 @@ export default function LiveScoringFlow({
       setLockedPlayerIds(lockedIds)
       setSelectedPlayerIds(lockedIds)
       setPlayerTeeIds(teeMap)
+
+      // DIAGNOSTIC
+      const holesSummary = Object.entries(scoreState)
+        .map(([idx, pMap]) => `h${Number(idx)+1}:[${Object.entries(pMap).map(([,s]) => s.gross).join(",")}]`)
+        .join(" ")
+      console.log("doResume scoreState before setScores:", scoreState)
+      console.log("doResume resumeIdx:", resumeIdx)
+      setResumeDebug(`RESUME rows:${existingScores?.length ?? 0} holeIdx→${resumeIdx} scores:{${holesSummary || "empty"}}`)
+
       setScores(scoreState)
+      console.log("doResume setScores called")
 
       if (resumeIdx >= cHoles.length) {
         setHoleIdx(cHoles.length - 1)
