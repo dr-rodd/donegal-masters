@@ -911,7 +911,7 @@ export default function LiveScoringFlow({
           {/* Left panel: hole score entry */}
           <div style={{ width: "50%" }}>
             <HoleCard
-              key={hole.id}
+              key={`${hole.id}-${Object.keys(scores[holeIdx] ?? {}).length}`}
               hole={hole}
               playerSetups={playerSetups}
               courseId={courseId}
