@@ -295,16 +295,21 @@ function ScorecardModal({ team, rounds, holes, scores, roundHandicaps, composite
       <div className="absolute inset-0 bg-black/70" />
       <div
         className="relative bg-[#0a1a0e] rounded-t-2xl flex flex-col max-h-[90vh]"
-        style={{ paddingTop: "max(env(safe-area-inset-top), 8px)" }}
+        style={{ paddingTop: "max(env(safe-area-inset-top), 20px)" }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex-shrink-0 flex items-center justify-between px-4 pt-4 pb-2">
-          <div className="flex items-center gap-2 min-w-0">
-            <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
-            <span className="font-[family-name:var(--font-playfair)] text-xl text-white truncate">
-              {!isDefaultTeamName(team.name) ? team.name : players.map(p => displayName(p)).join(" · ")}
-            </span>
+        <div className="flex-shrink-0 flex items-start justify-between px-4 pt-5 pb-2">
+          <div className="min-w-0 flex-1">
+            {!isDefaultTeamName(team.name) && (
+              <p className="text-white/30 text-[10px] tracking-[0.15em] uppercase mb-1">{team.name}</p>
+            )}
+            <div className="flex items-center gap-2">
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5" style={{ backgroundColor: team.color }} />
+              <span className="font-[family-name:var(--font-playfair)] text-base text-white leading-snug">
+                {players.map((p, i) => `${i + 1}. ${displayName(p)}`).join("   ")}
+              </span>
+            </div>
           </div>
           <button
             onClick={onClose}
@@ -348,25 +353,14 @@ function ScorecardModal({ team, rounds, holes, scores, roundHandicaps, composite
           <div className="px-4 pb-8">
             <div className="shadow-2xl flex flex-col">
 
-              {/* Dark green header bar — sticky, includes numbered player key */}
-              <div className="sticky top-0 z-10 rounded-t-xl bg-[#1a3a22] px-4 py-3">
-                <p className="font-[family-name:var(--font-playfair)] text-white text-base leading-tight">
-                  {round.courses?.name ?? `Round ${round.round_number}`}
-                </p>
-                <p className="text-white/50 text-xs mt-1">
-                  {players.map((p, i) => `${i + 1}. ${displayName(p)}`).join("  ")}
-                </p>
-              </div>
-
-              {/* Column headers — sticky below header bar (~70px: py-3×2=24 + text-base=24 + mt-1=4 + text-xs=18) */}
-              <div className={`sticky top-[70px] z-10 ${SC_GRID} px-3 py-2 border-b`} style={{ background: PC_HEADER, borderColor: PC_BORDER }}>
-                {(["Hole", "Par"] as const).map(h => (
-                  <span key={h} className={`text-xs tracking-[0.15em] uppercase font-semibold ${SC_MUTED}`} style={SC_SF}>{h}</span>
-                ))}
+              {/* Column headers — sticky at top of scroll area; no Hole label (implied); full-opacity text */}
+              <div className={`sticky top-0 z-10 rounded-t-xl ${SC_GRID} px-3 py-2 border-b`} style={{ background: PC_HEADER, borderColor: PC_BORDER }}>
+                <span />
+                <span className={`text-xs tracking-[0.15em] uppercase font-semibold ${SC_DARK}`} style={SC_SF}>Par</span>
                 {[1, 2, 3].map(n => (
-                  <span key={n} className={`text-xs tracking-[0.15em] uppercase font-semibold ${SC_MUTED} text-center`} style={SC_SF}>{n}</span>
+                  <span key={n} className={`text-xs tracking-[0.15em] uppercase font-semibold ${SC_DARK} text-center`} style={SC_SF}>{n}</span>
                 ))}
-                <span className={`text-xs tracking-[0.15em] uppercase font-semibold ${SC_MUTED} text-right`} style={SC_SF}>TOT</span>
+                <span className={`text-xs tracking-[0.15em] uppercase font-semibold ${SC_DARK} text-right`} style={SC_SF}>TOT</span>
               </div>
 
               {/* Score rows */}
