@@ -251,6 +251,11 @@ export default function LiveScoringFlow({
   // Swipe gesture tracking
   const touchStartX = useRef<number | null>(null)
 
+  // Nav-bar state lifted above the swipe container so the button lives outside
+  // the overflow-x-hidden context (avoids iOS touch dead zone)
+  const [holesReady, setHolesReady] = useState(false)
+  const latestScoresRef = useRef<Record<string, HoleScore>>({})
+
   // Activate step state
   const [activatingRoundId, setActivatingRoundId] = useState("")
 
@@ -272,6 +277,18 @@ export default function LiveScoringFlow({
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, holeIdx, courseHoles.length])
+
+  // Reset nav-bar ready state whenever the active hole changes
+  useEffect(() => {
+    if (step !== "holes") return
+    const existing = scores[holeIdx] ?? {}
+    latestScoresRef.current = existing
+    setHolesReady(playerSetups.every(({ player }) => {
+      const hs = existing[player.id]
+      return (hs?.gross != null) || hs?.isNR === true
+    }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holeIdx, step])
 
   // Player setups — only for players that have a tee selected
   const playerSetups: PlayerSetup[] = selectedPlayerIds
@@ -892,6 +909,7 @@ export default function LiveScoringFlow({
     }
 
     return (
+      <>
       <div
         className="overflow-x-hidden"
         onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX }}
@@ -916,11 +934,12 @@ export default function LiveScoringFlow({
               courseId={courseId}
               existingScores={existingHoleScores}
               runningTotals={runningTotals}
-              onSubmit={handleHoleSubmit}
-              onBack={handleHoleBack}
-              showLeaderboard={showLeaderboard}
               longestDriveHole={longestDriveHole}
               nearestPinHole={nearestPinHole}
+              onScoresChange={(scores, ready) => {
+                latestScoresRef.current = scores
+                setHolesReady(ready)
+              }}
             />
           </div>
           {/* Right panel: live leaderboard */}
@@ -938,6 +957,31 @@ export default function LiveScoringFlow({
           </div>
         </div>
       </div>
+
+      {/* Nav bar — rendered OUTSIDE overflow-x-hidden so iOS touch zones are correct */}
+      {!showLeaderboard && (
+        <div className="fixed bottom-0 left-0 z-50 w-screen px-4 bg-[#0a1a0e] border-t border-[#1e3d28] pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-3">
+          <button
+            onClick={handleHoleBack}
+            className="flex-1 py-4 border border-white/20 text-white/50 text-2xl
+              hover:border-white/40 hover:text-white/70 active:bg-white/5 transition-colors rounded-sm"
+            aria-label="Previous hole"
+          >
+            ←
+          </button>
+          <button
+            onClick={() => handleHoleSubmit(latestScoresRef.current)}
+            disabled={!holesReady}
+            className="flex-[2] py-4 bg-[#C9A84C] text-black text-2xl font-bold
+              hover:bg-[#d4b05a] disabled:opacity-30 disabled:cursor-not-allowed
+              active:scale-[0.98] transition-all rounded-sm"
+            aria-label="Next hole"
+          >
+            →
+          </button>
+        </div>
+      )}
+      </>
     )
   }
 
@@ -1340,16 +1384,14 @@ export default function LiveScoringFlow({
 
 function HoleCard({
   hole, playerSetups, courseId,
-  existingScores, runningTotals, onSubmit, onBack, showLeaderboard,
+  existingScores, runningTotals, onScoresChange,
   longestDriveHole, nearestPinHole,
 }: {
   hole: Hole
   playerSetups: PlayerSetup[]; courseId: string
   existingScores: Record<string, HoleScore>
   runningTotals: Record<string, number>
-  onSubmit: (scores: Record<string, HoleScore>) => void
-  onBack: () => void
-  showLeaderboard: boolean
+  onScoresChange: (scores: Record<string, HoleScore>, allReady: boolean) => void
   longestDriveHole?: number | null
   nearestPinHole?: number | null
 }) {
@@ -1367,6 +1409,12 @@ function HoleCard({
     return hs?.gross !== null || hs?.isNR === true
   })
 
+  // Report scores to parent so the nav bar (outside overflow-x-hidden) can enable/disable
+  useEffect(() => {
+    onScoresChange(holeScores, allHaveGross)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holeScores, allHaveGross])
+
   const isLongestDrive = longestDriveHole === hole.hole_number
   const isNearestPin   = nearestPinHole   === hole.hole_number
   const isCompetitionHole = isLongestDrive || isNearestPin
@@ -1382,7 +1430,7 @@ function HoleCard({
   }
 
   return (
-    <div className="max-w-lg mx-auto w-full px-4 pt-4 pb-[calc(4.5rem+env(safe-area-inset-bottom,0px))] flex flex-col gap-4">
+    <div className="max-w-lg mx-auto w-full px-4 pt-4 pb-[calc(5rem+env(safe-area-inset-bottom,0px))] flex flex-col gap-4">
 
       {/* Competition hole alert — current hole */}
       {showCompetitionAlert && (
@@ -1437,28 +1485,6 @@ function HoleCard({
             />
           )
         })}
-      </div>
-
-      {/* Nav bar — fixed to viewport bottom, hidden when leaderboard is active */}
-      <div className={`fixed bottom-0 left-0 z-50 w-screen px-4 bg-[#0a1a0e] border-t border-[#1e3d28] pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-3${showLeaderboard ? " hidden" : ""}`}>
-        <button
-          onClick={onBack}
-          className="flex-1 py-4 border border-white/20 text-white/50 text-2xl
-            hover:border-white/40 hover:text-white/70 active:bg-white/5 transition-colors rounded-sm"
-          aria-label="Previous hole"
-        >
-          ←
-        </button>
-        <button
-          onClick={() => onSubmit(holeScores)}
-          disabled={!allHaveGross}
-          className="flex-[2] py-4 bg-[#C9A84C] text-black text-2xl font-bold
-            hover:bg-[#d4b05a] disabled:opacity-30 disabled:cursor-not-allowed
-            active:scale-[0.98] transition-all rounded-sm"
-          aria-label="Next hole"
-        >
-          →
-        </button>
       </div>
 
     </div>
