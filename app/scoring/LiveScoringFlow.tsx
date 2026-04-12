@@ -355,7 +355,7 @@ export default function LiveScoringFlow({
 
       const { data: existingScores, error: resumeErr } = await supabase
         .from("live_scores")
-        .select("player_id, hole_number, gross_score, stableford_points, no_return")
+        .select("player_id, hole_number, gross_score, stableford_points")
         .eq("round_id", rId)
         .in("player_id", lockedIds)
 
@@ -390,7 +390,7 @@ export default function LiveScoringFlow({
         if (!scoreState[idx]) scoreState[idx] = {}
         scoreState[idx][row.player_id] = {
           gross: row.gross_score,
-          isNR: row.no_return === true,
+          isNR: false,
           stableford: row.stableford_points,
         }
       }
