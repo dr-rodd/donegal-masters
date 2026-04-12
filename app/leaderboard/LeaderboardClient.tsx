@@ -354,11 +354,11 @@ function ScorecardModal({ team, rounds, holes, scores, roundHandicaps, composite
             <div className="shadow-2xl flex flex-col">
 
               {/* Column headers — sticky at top of scroll area; full-opacity solid bg */}
-              <div className={`sticky top-0 z-10 ${SC_GRID} px-3 py-2 border-b`} style={{ borderColor: PC_BORDER, backgroundColor: PC_HEADER }}>
+              <div className={`sticky top-0 z-10 ${SC_GRID} px-3 py-2 border-b`} style={{ borderColor: PC_BORDER, backgroundColor: PC_BG }}>
                 <span className={`text-sm tracking-[0.15em] font-semibold ${SC_DARK}`} style={SC_SF}>#</span>
                 <span className={`text-sm tracking-[0.15em] uppercase font-semibold ${SC_DARK}`} style={SC_SF}>Par</span>
                 {[1, 2, 3].map(n => (
-                  <span key={n} className={`text-sm tracking-[0.15em] uppercase font-semibold text-center ${SC_DARK}`} style={{ ...SC_SF, backgroundColor: PC_HEADER }}>{n}</span>
+                  <span key={n} className={`text-sm tracking-[0.15em] uppercase font-semibold text-center ${SC_DARK}`} style={{ ...SC_SF, backgroundColor: PC_BG }}>{n}</span>
                 ))}
                 <span className={`text-sm tracking-[0.15em] uppercase font-semibold ${SC_DARK} text-right`} style={SC_SF}>TOT</span>
               </div>
