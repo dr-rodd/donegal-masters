@@ -405,7 +405,7 @@ export default function LiveLeaderboardPanel({
   // ─── Render ───────────────────────────────────────────────
 
   return (
-    <div className="max-w-lg mx-auto w-full px-4 py-6 flex flex-col gap-4">
+    <div className="max-w-lg mx-auto w-full px-4 pt-6 pb-2 flex flex-col gap-4">
 
       {/* Header — scrolls away */}
       <div className="flex items-center justify-between">

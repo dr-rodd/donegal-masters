@@ -886,7 +886,7 @@ export default function LiveScoringFlow({
         }}
       >
         <div
-          className="flex"
+          className="flex items-start"
           style={{ width: "200%", marginLeft: showLeaderboard ? "-100%" : "0", transition: "margin-left 300ms ease-out" }}
         >
           {/* Left panel: hole score entry */}
