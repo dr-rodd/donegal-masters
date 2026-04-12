@@ -886,8 +886,8 @@ export default function LiveScoringFlow({
         }}
       >
         <div
-          className="flex transition-transform duration-300 ease-out"
-          style={{ width: "200%", transform: showLeaderboard ? "translateX(-50%)" : "translateX(0)" }}
+          className="flex"
+          style={{ width: "200%", marginLeft: showLeaderboard ? "-100%" : "0", transition: "margin-left 300ms ease-out" }}
         >
           {/* Left panel: hole score entry */}
           <div style={{ width: "50%" }}>
