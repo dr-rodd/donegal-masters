@@ -334,7 +334,7 @@ export default function LiveScoringFlow({
     if (step !== "resuming" || !liveRound) return
 
     const cId  = liveRound.course_id
-    const rId  = liveRound.round_id
+    const rId  = liveRound.id
     const cHoles = holes
       .filter(h => h.course_id === cId)
       .sort((a, b) => a.hole_number - b.hole_number)
@@ -511,7 +511,7 @@ export default function LiveScoringFlow({
       if (hs.gross !== null || hs.isNR) {
         const gross = hs.isNR ? nrGross(p, si, setup.playingHcp) : hs.gross!
         upsertRows.push({
-          player_id: playerId, round_id: roundId, hole_number: hole.hole_number,
+          player_id: playerId, round_id: liveRound!.id, hole_number: hole.hole_number,
           gross_score: gross,
           stableford_points: hs.isNR ? 0 : calcStableford(gross, p, si, setup.playingHcp),
           committed: false,
@@ -527,7 +527,7 @@ export default function LiveScoringFlow({
         : Promise.resolve(),
       deleteHoleNums.length > 0
         ? supabase.from("live_scores").delete()
-            .eq("player_id", playerId).eq("round_id", roundId).in("hole_number", deleteHoleNums)
+            .eq("player_id", playerId).eq("round_id", liveRound!.id).in("hole_number", deleteHoleNums)
         : Promise.resolve(),
     ])
 
@@ -597,7 +597,7 @@ export default function LiveScoringFlow({
       await supabase.from("live_scores")
         .update({ committed: true })
         .in("player_id", playerSetups.map(p => p.player.id))
-        .eq("round_id", roundId)
+        .eq("round_id", liveRound.id)
 
       // 6. Finalise the live round and return to the course portal
       // Note: player locks are intentionally kept so the live leaderboard
@@ -848,7 +848,7 @@ export default function LiveScoringFlow({
           const si = effectiveSI(hole, player.gender, courseId)
           const gross = hs.isNR ? nrGross(p, si, playingHcp) : hs.gross!
           return {
-            player_id: player.id, round_id: roundId, hole_number: hole.hole_number,
+            player_id: player.id, round_id: liveRound!.id, hole_number: hole.hole_number,
             gross_score: gross,
             stableford_points: hs.isNR ? 0 : calcStableford(gross, p, si, playingHcp),
             committed: false,
@@ -856,7 +856,7 @@ export default function LiveScoringFlow({
         }).filter(Boolean)
 
       // DIAGNOSTIC
-      setResumeDebug(`SAVE hole ${hole.hole_number} | round_id: ${roundId} | liveRound.id: ${liveRound?.id} | rows: ${rows.length}`)
+      setResumeDebug(`SAVE hole ${hole.hole_number} | round_id (liveRound.id): ${liveRound?.id} | rows: ${rows.length}`)
 
       if (rows.length > 0) {
         setSaving(true)
