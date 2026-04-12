@@ -911,7 +911,7 @@ export default function LiveScoringFlow({
     return (
       <>
       <div
-        style={{ overflowX: "clip" }}
+        className="overflow-x-hidden"
         onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX }}
         onTouchEnd={(e) => {
           if (touchStartX.current === null) return
