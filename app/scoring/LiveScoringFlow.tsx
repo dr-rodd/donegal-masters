@@ -357,6 +357,7 @@ export default function LiveScoringFlow({
         .from("live_scores")
         .select("player_id, hole_number, gross_score, stableford_points, no_return")
         .eq("round_id", rId)
+        .in("player_id", lockedIds)
 
       // DIAGNOSTIC
       const first = existingScores?.[0]
