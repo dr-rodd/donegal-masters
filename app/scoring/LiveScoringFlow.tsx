@@ -855,6 +855,9 @@ export default function LiveScoringFlow({
           }
         }).filter(Boolean)
 
+      // DIAGNOSTIC
+      setResumeDebug(`SAVE hole ${hole.hole_number} | round_id: ${roundId} | liveRound.id: ${liveRound?.id} | rows: ${rows.length}`)
+
       if (rows.length > 0) {
         setSaving(true)
         const { error: saveErr } = await supabase
