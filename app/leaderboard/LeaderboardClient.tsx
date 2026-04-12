@@ -299,13 +299,13 @@ function ScorecardModal({ team, rounds, holes, scores, roundHandicaps, composite
         onClick={e => e.stopPropagation()}
       >
         {/* Header */}
-        <div className="flex-shrink-0 flex items-start justify-between px-4 pt-5 pb-2">
+        <div className="flex-shrink-0 flex items-center justify-between px-4 pt-5 pb-2">
           <div className="min-w-0 flex-1">
             {!isDefaultTeamName(team.name) && (
               <p className="text-white/30 text-[10px] tracking-[0.15em] uppercase mb-1">{team.name}</p>
             )}
             <div className="flex items-center gap-2">
-              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0 mt-0.5" style={{ backgroundColor: team.color }} />
+              <span className="w-2.5 h-2.5 rounded-full flex-shrink-0" style={{ backgroundColor: team.color }} />
               <span className="font-[family-name:var(--font-playfair)] text-xl text-white leading-snug">
                 {players.map((p, i) => `${i + 1}. ${displayName(p)}`).join("   ")}
               </span>
@@ -358,7 +358,7 @@ function ScorecardModal({ team, rounds, holes, scores, roundHandicaps, composite
                 <span className={`text-sm tracking-[0.15em] font-semibold ${SC_DARK}`} style={SC_SF}>#</span>
                 <span className={`text-sm tracking-[0.15em] uppercase font-semibold ${SC_DARK}`} style={SC_SF}>Par</span>
                 {[1, 2, 3].map(n => (
-                  <span key={n} className={`text-sm tracking-[0.15em] uppercase font-semibold ${SC_DARK} text-center`} style={SC_SF}>{n}</span>
+                  <span key={n} className="text-sm tracking-[0.15em] uppercase font-semibold text-center" style={{ ...SC_SF, color: "#3A3A2E" }}>{n}</span>
                 ))}
                 <span className={`text-sm tracking-[0.15em] uppercase font-semibold ${SC_DARK} text-right`} style={SC_SF}>TOT</span>
               </div>
