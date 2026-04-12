@@ -296,7 +296,7 @@ export default function LiveLeaderboardPanel({
       supabase
         .from("live_scores")
         .select("player_id, hole_number, gross_score, stableford_points")
-        .eq("round_id", liveRound.round_id),
+        .eq("round_id", liveRound.id),
       supabase
         .from("live_rounds")
         .select("id, status")
@@ -324,19 +324,19 @@ export default function LiveLeaderboardPanel({
     }
 
     setLastFetch(new Date())
-  }, [liveRound.round_id])
+  }, [liveRound.id])
 
   useEffect(() => {
     fetchScores()
     const interval = setInterval(fetchScores, 15000)
 
     const channel = supabase
-      .channel(`live-lb-${liveRound.round_id}`)
+      .channel(`live-lb-${liveRound.id}`)
       .on("postgres_changes", {
         event: "*",
         schema: "public",
         table: "live_scores",
-        filter: `round_id=eq.${liveRound.round_id}`,
+        filter: `round_id=eq.${liveRound.id}`,
       }, () => fetchScores())
       .subscribe()
 
@@ -344,7 +344,7 @@ export default function LiveLeaderboardPanel({
       clearInterval(interval)
       supabase.removeChannel(channel)
     }
-  }, [fetchScores, liveRound.round_id])
+  }, [fetchScores, liveRound.id])
 
   // ─── Build rows ───────────────────────────────────────────
 
