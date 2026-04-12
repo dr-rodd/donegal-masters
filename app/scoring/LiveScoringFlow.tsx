@@ -334,7 +334,7 @@ export default function LiveScoringFlow({
     if (step !== "resuming" || !liveRound) return
 
     const cId  = liveRound.course_id
-    const rId  = liveRound.id
+    const rId  = liveRound.round_id
     const cHoles = holes
       .filter(h => h.course_id === cId)
       .sort((a, b) => a.hole_number - b.hole_number)
