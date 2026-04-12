@@ -699,18 +699,18 @@ export default function IndividualClient({ rounds, players, holes, scores, round
 
           {/* Strokes sub-toggle */}
           {viewMode === "strokes" && (
-            <div className="flex rounded-full border border-[#1e3d28] overflow-hidden mb-4">
+            <div className="inline-flex rounded-full border border-[#1e3d28] overflow-hidden mb-4">
               <button
                 onClick={() => setStrokesView("gross")}
-                className={`px-3 py-1 text-[10px] tracking-[0.1em] uppercase transition-colors
-                  ${strokesView === "gross" ? "bg-[#1e3d28] text-white/70" : "text-white/30 hover:text-white/50"}`}
+                className={`px-3 py-2.5 text-sm tracking-[0.15em] uppercase transition-colors
+                  ${strokesView === "gross" ? "bg-[#1e3d28] text-[#C9A84C]" : "text-white/40 hover:text-white/60"}`}
               >
                 Gross
               </button>
               <button
                 onClick={() => setStrokesView("nett")}
-                className={`px-3 py-1 text-[10px] tracking-[0.1em] uppercase transition-colors border-l border-[#1e3d28]
-                  ${strokesView === "nett" ? "bg-[#1e3d28] text-white/70" : "text-white/30 hover:text-white/50"}`}
+                className={`px-3 py-2.5 text-sm tracking-[0.15em] uppercase transition-colors border-l border-[#1e3d28]
+                  ${strokesView === "nett" ? "bg-[#1e3d28] text-[#C9A84C]" : "text-white/40 hover:text-white/60"}`}
               >
                 Nett
               </button>
@@ -721,7 +721,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
           <div className="border border-[#1e3d28]">
 
             {/* Sticky column headers */}
-            <div className="sticky top-0 z-10 grid grid-cols-[20px_1fr_44px_44px_44px_60px] gap-x-2 items-center px-3 py-1 bg-[#0a1a0e] border-b border-[#1e3d28]">
+            <div className="sticky top-0 z-10 grid grid-cols-[20px_1fr_40px_40px_40px_56px] gap-x-1 items-center px-3 py-1 bg-[#0a1a0e] border-b border-[#1e3d28]">
               <span className="text-[10px] tracking-widest uppercase text-white/25">Pos</span>
               <span className="text-[10px] tracking-widests uppercase text-white/25">Player</span>
               {rounds.map(r => (
@@ -743,7 +743,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
                 <div
                   key={player.id}
                   onClick={() => canOpen && setModal({ playerId: player.id, roundIdx: 0 })}
-                  className={`grid grid-cols-[20px_1fr_44px_44px_44px_60px] gap-x-2 items-center px-3 py-1
+                  className={`grid grid-cols-[20px_1fr_40px_40px_40px_56px] gap-x-1 items-center px-3 py-1
                     border-b border-[#1e3d28] last:border-b-0
                     ${canOpen ? "cursor-pointer active:bg-white/5 transition-colors" : ""}`}
                 >
