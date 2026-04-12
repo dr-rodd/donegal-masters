@@ -384,6 +384,9 @@ export default function CourseDashboardClient({
       }
 
       setSettingsVoidSession(false)
+      // Clear competition holes/winners from localStorage
+      if (storageKey) localStorage.removeItem(storageKey)
+      saveCompetitionHoles(null, null, null, null)
     } catch (e: any) {
       setSettingsError(e?.message ?? "Void failed — please try again")
     } finally {
@@ -856,38 +859,6 @@ export default function CourseDashboardClient({
                   </section>
                 )}
 
-                {/* ── Void Live Session ── */}
-                <section>
-                  <p className="text-white/30 text-xs tracking-[0.2em] uppercase mb-3">Void Live Session</p>
-                  {!settingsVoidSession ? (
-                    <button
-                      onClick={() => setSettingsVoidSession(true)}
-                      className="w-full py-3 border border-red-900/50 text-red-400/60 text-base tracking-[0.15em] uppercase hover:border-red-700/60 hover:text-red-400 transition-colors rounded-sm"
-                    >
-                      Clear All Live Data
-                    </button>
-                  ) : (
-                    <div className="border border-red-800/50 bg-red-950/20 rounded-sm px-4 py-4 space-y-3">
-                      <p className="text-white/60 text-base">This will delete all scorecards, scores, and player locks for {courseName}. This cannot be undone.</p>
-                      <div className="flex gap-2">
-                        <button
-                          onClick={() => setSettingsVoidSession(false)}
-                          className="flex-1 py-2.5 text-sm text-white/40 border border-white/15 hover:border-white/30 transition-colors rounded-sm uppercase tracking-wider"
-                        >
-                          Cancel
-                        </button>
-                        <button
-                          onClick={voidLiveSession}
-                          disabled={settingsWorking}
-                          className="flex-1 py-2.5 text-sm text-red-300 border border-red-700/60 hover:border-red-500/70 disabled:opacity-50 transition-colors rounded-sm uppercase tracking-wider"
-                        >
-                          {settingsWorking ? "Clearing…" : "Void Session"}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </section>
-
                 {/* ── Competition Holes ── */}
                 <section>
                   <p className="text-white/30 text-xs tracking-[0.2em] uppercase mb-3">Competition Holes</p>
@@ -959,6 +930,38 @@ export default function CourseDashboardClient({
                       </div>
                     )}
                   </div>
+                </section>
+
+                {/* ── Void Live Session ── */}
+                <section>
+                  <p className="text-white/30 text-xs tracking-[0.2em] uppercase mb-3">Void Live Session</p>
+                  {!settingsVoidSession ? (
+                    <button
+                      onClick={() => setSettingsVoidSession(true)}
+                      className="w-full py-3 border border-red-900/50 text-red-400/60 text-base tracking-[0.15em] uppercase hover:border-red-700/60 hover:text-red-400 transition-colors rounded-sm"
+                    >
+                      Clear All Live Data
+                    </button>
+                  ) : (
+                    <div className="border border-red-800/50 bg-red-950/20 rounded-sm px-4 py-4 space-y-3">
+                      <p className="text-white/60 text-base">This will delete all scorecards, scores, and player locks for {courseName}, and reset competition hole settings. This cannot be undone.</p>
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => setSettingsVoidSession(false)}
+                          className="flex-1 py-2.5 text-sm text-white/40 border border-white/15 hover:border-white/30 transition-colors rounded-sm uppercase tracking-wider"
+                        >
+                          Cancel
+                        </button>
+                        <button
+                          onClick={voidLiveSession}
+                          disabled={settingsWorking}
+                          className="flex-1 py-2.5 text-sm text-red-300 border border-red-700/60 hover:border-red-500/70 disabled:opacity-50 transition-colors rounded-sm uppercase tracking-wider"
+                        >
+                          {settingsWorking ? "Clearing…" : "Void Session"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
                 </section>
 
                 {settingsError && (
