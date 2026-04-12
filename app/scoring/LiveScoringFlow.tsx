@@ -865,6 +865,9 @@ export default function LiveScoringFlow({
           .upsert(rows as any, { onConflict: "player_id,round_id,hole_number" })
         setSaving(false)
         if (saveErr) {
+          const detail = `code:${saveErr.code} msg:${saveErr.message} hint:${saveErr.hint ?? "—"} details:${saveErr.details ?? "—"}`
+          console.error("live_scores upsert failed", saveErr)
+          setResumeDebug(`SAVE ERROR hole ${hole.hole_number} | ${detail}`)
           setError(`Failed to save hole ${hole.hole_number} — please try again`)
           return
         }
