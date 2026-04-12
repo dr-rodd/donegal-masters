@@ -1207,34 +1207,30 @@ export default function LiveScoringFlow({
                 <p className="text-white text-base font-semibold" style={sf}>{courseNameLabel}</p>
               </div>
 
-              {/* Sticky: player details row + column header row */}
-              <div className="sticky top-[77px] z-10">
-
-                {/* Player details row */}
-                <div className="flex items-end gap-4 px-4 py-2.5 border-b border-[#D4CBBA]" style={{ background: "#EAE4D5" }}>
-                  <div className="flex flex-col flex-1 min-w-0">
-                    <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>Player</span>
-                    <span className="font-[family-name:var(--font-playfair)] text-xl text-[#2C2C1E] font-semibold leading-tight truncate">{player.name}</span>
-                  </div>
-                  <div className="flex flex-col items-end flex-shrink-0">
-                    <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>Tee</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className={`w-3 h-3 rounded-full flex-shrink-0 ${TEE_STYLES[tee.name]?.dot ?? "bg-white/40"}`} />
-                      <span className={`text-base font-semibold ${dark}`} style={sf}>{tee.name}</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end flex-shrink-0">
-                    <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>PH</span>
-                    <span className={`text-base font-semibold ${dark}`} style={sf}>{playingHcp}</span>
+              {/* Player details row — sticky */}
+              <div className="sticky top-0 z-10 flex items-end gap-4 px-4 py-2.5 border-b border-[#D4CBBA]" style={{ background: "#EAE4D5" }}>
+                <div className="flex flex-col flex-1 min-w-0">
+                  <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>Player</span>
+                  <span className="font-[family-name:var(--font-playfair)] text-xl text-[#2C2C1E] font-semibold leading-tight truncate">{player.name}</span>
+                </div>
+                <div className="flex flex-col items-end flex-shrink-0">
+                  <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>Tee</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-3 h-3 rounded-full flex-shrink-0 ${TEE_STYLES[tee.name]?.dot ?? "bg-white/40"}`} />
+                    <span className={`text-base font-semibold ${dark}`} style={sf}>{tee.name}</span>
                   </div>
                 </div>
-
-                {/* Column headers */}
-                <div className={`${grid} px-3 py-2 border-b border-[#D4CBBA]`} style={{ background: "#EAE4D5" }}>
-                  {(["Hole","Yds","Par","SI","Score","Pts"] as const).map((h, i) => (
-                    <span key={h} className={`text-[11px] tracking-[0.15em] uppercase font-semibold ${muted} ${i === 4 ? "text-center" : i === 5 ? "text-right" : ""}`} style={sf}>{h}</span>
-                  ))}
+                <div className="flex flex-col items-end flex-shrink-0">
+                  <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>PH</span>
+                  <span className={`text-base font-semibold ${dark}`} style={sf}>{playingHcp}</span>
                 </div>
+              </div>
+
+              {/* Column headers — sticky below player row */}
+              <div className={`sticky top-[62px] z-10 ${grid} px-3 py-2 border-b border-[#D4CBBA]`} style={{ background: "#EAE4D5" }}>
+                {(["Hole","Yds","Par","SI","Score","Pts"] as const).map((h, i) => (
+                  <span key={h} className={`text-[11px] tracking-[0.15em] uppercase font-semibold ${muted} ${i === 4 ? "text-center" : i === 5 ? "text-right" : ""}`} style={sf}>{h}</span>
+                ))}
               </div>
 
               {/* Front 9 */}
