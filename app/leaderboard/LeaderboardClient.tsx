@@ -346,36 +346,27 @@ function ScorecardModal({ team, rounds, holes, scores, roundHandicaps, composite
           }}
         >
           <div className="px-4 pb-8">
-
-            {/* Players legend — numbered to match column numbers in grid */}
-            <div className="py-2.5 space-y-1">
-              {players.map((p, i) => (
-                <div key={p.id} className="flex items-center gap-2">
-                  <span className="text-[#C9A84C]/60 text-sm font-bold font-[family-name:var(--font-playfair)] w-3">{i + 1}</span>
-                  <span className="text-white/60 text-sm">{displayName(p)}</span>
-                </div>
-              ))}
-            </div>
-
-            {/* Scorecard */}
             <div className="shadow-2xl flex flex-col">
 
-              {/* Dark green header bar */}
-              <div className="rounded-t-xl bg-[#1a3a22] px-4 py-3">
-                <p className="font-[family-name:var(--font-playfair)] text-white text-base">
+              {/* Dark green header bar — sticky, includes numbered player key */}
+              <div className="sticky top-0 z-10 rounded-t-xl bg-[#1a3a22] px-4 py-3">
+                <p className="font-[family-name:var(--font-playfair)] text-white text-base leading-tight">
                   {round.courses?.name ?? `Round ${round.round_number}`}
+                </p>
+                <p className="text-white/50 text-xs mt-1">
+                  {players.map((p, i) => `${i + 1}. ${displayName(p)}`).join("  ")}
                 </p>
               </div>
 
-              {/* Column headers */}
-              <div className={`${SC_GRID} px-3 py-1.5 border-b`} style={{ background: PC_HEADER, borderColor: PC_BORDER }}>
+              {/* Column headers — sticky below header bar (~70px: py-3×2=24 + text-base=24 + mt-1=4 + text-xs=18) */}
+              <div className={`sticky top-[70px] z-10 ${SC_GRID} px-3 py-2 border-b`} style={{ background: PC_HEADER, borderColor: PC_BORDER }}>
                 {(["Hole", "Par"] as const).map(h => (
-                  <span key={h} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${SC_MUTED}`} style={SC_SF}>{h}</span>
+                  <span key={h} className={`text-xs tracking-[0.15em] uppercase font-semibold ${SC_MUTED}`} style={SC_SF}>{h}</span>
                 ))}
                 {[1, 2, 3].map(n => (
-                  <span key={n} className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${SC_MUTED} text-center`} style={SC_SF}>{n}</span>
+                  <span key={n} className={`text-xs tracking-[0.15em] uppercase font-semibold ${SC_MUTED} text-center`} style={SC_SF}>{n}</span>
                 ))}
-                <span className={`text-[10px] tracking-[0.15em] uppercase font-semibold ${SC_MUTED} text-right`} style={SC_SF}>TOT</span>
+                <span className={`text-xs tracking-[0.15em] uppercase font-semibold ${SC_MUTED} text-right`} style={SC_SF}>TOT</span>
               </div>
 
               {/* Score rows */}
