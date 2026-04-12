@@ -353,13 +353,18 @@ export default function LiveScoringFlow({
         return
       }
 
-      const { data: existingScores } = await supabase
+      const { data: existingScores, error: resumeErr } = await supabase
         .from("live_scores")
         .select("player_id, hole_number, gross_score, stableford_points, no_return")
         .eq("round_id", rId)
         .in("player_id", lockedIds)
 
       // DIAGNOSTIC
+      if (resumeErr) {
+        console.error("RESUME ERROR", resumeErr)
+        setResumeDebug(`RESUME ERROR code:${resumeErr.code} msg:${resumeErr.message} hint:${resumeErr.hint ?? "—"} details:${resumeErr.details ?? "—"}`)
+        return
+      }
       const first = existingScores?.[0]
       setResumeDebug(
         `round_id: ${rId} | rows: ${existingScores?.length ?? 0} | first: hole ${first?.hole_number ?? "—"} gross ${first?.gross_score ?? "—"}`
