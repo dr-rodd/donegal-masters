@@ -369,6 +369,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
   }
 
   function navigate(playerId: string, roundIdx: number) {
+    console.log(`[TAP] ${Date.now()} navigate triggered — playerId=${playerId} roundIdx=${roundIdx}`)
     router.push(`/scorecard/${playerId}?from=individual&round=${roundIdx}`)
   }
 
