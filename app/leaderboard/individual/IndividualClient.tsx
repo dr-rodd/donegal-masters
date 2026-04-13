@@ -376,14 +376,23 @@ function ScorecardModal({ player, rounds, holes, scores, roundHandicaps, tees, c
           }}
         >
           <div className="px-4 pb-8">
-            <div className="bg-white rounded-xl shadow-2xl overflow-hidden">
+            <div className="bg-white rounded-xl shadow-2xl">
 
-              {/* Card header */}
-              <div className="bg-[#1a3a22] px-4 py-3 flex items-center justify-between">
+              {/* Card header — scrolls normally */}
+              <div className="bg-[#1a3a22] rounded-t-xl px-4 py-3 flex items-center justify-between">
                 <span className="font-[family-name:var(--font-playfair)] text-white text-base">{courseName}</span>
-                <div className={`flex items-center gap-3 text-sm ${crimson}`}>
-                  {tee && <span className="text-[#C9A84C]/80 capitalize">{tee.name.toLowerCase()} tees</span>}
-                  {playingHcp != null && <span className="text-white/40">hcp {playingHcp}</span>}
+                <div className="flex items-center gap-1.5">
+                  {tee && (
+                    <span className="font-[family-name:var(--font-playfair)] text-xs text-[#C9A84C]/70 capitalize tracking-wide">
+                      {tee.name.toLowerCase()} tees
+                    </span>
+                  )}
+                  {tee && playingHcp != null && <span className="text-white/20 text-xs">·</span>}
+                  {playingHcp != null && (
+                    <span className="font-[family-name:var(--font-playfair)] text-xs text-white/40 tracking-wide">
+                      hcp {playingHcp}
+                    </span>
+                  )}
                 </div>
               </div>
 
@@ -392,7 +401,7 @@ function ScorecardModal({ player, rounds, holes, scores, roundHandicaps, tees, c
               ) : (
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="border-b-2 border-gray-200 bg-gray-50">
+                    <tr className="border-b-2 border-gray-200 bg-gray-50 sticky top-0 z-10">
                       <th className="text-left py-2 px-3 text-sm font-semibold text-gray-400 uppercase tracking-wide font-[family-name:var(--font-playfair)] w-10">Hole</th>
                       <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-9">Par</th>
                       <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-9">SI</th>
