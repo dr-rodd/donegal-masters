@@ -193,6 +193,10 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
   const totalGross  = players.map((_, pi) => front9Gross[pi] + back9Gross[pi])
   const totalPts    = front9Pts + back9Pts
 
+  const front9PlayerPts = players.map((_, pi) => front9.reduce((s, r) => s + (r.stablefordScores[pi] ?? 0), 0))
+  const back9PlayerPts  = players.map((_, pi) => back9.reduce((s, r) => s + (r.stablefordScores[pi] ?? 0), 0))
+  const totalPlayerPts  = players.map((_, pi) => front9PlayerPts[pi] + back9PlayerPts[pi])
+
   const HoleRow = ({ hole, idx, grossScores, stablefordScores, bestPts, hasScores, contributors, sourceColors, isNRScores }: typeof rows[0]) => (
     <div
       key={hole.hole_number}
@@ -235,7 +239,7 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
         <span className="text-sm font-bold text-[#5C4520]" style={sf}>{front9Par}</span>
         {players.map((_, pi) => (
           <span key={pi} className="text-center text-sm font-bold text-[#5C4520]" style={sf}>
-            {front9HasScores && front9Gross[pi] > 0 ? front9Gross[pi] : "—"}
+            {front9HasScores ? front9PlayerPts[pi] : "—"}
           </span>
         ))}
         <span className="text-right text-sm font-bold text-[#7B6C3E]" style={sf}>{front9HasScores ? front9Pts : "—"}</span>
@@ -250,7 +254,7 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
         <span className="text-sm font-bold text-[#5C4520]" style={sf}>{back9Par}</span>
         {players.map((_, pi) => (
           <span key={pi} className="text-center text-sm font-bold text-[#5C4520]" style={sf}>
-            {back9HasScores && back9Gross[pi] > 0 ? back9Gross[pi] : "—"}
+            {back9HasScores ? back9PlayerPts[pi] : "—"}
           </span>
         ))}
         <span className="text-right text-sm font-bold text-[#7B6C3E]" style={sf}>{back9HasScores ? back9Pts : "—"}</span>
@@ -262,7 +266,7 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
         <span className="text-sm font-bold text-[#4A3810]" style={sf}>{front9Par + back9Par}</span>
         {players.map((_, pi) => (
           <span key={pi} className="text-center text-sm font-bold text-[#4A3810]" style={sf}>
-            {totalGross[pi] > 0 ? totalGross[pi] : "—"}
+            {totalPlayerPts[pi]}
           </span>
         ))}
         <span className="text-right text-xl font-extrabold text-[#5C4520] font-[family-name:var(--font-playfair)]">{totalPts}</span>
