@@ -1249,13 +1249,13 @@ export default function LiveScoringFlow({
               ))}
 
               {/* Out subtotal */}
-              <div className={`${grid} px-3 py-2 items-center border-t-2 border-gray-200 bg-gray-100`}>
-                <span className="text-sm font-semibold uppercase tracking-wider text-gray-500 font-[family-name:var(--font-playfair)]">Out</span>
-                <span className="text-base text-gray-700" style={sf}>{front9Yards > 0 ? front9Yards : "—"}</span>
-                <span className="text-base font-semibold text-gray-700" style={sf}>{front9Par}</span>
+              <div className={`${grid} px-3 py-2.5 items-center border-t-2 bg-[#EBE0C6]`} style={{ borderColor: "rgba(201,168,76,0.5)" }}>
+                <span className="text-sm font-bold tracking-widest uppercase text-[#5C4520]" style={sf}>Out</span>
+                <span className={`text-sm ${muted}`} style={sf}>{front9Yards > 0 ? front9Yards : "—"}</span>
+                <span className={`text-sm font-bold ${dark}`} style={sf}>{front9Par}</span>
                 <span />
-                <span className="text-center text-base font-semibold text-gray-700" style={sf}>{front9Gross > 0 ? front9Gross : "—"}</span>
-                <span className="text-right text-base font-semibold text-[#2d6a4f]" style={sf}>{front9Pts}</span>
+                <span className={`text-center text-xl font-bold ${dark}`} style={sf}>{front9Gross > 0 ? front9Gross : "—"}</span>
+                <span className={`text-right text-lg font-bold text-[#7B6C3E]`} style={sf}>{front9Pts}</span>
               </div>
 
               {/* Back 9 — explicit bg needed */}
@@ -1271,23 +1271,23 @@ export default function LiveScoringFlow({
               ))}
 
               {/* In subtotal */}
-              <div className={`${grid} px-3 py-2 items-center border-t-2 border-gray-200 bg-gray-100`}>
-                <span className="text-sm font-semibold uppercase tracking-wider text-gray-500 font-[family-name:var(--font-playfair)]">In</span>
-                <span className="text-base text-gray-700" style={sf}>{back9Yards > 0 ? back9Yards : "—"}</span>
-                <span className="text-base font-semibold text-gray-700" style={sf}>{back9Par}</span>
+              <div className={`${grid} px-3 py-2.5 items-center border-t-2 bg-[#EBE0C6]`} style={{ borderColor: "rgba(201,168,76,0.5)" }}>
+                <span className="text-sm font-bold tracking-widest uppercase text-[#5C4520]" style={sf}>In</span>
+                <span className={`text-sm ${muted}`} style={sf}>{back9Yards > 0 ? back9Yards : "—"}</span>
+                <span className={`text-sm font-bold ${dark}`} style={sf}>{back9Par}</span>
                 <span />
-                <span className="text-center text-base font-semibold text-gray-700" style={sf}>{back9Gross > 0 ? back9Gross : "—"}</span>
-                <span className="text-right text-base font-semibold text-[#2d6a4f]" style={sf}>{back9Pts}</span>
+                <span className={`text-center text-xl font-bold ${dark}`} style={sf}>{back9Gross > 0 ? back9Gross : "—"}</span>
+                <span className={`text-right text-lg font-bold text-[#7B6C3E]`} style={sf}>{back9Pts}</span>
               </div>
 
               {/* Total */}
-              <div className={`${grid} px-3 py-2 items-center border-t-2 border-[#1e3a22] bg-[#1a3a22] rounded-b-xl`}>
-                <span className="text-sm font-semibold uppercase tracking-wider text-white/70 font-[family-name:var(--font-playfair)]">Tot</span>
-                <span className="text-base text-white" style={sf}>{totalYards > 0 ? totalYards : "—"}</span>
-                <span className="text-lg font-semibold text-white" style={sf}>{totalPar}</span>
+              <div className={`${grid} px-3 py-3 items-center border-t-2 rounded-b-xl bg-[#E6D7B1]`} style={{ borderColor: "rgba(201,168,76,0.6)" }}>
+                <span className="text-sm font-bold tracking-widest uppercase text-[#4A3810]" style={sf}>Tot</span>
+                <span className={`text-sm font-semibold text-[#5C4520]`} style={sf}>{totalYards > 0 ? totalYards : "—"}</span>
+                <span className={`text-sm font-bold ${dark}`} style={sf}>{totalPar}</span>
                 <span />
-                <span className="text-center text-lg font-semibold text-white" style={sf}>{hasAnyScore && totalGross > 0 ? totalGross : "—"}</span>
-                <span className="text-right text-lg font-bold text-[#C9A84C]" style={sf}>{totalPts}</span>
+                <span className={`text-center text-xl font-extrabold ${dark}`} style={sf}>{hasAnyScore && totalGross > 0 ? totalGross : "—"}</span>
+                <span className="text-right text-xl font-extrabold text-[#5C4520] font-[family-name:var(--font-playfair)]">{totalPts}</span>
               </div>
 
             </div>
