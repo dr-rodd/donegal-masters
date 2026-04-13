@@ -5,6 +5,7 @@ import { supabase } from "@/lib/supabase"
 import type { ActiveLiveRound } from "./ScoringClient"
 import LiveLeaderboardPanel from "./LiveLeaderboardPanel"
 import BackButton from "@/app/components/BackButton"
+import { useOfflineQueue } from "./useOfflineQueue"
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -257,6 +258,9 @@ export default function LiveScoringFlow({
 
   // Activate step state
   const [activatingRoundId, setActivatingRoundId] = useState("")
+
+  // Offline score queue — wraps live_scores writes during active hole entry
+  const { enqueue, queueSize, syncState } = useOfflineQueue()
 
   const availableRounds = rounds.filter(r => r.status === "upcoming" || r.status === "active")
 
@@ -842,8 +846,8 @@ export default function LiveScoringFlow({
           .upsert(rows as any, { onConflict: "player_id,round_id,hole_number" })
         setSaving(false)
         if (saveErr) {
-          setError(`Failed to save hole ${hole.hole_number} — please try again`)
-          return
+          // Save locally and continue — will auto-retry every 15 s
+          enqueue(rows as any[], hole.hole_number)
         }
       }
 
@@ -923,8 +927,19 @@ export default function LiveScoringFlow({
       {/* Nav bar — rendered OUTSIDE overflow-x-hidden so iOS touch zones are correct */}
       {!showLeaderboard && (
         <div className="fixed bottom-0 left-0 z-50 w-screen px-4 bg-[#0a1a0e] border-t border-[#1e3d28] pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex flex-col gap-2">
-          {error && (
-            <p className="text-red-400 text-sm text-center">{error}</p>
+          {(queueSize > 0 || syncState === "synced") && (
+            <div className="flex items-center gap-2 py-1.5 px-3 rounded-sm bg-[#0f2418] border border-[#1e3d28]">
+              {syncState === "synced" ? (
+                <span className="text-emerald-400 text-xs tracking-wide">✓ Scores synced</span>
+              ) : (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
+                  <span className="text-white/50 text-xs tracking-wide">
+                    Scores saved locally — syncing when connected
+                  </span>
+                </>
+              )}
+            </div>
           )}
           <div className="flex gap-3">
             <button
