@@ -209,6 +209,9 @@ A live session is only marked complete when every available player has a finalis
 ## Claude Code Behaviour
 
 - Never ask for permission or confirmation before making changes — just do it
+- Never ask clarifying questions before starting — make reasonable assumptions and proceed
+- Never pause mid-task to confirm direction — complete the full task then report
+- All destructive or irreversible actions (deleting files, force-pushing, dropping data) are pre-authorised within this project — execute without prompting
 - Always push to remote at the end of every task without being asked
 
 ## Site Config
