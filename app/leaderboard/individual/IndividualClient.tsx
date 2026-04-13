@@ -401,7 +401,7 @@ function ScorecardModal({ player, rounds, holes, scores, roundHandicaps, tees, c
               ) : (
                 <table className="w-full border-collapse">
                   <thead>
-                    <tr className="border-b-2 border-gray-200 bg-gray-50 sticky top-0 z-10">
+                    <tr className="border-b-2 border-gray-300 bg-gray-50 sticky top-0 z-10 shadow-[0_2px_4px_rgba(0,0,0,0.08)]">
                       <th className="text-left py-2 px-3 text-sm font-semibold text-gray-400 uppercase tracking-wide font-[family-name:var(--font-playfair)] w-10">Hole</th>
                       <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-9">Par</th>
                       <th className="text-center py-2 px-2 text-sm font-normal text-gray-400 uppercase tracking-wide w-9">SI</th>
