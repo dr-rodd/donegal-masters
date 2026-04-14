@@ -56,6 +56,21 @@ interface Props {
 
 type View = "dashboard" | "scoring" | "live-board" | "settings"
 
+// ─── Scoring helpers (for blinded batch commit) ────────────
+const ST_PATRICKS_COURSE_ID_DASH = "11111111-0000-0000-0000-000000000003"
+
+function shotsReceivedDash(si: number, hcp: number) {
+  return Math.floor(hcp / 18) + (si <= hcp % 18 ? 1 : 0)
+}
+function effectiveParDash(hole: Hole, gender: string, courseId: string) {
+  return gender === "F" && courseId === ST_PATRICKS_COURSE_ID_DASH && hole.par_ladies
+    ? hole.par_ladies : hole.par
+}
+function effectiveSIDash(hole: Hole, gender: string, courseId: string) {
+  return gender === "F" && courseId === ST_PATRICKS_COURSE_ID_DASH && hole.stroke_index_ladies
+    ? hole.stroke_index_ladies : hole.stroke_index
+}
+
 // ─── Component ────────────────────────────────────────────
 
 export default function CourseDashboardClient({
@@ -77,6 +92,7 @@ export default function CourseDashboardClient({
   const [settingsVoidSession, setSettingsVoidSession]     = useState(false)
   const [settingsWorking, setSettingsWorking]             = useState(false)
   const [settingsError, setSettingsError]                 = useState<string | null>(null)
+  const [isBlinded, setIsBlinded]                         = useState(false)
 
   // Competition holes — persisted to localStorage by round id
   const activeRound = rounds.find(r => r.courses?.id === courseId)
@@ -120,7 +136,7 @@ export default function CourseDashboardClient({
   const fetchScorecards = useCallback(async () => {
     const { data: liveRoundsData } = await supabase
       .from("live_rounds")
-      .select("id, course_id, round_id, status, session_finalised_at, activated_at, activated_by, rounds(round_number), courses(name)")
+      .select("id, course_id, round_id, status, session_finalised_at, activated_at, activated_by, rounds(round_number), courses(name), blinded")
       .eq("course_id", courseId)
       .in("status", ["active", "finalised"])
 
@@ -169,6 +185,7 @@ export default function CourseDashboardClient({
 
     setScorecards(cards)
     setLoading(false)
+    setIsBlinded((liveRoundsData as any[]).some((lr: any) => lr.blinded === true))
   }, [courseId, players])
 
   useEffect(() => {
@@ -389,6 +406,94 @@ export default function CourseDashboardClient({
       saveCompetitionHoles(null, null, null, null)
     } catch (e: any) {
       setSettingsError(e?.message ?? "Void failed — please try again")
+    } finally {
+      setSettingsWorking(false)
+      fetchScorecards()
+    }
+  }
+
+  async function pushDeferredScores() {
+    // Commit all finalised live_scores to the official scores table (used when un-blinding)
+    const courseRound = rounds.find(r => r.courses?.id === courseId)
+    if (!courseRound) return
+    const roundId = courseRound.id
+
+    const { data: finalisedRounds } = await supabase
+      .from("live_rounds")
+      .select("id")
+      .eq("course_id", courseId)
+      .eq("status", "finalised")
+    if (!finalisedRounds?.length) return
+
+    const { data: locks } = await supabase
+      .from("live_player_locks")
+      .select("player_id")
+      .in("live_round_id", finalisedRounds.map(r => r.id))
+    const playerIds = [...new Set(locks?.map(l => l.player_id as string) ?? [])]
+    if (!playerIds.length) return
+
+    const { data: rhData } = await supabase
+      .from("round_handicaps")
+      .select("player_id, playing_handicap")
+      .eq("round_id", roundId)
+      .in("player_id", playerIds)
+    const hcpMap = new Map(rhData?.map(r => [r.player_id as string, r.playing_handicap as number]) ?? [])
+
+    const { data: lsData } = await supabase
+      .from("live_scores")
+      .select("player_id, hole_number, gross_score, stableford_points")
+      .eq("round_id", roundId)
+      .in("player_id", playerIds)
+    if (!lsData?.length) return
+
+    const courseHoles = holes
+      .filter(h => h.course_id === courseId)
+      .sort((a, b) => a.hole_number - b.hole_number)
+
+    const scoreRows: any[] = []
+    for (const ls of lsData) {
+      if (ls.gross_score == null) continue
+      const hole = courseHoles.find(h => h.hole_number === ls.hole_number)
+      if (!hole) continue
+      const player = players.find(p => p.id === ls.player_id)
+      if (!player) continue
+      const hcp = hcpMap.get(ls.player_id) ?? 0
+      const ePar = effectiveParDash(hole, player.gender, courseId)
+      const eSI  = effectiveSIDash(hole, player.gender, courseId)
+      const sr   = shotsReceivedDash(eSI, hcp)
+      const expectedNrGross = ePar + 2 + sr
+      const isNR = ls.gross_score === expectedNrGross && (ls.stableford_points ?? 1) === 0
+      scoreRows.push({
+        player_id: ls.player_id,
+        hole_id: hole.id,
+        round_id: roundId,
+        gross_score: ls.gross_score,
+        no_return: isNR,
+      })
+    }
+
+    if (scoreRows.length > 0) {
+      await supabase.from("scores")
+        .upsert(scoreRows, { onConflict: "player_id,hole_id,round_id" })
+    }
+  }
+
+  async function toggleBlinded(value: boolean) {
+    setSettingsWorking(true)
+    setSettingsError(null)
+    try {
+      await supabase
+        .from("live_rounds")
+        .update({ blinded: value })
+        .eq("course_id", courseId)
+        .in("status", ["active", "finalised"])
+      if (!value) {
+        // Turning off blinded — immediately push any deferred scores
+        await pushDeferredScores()
+      }
+      setIsBlinded(value)
+    } catch (e: any) {
+      setSettingsError(e?.message ?? "Toggle failed")
     } finally {
       setSettingsWorking(false)
       fetchScorecards()
@@ -625,6 +730,28 @@ export default function CourseDashboardClient({
 
             return (
               <div className="max-w-lg mx-auto px-4 py-6 space-y-6">
+
+                {/* ── Blinded Leaderboard ── */}
+                <section>
+                  <p className="text-white/30 text-xs tracking-[0.2em] uppercase mb-3">Blinded Leaderboard</p>
+                  <div className="flex items-center justify-between border border-[#1e3d28] px-4 py-3 rounded-sm bg-[#0f2418]">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🕶️</span>
+                      <div>
+                        <p className="text-white/70 text-sm">Blinded Leaderboard</p>
+                        <p className="text-white/30 text-xs mt-0.5">Hides scores until all groups are tied on holes played</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => toggleBlinded(!isBlinded)}
+                      disabled={settingsWorking}
+                      aria-label={isBlinded ? "Turn off blinded leaderboard" : "Turn on blinded leaderboard"}
+                      className={`relative inline-flex h-6 w-11 flex-shrink-0 items-center rounded-full transition-colors disabled:opacity-50 ${isBlinded ? "bg-[#C9A84C]" : "bg-white/20"}`}
+                    >
+                      <span className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${isBlinded ? "translate-x-6" : "translate-x-1"}`} />
+                    </button>
+                  </div>
+                </section>
 
                 {/* ── Void Scorecard ── */}
                 <section>

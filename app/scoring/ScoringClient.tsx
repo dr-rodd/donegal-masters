@@ -33,6 +33,7 @@ export interface ActiveLiveRound {
   id: string; course_id: string; round_id: string; activated_by: string | null
   rounds: { round_number: number } | null
   courses: { name: string } | null
+  blinded?: boolean
 }
 
 interface Props {

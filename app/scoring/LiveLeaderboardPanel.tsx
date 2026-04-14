@@ -288,6 +288,7 @@ export default function LiveLeaderboardPanel({
   const [lastFetch, setLastFetch]       = useState<Date | null>(null)
   const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null)
   const [finalisedPlayerIds, setFinalisedPlayerIds] = useState<Set<string>>(new Set())
+  const [isBlinded, setIsBlinded] = useState(false)
 
   const courseHoles = holes
     .filter(h => h.course_id === liveRound.course_id)
@@ -301,14 +302,14 @@ export default function LiveLeaderboardPanel({
         .eq("round_id", liveRound.round_id),
       supabase
         .from("live_rounds")
-        .select("id, status")
+        .select("id, status, blinded")
         .eq("round_id", liveRound.round_id)
         .in("status", ["active", "finalised"]),
     ])
 
     if (scoresRes.data) setLiveScores(scoresRes.data as LiveScoreRow[])
 
-    const liveRoundsData = (liveRoundsRes.data ?? []) as { id: string; status: string }[]
+    const liveRoundsData = (liveRoundsRes.data ?? []) as { id: string; status: string; blinded: boolean }[]
     const liveRoundIds = liveRoundsData.map(lr => lr.id)
     const finalisedRoundIds = new Set(liveRoundsData.filter(lr => lr.status === "finalised").map(lr => lr.id))
 
@@ -325,6 +326,7 @@ export default function LiveLeaderboardPanel({
       setFinalisedPlayerIds(new Set())
     }
 
+    setIsBlinded(liveRoundsData.some(lr => lr.blinded === true))
     setLastFetch(new Date())
   }, [liveRound.round_id])
 
@@ -356,12 +358,26 @@ export default function LiveLeaderboardPanel({
 
   // ─── Build rows ───────────────────────────────────────────
 
+  // When blinded: find minimum holes completed across all locked-in players
+  const minHoles: number = (() => {
+    if (!isBlinded || validPlayerIds.size === 0) return 18
+    const counts = Array.from(validPlayerIds).map(pid =>
+      liveScores.filter(ls => ls.player_id === pid && ls.gross_score !== null).length
+    )
+    return counts.length > 0 ? Math.min(...counts) : 0
+  })()
+
   const unsortedRows: PlayerRow[] = players
     .filter(player => validPlayerIds.has(player.id))
     .flatMap(player => {
-      const playerScores = liveScores.filter(
+      const allPlayerScores = liveScores.filter(
         ls => ls.player_id === player.id && ls.gross_score !== null
       )
+      // When blinded, cap revealed holes at minHoles
+      const playerScores = isBlinded
+        ? allPlayerScores.filter(ls => ls.hole_number <= minHoles)
+        : allPlayerScores
+
       if (playerScores.length === 0) return []
 
       const totalStableford = playerScores.reduce((s, ls) => s + (ls.stableford_points ?? 0), 0)
@@ -381,7 +397,7 @@ export default function LiveLeaderboardPanel({
       return [{
         player,
         holesCompleted,
-        isFinalised: finalisedPlayerIds.has(player.id),
+        isFinalised: finalisedPlayerIds.has(player.id) && !isBlinded,
         totalStableford,
         stablefordRelative: totalStableford - holesCompleted * 2,
         totalGross,
@@ -420,6 +436,9 @@ export default function LiveLeaderboardPanel({
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
           <span className="text-green-400 text-sm tracking-[0.2em] uppercase">{roundLabel}</span>
+          {isBlinded && (
+            <span className="text-white/40 text-base" title="Blinded leaderboard">🕶️</span>
+          )}
         </div>
         {showBackButton && onClose && (
           <BackButton onClick={onClose} />

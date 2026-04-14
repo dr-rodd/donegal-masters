@@ -550,7 +550,15 @@ export default function LiveScoringFlow({
     setSaving(true)
     setError(null)
     try {
-      // 1. Upsert round_handicaps
+      // Read blinded state fresh from DB at commit time
+      const { data: lrMeta } = await supabase
+        .from("live_rounds")
+        .select("blinded")
+        .eq("id", liveRound.id)
+        .single()
+      const isBlinded = lrMeta?.blinded ?? false
+
+      // 1. Upsert round_handicaps (always — needed for batch commit when blinded)
       await Promise.all(
         playerSetups.map(({ player, playingHcp }) =>
           supabase.from("round_handicaps").upsert(
@@ -560,40 +568,42 @@ export default function LiveScoringFlow({
         )
       )
 
-      // 2. Delete existing scores for these players then insert fresh
-      await Promise.all(
-        playerSetups.map(({ player }) =>
-          supabase.from("scores").delete()
-            .eq("player_id", player.id).eq("round_id", roundId)
+      if (!isBlinded) {
+        // 2. Delete existing scores for these players then insert fresh
+        await Promise.all(
+          playerSetups.map(({ player }) =>
+            supabase.from("scores").delete()
+              .eq("player_id", player.id).eq("round_id", roundId)
+          )
         )
-      )
 
-      // 3. Upsert scores — every hole for every player; missing/blank → NR
-      const scoreRows: any[] = []
-      for (const [hIdx, hole] of courseHoles.entries()) {
-        for (const setup of playerSetups) {
-          const hs = scores[hIdx]?.[setup.player.id]
-          const noReturn = hs?.isNR === true || hs?.gross == null
-          const p = effectivePar(hole, setup.player.gender, courseId)
-          const si = effectiveSI(hole, setup.player.gender, courseId)
-          scoreRows.push({
-            player_id: setup.player.id, hole_id: hole.id, round_id: roundId,
-            gross_score: noReturn ? nrGross(p, si, setup.playingHcp) : hs!.gross!,
-            no_return: noReturn,
-          })
+        // 3. Upsert scores — every hole for every player; missing/blank → NR
+        const scoreRows: any[] = []
+        for (const [hIdx, hole] of courseHoles.entries()) {
+          for (const setup of playerSetups) {
+            const hs = scores[hIdx]?.[setup.player.id]
+            const noReturn = hs?.isNR === true || hs?.gross == null
+            const p = effectivePar(hole, setup.player.gender, courseId)
+            const si = effectiveSI(hole, setup.player.gender, courseId)
+            scoreRows.push({
+              player_id: setup.player.id, hole_id: hole.id, round_id: roundId,
+              gross_score: noReturn ? nrGross(p, si, setup.playingHcp) : hs!.gross!,
+              no_return: noReturn,
+            })
+          }
         }
-      }
-      if (scoreRows.length > 0) {
-        const { error: scoreErr } = await supabase.from("scores")
-          .upsert(scoreRows, { onConflict: "player_id,hole_id,round_id" })
-        if (scoreErr) throw scoreErr
-      }
+        if (scoreRows.length > 0) {
+          const { error: scoreErr } = await supabase.from("scores")
+            .upsert(scoreRows, { onConflict: "player_id,hole_id,round_id" })
+          if (scoreErr) throw scoreErr
+        }
 
-      // 4. Generate composite scores for each role completed by this finalisation
-      const roles = [...new Set(playerSetups.map(s => s.player.role))]
-      roles.forEach(role => {
-        generateCompositeScores(role, roundId, players, courseHoles).catch(() => {})
-      })
+        // 4. Generate composite scores for each role completed by this finalisation
+        const roles = [...new Set(playerSetups.map(s => s.player.role))]
+        roles.forEach(role => {
+          generateCompositeScores(role, roundId, players, courseHoles).catch(() => {})
+        })
+      }
 
       // 5. Mark live_scores committed
       await supabase.from("live_scores")
@@ -601,19 +611,120 @@ export default function LiveScoringFlow({
         .in("player_id", playerSetups.map(p => p.player.id))
         .eq("round_id", roundId)
 
-      // 6. Finalise the live round and return to the course portal
-      // Note: player locks are intentionally kept so the live leaderboard
-      // continues to display finalised players. Locks are only removed on discard.
+      // 6. Finalise the live round
       await supabase
         .from("live_rounds")
         .update({ status: "finalised", closed_at: new Date().toISOString() })
         .eq("id", liveRound.id)
+
+      if (isBlinded) {
+        // Check if all live_rounds with locked players for this round_id are now finalised
+        const { data: stillActive } = await supabase
+          .from("live_rounds")
+          .select("id")
+          .eq("round_id", roundId)
+          .eq("status", "active")
+
+        if (stillActive && stillActive.length > 0) {
+          // Check if any still-active rounds have players
+          const { data: activeLocks } = await supabase
+            .from("live_player_locks")
+            .select("player_id")
+            .in("live_round_id", stillActive.map(r => r.id))
+          if ((activeLocks?.length ?? 0) > 0) {
+            // Others still playing — deferred commit stays deferred
+            onBack()
+            return
+          }
+        }
+
+        // All player groups finalised — batch commit all scores to official table
+        await batchCommitBlindedScores()
+      }
+
       onBack()
     } catch (e: any) {
       setError(e?.message ?? "Failed to commit scores")
     } finally {
       setSaving(false)
     }
+  }
+
+  async function batchCommitBlindedScores() {
+    // Find all finalised live_rounds for this round
+    const { data: finalisedRounds } = await supabase
+      .from("live_rounds")
+      .select("id")
+      .eq("round_id", roundId)
+      .eq("status", "finalised")
+    if (!finalisedRounds?.length) return
+
+    // Get all player_ids across all finalised groups
+    const { data: locks } = await supabase
+      .from("live_player_locks")
+      .select("player_id")
+      .in("live_round_id", finalisedRounds.map(r => r.id))
+    const playerIds = [...new Set(locks?.map(l => l.player_id as string) ?? [])]
+    if (!playerIds.length) return
+
+    // Get round_handicaps (written by each group's step 1)
+    const { data: rhData } = await supabase
+      .from("round_handicaps")
+      .select("player_id, playing_handicap")
+      .eq("round_id", roundId)
+      .in("player_id", playerIds)
+    const hcpMap = new Map(rhData?.map(r => [r.player_id as string, r.playing_handicap as number]) ?? [])
+
+    // Get live_scores for all players
+    const { data: lsData } = await supabase
+      .from("live_scores")
+      .select("player_id, hole_number, gross_score, stableford_points")
+      .eq("round_id", roundId)
+      .in("player_id", playerIds)
+    if (!lsData?.length) return
+
+    // Delete existing official scores for these players (clean slate)
+    await Promise.all(playerIds.map(pid =>
+      supabase.from("scores").delete()
+        .eq("player_id", pid).eq("round_id", roundId)
+    ))
+
+    // Build score rows — detect NR from gross matching the expected NR value
+    const scoreRows: any[] = []
+    for (const ls of lsData) {
+      if (ls.gross_score == null) continue
+      const hole = courseHoles.find(h => h.hole_number === ls.hole_number)
+      if (!hole) continue
+      const player = players.find(p => p.id === ls.player_id)
+      if (!player) continue
+      const hcp = hcpMap.get(ls.player_id) ?? 0
+      const ePar = effectivePar(hole, player.gender, courseId)
+      const eSI  = effectiveSI(hole, player.gender, courseId)
+      const sr   = shotsReceived(eSI, hcp)
+      const expectedNrGross = ePar + 2 + sr
+      const isNR = ls.gross_score === expectedNrGross && (ls.stableford_points ?? 1) === 0
+      scoreRows.push({
+        player_id: ls.player_id,
+        hole_id: hole.id,
+        round_id: roundId,
+        gross_score: ls.gross_score,
+        no_return: isNR,
+      })
+    }
+
+    if (scoreRows.length > 0) {
+      const { error } = await supabase.from("scores")
+        .upsert(scoreRows, { onConflict: "player_id,hole_id,round_id" })
+      if (error) throw error
+    }
+
+    // Generate composite scores for all roles
+    const roles = [...new Set(
+      playerIds.map(pid => players.find(p => p.id === pid)?.role).filter(Boolean) as string[]
+    )]
+    roles.forEach(role => {
+      generateCompositeScores(role, roundId, players, courseHoles).catch(() => {})
+    })
   }
 
   // ─── Leaderboard panel (non-holes steps) ─────────────────
