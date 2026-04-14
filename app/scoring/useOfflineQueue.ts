@@ -31,7 +31,12 @@ function persistQueue(q: QueuedScore[]) {
   } catch {}
 }
 
-export function useOfflineQueue() {
+interface UseOfflineQueueOptions {
+  /** Called after one or more queued items sync successfully */
+  onSynced?: () => void
+}
+
+export function useOfflineQueue({ onSynced }: UseOfflineQueueOptions = {}) {
   const [queue, setQueue] = useState<QueuedScore[]>([])
   const queueRef  = useRef<QueuedScore[]>([])
   const syncing   = useRef(false)
@@ -74,13 +79,15 @@ export function useOfflineQueue() {
 
     if (failed.length < batch.length) {
       // At least one item synced
+      onSynced?.()
       setSyncState("synced")
       if (flashTimer.current) clearTimeout(flashTimer.current)
       flashTimer.current = setTimeout(() => setSyncState("idle"), SYNCED_FLASH_MS)
     } else {
       setSyncState("idle")
     }
-  }, [])
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onSynced])
 
   // Auto-retry every 15 s
   useEffect(() => {

@@ -1,6 +1,6 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
 import type { ActiveLiveRound } from "./ScoringClient"
 import LiveLeaderboardPanel from "./LiveLeaderboardPanel"
@@ -259,8 +259,12 @@ export default function LiveScoringFlow({
   // Activate step state
   const [activatingRoundId, setActivatingRoundId] = useState("")
 
+  // Leaderboard refresh counter — increment to trigger an immediate fetch
+  const [lbRefreshKey, setLbRefreshKey] = useState(0)
+  const bumpLeaderboard = useCallback(() => setLbRefreshKey(k => k + 1), [])
+
   // Offline score queue — wraps live_scores writes during active hole entry
-  const { enqueue, queueSize, syncState } = useOfflineQueue()
+  const { enqueue, queueSize, syncState } = useOfflineQueue({ onSynced: bumpLeaderboard })
 
   const availableRounds = rounds.filter(r => r.status === "upcoming" || r.status === "active")
 
@@ -624,6 +628,7 @@ export default function LiveScoringFlow({
         onClose={() => onLeaderboardChange(false)}
         longestDriveWinner={longestDriveWinner}
         nearestPinWinner={nearestPinWinner}
+        refreshKey={lbRefreshKey}
       />
     )
   }
@@ -848,6 +853,8 @@ export default function LiveScoringFlow({
         if (saveErr) {
           // Save locally and continue — will auto-retry every 15 s
           enqueue(rows as any[], hole.hole_number)
+        } else {
+          bumpLeaderboard()
         }
       }
 
@@ -918,6 +925,7 @@ export default function LiveScoringFlow({
                 roundHandicaps={roundHandicaps}
                 longestDriveWinner={longestDriveWinner}
                 nearestPinWinner={nearestPinWinner}
+                refreshKey={lbRefreshKey}
               />
             )}
           </div>

@@ -271,13 +271,15 @@ interface Props {
   showBackButton?: boolean
   longestDriveWinner?: string | null
   nearestPinWinner?: string | null
+  /** Increment to imperatively trigger a leaderboard refresh */
+  refreshKey?: number
 }
 
 // ─── Component ────────────────────────────────────────────
 
 export default function LiveLeaderboardPanel({
   liveRound, players, holes, roundHandicaps, onClose, showBackButton = false,
-  longestDriveWinner, nearestPinWinner,
+  longestDriveWinner, nearestPinWinner, refreshKey,
 }: Props) {
   const [liveScores, setLiveScores]     = useState<LiveScoreRow[]>([])
   const [validPlayerIds, setValidPlayerIds] = useState<Set<string>>(new Set())
@@ -325,6 +327,12 @@ export default function LiveLeaderboardPanel({
 
     setLastFetch(new Date())
   }, [liveRound.round_id])
+
+  // Imperative refresh when parent signals a new score was written
+  useEffect(() => {
+    if (refreshKey !== undefined && refreshKey > 0) fetchScores()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey])
 
   useEffect(() => {
     fetchScores()
