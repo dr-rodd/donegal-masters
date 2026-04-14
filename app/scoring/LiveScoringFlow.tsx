@@ -317,20 +317,25 @@ export default function LiveScoringFlow({
   // selectable until manually unfinalised via the dashboard settings tab.
   useEffect(() => {
     if (step !== "setup" || !liveRound) return
+    console.log("[lockedPlayerIds] all players before lock filter:", players.map(p => ({ id: p.id, name: p.name })))
     supabase
       .from("live_rounds")
       .select("id")
       .eq("round_id", liveRound.round_id)
       .in("status", ["active", "finalised"])
       .neq("id", liveRound.id)
-      .then(async ({ data: otherRounds }) => {
+      .then(async ({ data: otherRounds, error: otherRoundsError }) => {
+        console.log("[lockedPlayerIds] otherRounds:", otherRounds, "error:", otherRoundsError)
         const ids = (otherRounds ?? []).map((r: any) => r.id as string)
         if (ids.length === 0) { setLockedPlayerIds([]); return }
-        const { data: locks } = await supabase
+        const { data: locks, error: locksError } = await supabase
           .from("live_player_locks")
           .select("player_id")
           .in("live_round_id", ids)
-        setLockedPlayerIds(locks?.map(r => r.player_id as string) ?? [])
+        console.log("[lockedPlayerIds] locks:", locks, "error:", locksError)
+        const locked = locks?.map(r => r.player_id as string) ?? []
+        console.log("[lockedPlayerIds] setting lockedPlayerIds:", locked)
+        setLockedPlayerIds(locked)
       })
   }, [step, liveRound?.id])
 
@@ -824,6 +829,9 @@ export default function LiveScoringFlow({
       setPlayerTeeIds(prev => ({ ...prev, [pid]: tid }))
     }
 
+    const availablePlayers = players.filter(p => !lockedPlayerIds.includes(p.id))
+    console.log("[setup] lockedPlayerIds:", lockedPlayerIds, "availablePlayers:", availablePlayers.map(p => ({ id: p.id, name: p.name })))
+
     return (
       <div className="max-w-lg mx-auto w-full px-4 py-6 flex flex-col gap-5">
         <div className="flex flex-col gap-3">
@@ -831,7 +839,7 @@ export default function LiveScoringFlow({
             Select Players (1–4)
           </label>
 
-          {players.filter(p => !lockedPlayerIds.includes(p.id)).map(player => {
+          {availablePlayers.map(player => {
             const isSelected = selectedPlayerIds.includes(player.id)
             const playerCourseTees = courseTees.filter(t => t.gender === player.gender)
             const selectedTeeId = playerTeeIds[player.id] ?? ""

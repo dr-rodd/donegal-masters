@@ -134,11 +134,13 @@ export default function CourseDashboardClient({
   const courseRoundsForFlow = rounds.filter(r => r.courses?.id === courseId)
 
   const fetchScorecards = useCallback(async () => {
-    const { data: liveRoundsData } = await supabase
+    const { data: liveRoundsData, error: liveRoundsError } = await supabase
       .from("live_rounds")
       .select("id, course_id, round_id, status, session_finalised_at, activated_at, activated_by, rounds(round_number), courses(name), blinded")
       .eq("course_id", courseId)
       .in("status", ["active", "finalised"])
+
+    console.log("[fetchScorecards] liveRoundsData:", liveRoundsData, "error:", liveRoundsError)
 
     if (!liveRoundsData || liveRoundsData.length === 0) {
       setScorecards([])
