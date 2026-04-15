@@ -371,14 +371,20 @@ export default function TeamsClient({
         if (p.id === displaced.id) return { ...p, team_id: originalTeamId }
         return p
       }))
-      const [r1, r2] = await Promise.all([
-        supabase.from("players").update({ team_id: targetTeamId   }).eq("id", dragged.id),
-        supabase.from("players").update({ team_id: originalTeamId }).eq("id", displaced.id),
-      ])
-      if (r1.error || r2.error) {
+      // Evict displaced player first to avoid briefly having two of the same role
+      // in one team, which violates the unique constraint
+      const r1 = await supabase.from("players").update({ team_id: originalTeamId }).eq("id", displaced.id)
+      if (r1.error) {
         setPlayers(prevPlayers)
         setError("Failed to save — try again")
-        console.error("Team assignment write failed:", r1.error ?? r2.error)
+        console.error("Team assignment write failed:", r1.error)
+        return
+      }
+      const r2 = await supabase.from("players").update({ team_id: targetTeamId }).eq("id", dragged.id)
+      if (r2.error) {
+        setPlayers(prevPlayers)
+        setError("Failed to save — try again")
+        console.error("Team assignment write failed:", r2.error)
       }
     } else {
       setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, team_id: targetTeamId } : p))
