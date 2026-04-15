@@ -12,9 +12,9 @@ interface TeeTimeRow { day_number: number; group_number: number; player_id: stri
 // ─── Day config ───────────────────────────────────────────────────────────────
 
 const DAYS = [
-  { day: 1, label: "Thursday", date: "Thu 16 Apr", course: "Old Tom Morris",    times: ["13:00", "13:10", "13:20"] },
-  { day: 2, label: "Friday",   date: "Fri 17 Apr", course: "St Patricks Links", times: ["12:00", "12:15", "12:30"] },
-  { day: 3, label: "Saturday", date: "Sat 18 Apr", course: "Sandy Hills Links", times: ["11:00", "11:10", "11:20"] },
+  { day: 1, label: "Thursday", date: "Thu 16 Apr", course: "Old Tom Morris",    times: ["12:00", "12:10", "12:20"] },
+  { day: 2, label: "Friday",   date: "Fri 17 Apr", course: "St Patricks Links", times: ["11:00", "11:15", "11:30"] },
+  { day: 3, label: "Saturday", date: "Sat 18 Apr", course: "Sandy Hills Links", times: ["10:00", "10:10", "10:20"] },
 ] as const
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
