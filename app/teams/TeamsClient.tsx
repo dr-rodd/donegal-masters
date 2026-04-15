@@ -371,20 +371,31 @@ export default function TeamsClient({
         if (p.id === displaced.id) return { ...p, team_id: originalTeamId }
         return p
       }))
-      // Evict displaced player first to avoid briefly having two of the same role
-      // in one team, which violates the unique constraint
-      const r1 = await supabase.from("players").update({ team_id: originalTeamId }).eq("id", displaced.id)
+      // Three-step write to satisfy the partial unique index (one dad/mum per team).
+      // The index is WHERE team_id IS NOT NULL, so nulling the displaced player
+      // temporarily removes them from the constraint, allowing the dragged player
+      // to land without a conflict. Sons have no such index so parallel would work,
+      // but this sequence is safe for all roles.
+      const r1 = await supabase.from("players").update({ team_id: null }).eq("id", displaced.id)
       if (r1.error) {
         setPlayers(prevPlayers)
         setError("Failed to save — try again")
-        console.error("Team assignment write failed:", r1.error)
+        console.error("Team swap failed (clear displaced):", r1.error)
         return
       }
       const r2 = await supabase.from("players").update({ team_id: targetTeamId }).eq("id", dragged.id)
       if (r2.error) {
+        await supabase.from("players").update({ team_id: displaced.team_id }).eq("id", displaced.id)
         setPlayers(prevPlayers)
         setError("Failed to save — try again")
-        console.error("Team assignment write failed:", r2.error)
+        console.error("Team swap failed (move dragged):", r2.error)
+        return
+      }
+      const r3 = await supabase.from("players").update({ team_id: originalTeamId }).eq("id", displaced.id)
+      if (r3.error) {
+        setPlayers(prevPlayers)
+        setError("Failed to save — try again")
+        console.error("Team swap failed (place displaced):", r3.error)
       }
     } else {
       setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, team_id: targetTeamId } : p))
