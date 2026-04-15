@@ -1,17 +1,20 @@
 import { supabase } from "@/lib/supabase"
 import TeamsClient from "./TeamsClient"
-import Poller from "@/app/components/Poller"
 import BackButton from "@/app/components/BackButton"
 
 export const dynamic = "force-dynamic"
 
 export default async function TeamsPage() {
-  const [{ data: teams }, { data: players }, { data: rounds }] = await Promise.all([
-    supabase.from("teams").select("id, name, color").order("name"),
-    supabase.from("players").select("id, name, role, handicap, team_id, gender, is_composite").order("name"),
-    supabase.from("rounds").select("status"),
-  ])
+  const [{ data: teams }, { data: players }, { data: rounds }, { data: lockSetting }] =
+    await Promise.all([
+      supabase.from("teams").select("id, name, color").order("name"),
+      supabase.from("players").select("id, name, role, handicap, team_id, gender, is_composite").order("name"),
+      supabase.from("rounds").select("status"),
+      supabase.from("settings").select("value").eq("key", "teams_locked").maybeSingle(),
+    ])
+
   const hasActiveRound = rounds?.some((r: any) => r.status === "active") ?? false
+  const initialLocked  = lockSetting?.value === true
 
   return (
     <div className="min-h-dvh bg-[#0a1a0e] text-white">
@@ -25,14 +28,12 @@ export default async function TeamsPage() {
         </div>
       </div>
 
-      <Poller isActive={hasActiveRound} />
       <div className="max-w-6xl mx-auto px-4 py-8">
-        <p className="text-white/30 text-xs tracking-widest uppercase text-center mb-8">
-          Drag players between teams · Click a team name to edit
-        </p>
         <TeamsClient
           teams={(teams ?? []) as any}
           players={(players ?? []) as any}
+          initialLocked={initialLocked}
+          isActive={hasActiveRound}
         />
       </div>
     </div>
