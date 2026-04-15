@@ -106,20 +106,23 @@ function generateFriday(players: Player[]): string[][] {
  * Saturday (day 3):
  * Async. Fetches leaderboard, sorts teams by total points desc, then assigns groups.
  * ranked[0]=1st, ranked[1]=2nd, ranked[2]=3rd, ranked[3]=4th
- * Group 0 (10:00): 3rd-place team + fourthPlayers[0]
- * Group 1 (10:10): 2nd-place team + fourthPlayers[1]
- * Group 2 (10:20): 1st-place team + fourthPlayers[2]
+ * Group 0 (11:00): 3rd-place team + fourthPlayers[0]
+ * Group 1 (11:10): 2nd-place team + fourthPlayers[1]
+ * Group 2 (11:20): 1st-place team + fourthPlayers[2]
+ * Throws a descriptive error rather than returning null so the UI can surface the reason.
  */
-async function generateSaturday(players: Player[]): Promise<string[][] | null> {
-  // Guard: need players with team assignments before running leaderboard ordering
-  const realPlayersCheck = players.filter(p => !p.is_composite && p.team_id)
-  if (realPlayersCheck.length === 0) return null
+async function generateSaturday(players: Player[]): Promise<string[][]> {
+  const realPlayers = players.filter(p => !p.is_composite && p.team_id)
+  if (realPlayers.length === 0) throw new Error("No player data available.")
 
   const { data: leaderboard, error } = await supabase
     .from("leaderboard_summary")
     .select("team_id, total_team_points")
 
-  if (error || !leaderboard || leaderboard.length === 0) return null
+  if (error) throw new Error("Could not fetch leaderboard data. Check your connection.")
+  if (!leaderboard || leaderboard.length === 0) {
+    throw new Error("Saturday groups are drawn from the leaderboard — rounds 1 & 2 must have scores before Saturday tee times can be generated.")
+  }
 
   // Sum total_team_points per team across all rounds
   const teamPoints = new Map<string, number>()
@@ -127,17 +130,15 @@ async function generateSaturday(players: Player[]): Promise<string[][] | null> {
     teamPoints.set(row.team_id, (teamPoints.get(row.team_id) ?? 0) + (row.total_team_points ?? 0))
   }
 
-  // Use only non-composite players; derive team IDs from them
-  const realPlayers = players.filter(p => !p.is_composite)
+  // Derive team IDs from non-composite players
   const teamIds = Array.from(new Set(realPlayers.map(p => p.team_id)))
+  if (teamIds.length < 4) throw new Error("Need all 4 teams represented in player data.")
 
   // Sort teams by points desc, random tiebreak
   const ranked = [...teamIds].sort((a, b) => {
     const diff = (teamPoints.get(b) ?? 0) - (teamPoints.get(a) ?? 0)
     return diff !== 0 ? diff : Math.random() - 0.5
   })
-
-  if (ranked.length < 4) return null
 
   // Build per-team lists of non-composite player IDs
   const playersByTeam = new Map<string, string[]>()
@@ -150,9 +151,8 @@ async function generateSaturday(players: Player[]): Promise<string[][] | null> {
   const thirdTeamPlayers  = playersByTeam.get(ranked[2]) ?? []
   const fourthPlayers     = shuffle(playersByTeam.get(ranked[3]) ?? [])
 
-  // Each of the top-3 teams needs at least 1 non-composite player
   if (!firstTeamPlayers.length || !secondTeamPlayers.length || !thirdTeamPlayers.length) {
-    return null
+    throw new Error("One or more teams have no players — check player data.")
   }
 
   // Distribute 4th-team players 1 per group where available (fewer = threeball for that group)
@@ -496,7 +496,6 @@ export default function TeeTimesClient({
         newGroups = generateFriday(players)
       } else {
         newGroups = await generateSaturday(players)
-        if (!newGroups) throw new Error("Could not generate Saturday groups. Check leaderboard data and team sizes.")
       }
 
       await saveGroups(activeDay, newGroups)
