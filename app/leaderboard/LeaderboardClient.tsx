@@ -52,7 +52,7 @@ function sortedPlayers(players: Player[]) {
   return [...players].sort((a, b) => (ROLE_ORDER[a.role] ?? 3) - (ROLE_ORDER[b.role] ?? 3))
 }
 const displayName = (p: Player) =>
-  (p.is_composite ? p.name.replace(/^Composite\s+/i, "") : p.name).split(" ")[0]
+  p.is_composite ? p.name.replace(/^Composite\s+/i, "") : p.name
 
 function isDefaultTeamName(name: string) {
   return /^Team\s+[1-4]$/i.test(name.trim())
