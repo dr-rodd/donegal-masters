@@ -79,8 +79,12 @@ const TEE_STYLES: Record<string, { dot: string; active: string }> = {
 
 // ─── Helpers ──────────────────────────────────────────────
 
-function calcPlayingHandicap(hcpIndex: number, slope: number, courseRating: number, par: number) {
-  return Math.round(hcpIndex * (slope / 113) + (courseRating - par))
+// Course Handicap = ROUND(HI × Slope/113)
+// We omit the WHS Course Rating − Par adjustment: stableford scores against
+// individual hole par already account for course difficulty, and Irish clubs
+// conventionally use the simpler formula matching the pre-2020 GUI system.
+function calcPlayingHandicap(hcpIndex: number, slope: number) {
+  return Math.round(hcpIndex * (slope / 113))
 }
 function shotsReceived(si: number, hcp: number) {
   return Math.floor(hcp / 18) + (si <= hcp % 18 ? 1 : 0)
@@ -305,7 +309,7 @@ export default function LiveScoringFlow({
       const tee = tees.find(t => t.id === playerTeeIds[id])!
       const existingHcp = roundHandicaps.find(rh => rh.round_id === roundId && rh.player_id === id)
       const playingHcp = existingHcp?.playing_handicap
-        ?? calcPlayingHandicap(player.handicap, tee.slope, tee.course_rating, tee.par)
+        ?? calcPlayingHandicap(player.handicap, tee.slope)
       return { player, tee, playingHcp }
     })
 
@@ -845,7 +849,7 @@ export default function LiveScoringFlow({
             const selectedTeeId = playerTeeIds[player.id] ?? ""
             const selectedTee = tees.find(t => t.id === selectedTeeId)
             const playingHcp = selectedTee
-              ? calcPlayingHandicap(player.handicap, selectedTee.slope, selectedTee.course_rating, selectedTee.par)
+              ? calcPlayingHandicap(player.handicap, selectedTee.slope)
               : null
 
             return (
