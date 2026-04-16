@@ -91,15 +91,15 @@ function generateThursday(players: Player[]): string[][] | null {
 /**
  * Friday (day 2):
  * Group 0 (11:00): all 4 mums (shuffled)
- * Group 1 (11:15): all 4 dads (shuffled)
- * Group 2 (11:30): all 4 sons (shuffled)
+ * Group 1 (11:15): all 4 sons (shuffled)
+ * Group 2 (11:30): all 4 dads (shuffled)
  */
 function generateFriday(players: Player[]): string[][] {
   // Exclude composite players — threeball where a role has only 3 non-composites
   const mums = shuffle(players.filter(p => p.role === "mum" && !p.is_composite).map(p => p.id))
   const dads = shuffle(players.filter(p => p.role === "dad" && !p.is_composite).map(p => p.id))
   const sons = shuffle(players.filter(p => p.role === "son" && !p.is_composite).map(p => p.id))
-  return [mums, dads, sons]
+  return [mums, sons, dads]
 }
 
 /**
@@ -430,7 +430,7 @@ export default function TeeTimesClient({
 
   function groupLabel(gi: number): string | undefined {
     if (activeDay === 1) return undefined
-    if (activeDay === 2) return (["Mums", "Dads", "Sons"] as const)[gi]
+    if (activeDay === 2) return (["Mums", "Sons", "Dads"] as const)[gi]
     // Saturday
     if (!hasGroups) return undefined
     return majorityTeam(groups[gi], players)?.name
