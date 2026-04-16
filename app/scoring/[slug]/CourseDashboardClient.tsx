@@ -57,18 +57,14 @@ interface Props {
 type View = "dashboard" | "scoring" | "live-board" | "settings"
 
 // ─── Scoring helpers (for blinded batch commit) ────────────
-const ST_PATRICKS_COURSE_ID_DASH = "11111111-0000-0000-0000-000000000003"
-
 function shotsReceivedDash(si: number, hcp: number) {
   return Math.floor(hcp / 18) + (si <= hcp % 18 ? 1 : 0)
 }
-function effectiveParDash(hole: Hole, gender: string, courseId: string) {
-  return gender === "F" && courseId === ST_PATRICKS_COURSE_ID_DASH && hole.par_ladies
-    ? hole.par_ladies : hole.par
+function effectiveParDash(hole: Hole, gender: string) {
+  return gender === "F" && hole.par_ladies ? hole.par_ladies : hole.par
 }
-function effectiveSIDash(hole: Hole, gender: string, courseId: string) {
-  return gender === "F" && courseId === ST_PATRICKS_COURSE_ID_DASH && hole.stroke_index_ladies
-    ? hole.stroke_index_ladies : hole.stroke_index
+function effectiveSIDash(hole: Hole, gender: string) {
+  return gender === "F" && hole.stroke_index_ladies ? hole.stroke_index_ladies : hole.stroke_index
 }
 
 // ─── Component ────────────────────────────────────────────
@@ -460,8 +456,8 @@ export default function CourseDashboardClient({
       const player = players.find(p => p.id === ls.player_id)
       if (!player) continue
       const hcp = hcpMap.get(ls.player_id) ?? 0
-      const ePar = effectiveParDash(hole, player.gender, courseId)
-      const eSI  = effectiveSIDash(hole, player.gender, courseId)
+      const ePar = effectiveParDash(hole, player.gender)
+      const eSI  = effectiveSIDash(hole, player.gender)
       const sr   = shotsReceivedDash(eSI, hcp)
       const expectedNrGross = ePar + 2 + sr
       const isNR = ls.gross_score === expectedNrGross && (ls.stableford_points ?? 1) === 0
