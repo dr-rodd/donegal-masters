@@ -62,11 +62,14 @@ function isDefaultTeamName(name: string) {
 
 function teamRoundPts(team: Team, holes: Hole[], scores: Score[], roundId: string): number {
   return holes.reduce((total, hole) => {
-    const best = team.players
+    const pts = team.players
       .map(p => scores.find(s => s.player_id === p.id && s.hole_id === hole.id && s.round_id === roundId))
       .filter(Boolean)
-      .reduce((max, s) => Math.max(max, s!.stableford_points), 0)
-    return total + best
+      .map(s => s!.stableford_points)
+      .sort((a, b) => b - a)
+      .slice(0, 2)
+      .reduce((s, v) => s + v, 0)
+    return total + pts
   }, 0)
 }
 
