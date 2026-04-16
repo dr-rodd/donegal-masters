@@ -79,12 +79,13 @@ const TEE_STYLES: Record<string, { dot: string; active: string }> = {
 
 // ─── Helpers ──────────────────────────────────────────────
 
-// Course Handicap = ROUND(FLOOR(HI) × Slope/113)
-// Traditional Irish convention: truncate the HI decimal before applying slope.
-// This gives e.g. HI 18.9 → 18 shots on slope-114 tees rather than 19 (which
-// Math.round of 19.07 would produce). CR − Par adjustment deliberately omitted.
-function calcPlayingHandicap(hcpIndex: number, slope: number) {
-  return Math.round(Math.floor(hcpIndex) * (slope / 113))
+// Golf Ireland WHS (April 2024 rules)
+// Step 1 — Course Handicap : ROUND(HI × Slope/113 + (Course Rating − Par))
+// Step 2 — Playing Handicap: ROUND(Course Handicap × 0.95)   [95% allowance, individual stableford]
+// e.g. HI 18.9, Slope 114, CR 70.5, Par 71 → CH = ROUND(18.57) = 19 → PH = ROUND(18.05) = 18
+function calcPlayingHandicap(hcpIndex: number, slope: number, courseRating: number, par: number) {
+  const courseHandicap = Math.round(hcpIndex * (slope / 113) + (courseRating - par))
+  return Math.round(courseHandicap * 0.95)
 }
 function shotsReceived(si: number, hcp: number) {
   return Math.floor(hcp / 18) + (si <= hcp % 18 ? 1 : 0)
@@ -309,7 +310,7 @@ export default function LiveScoringFlow({
       const tee = tees.find(t => t.id === playerTeeIds[id])!
       const existingHcp = roundHandicaps.find(rh => rh.round_id === roundId && rh.player_id === id)
       const playingHcp = existingHcp?.playing_handicap
-        ?? calcPlayingHandicap(player.handicap, tee.slope)
+        ?? calcPlayingHandicap(player.handicap, tee.slope, tee.course_rating, tee.par)
       return { player, tee, playingHcp }
     })
 
@@ -849,7 +850,7 @@ export default function LiveScoringFlow({
             const selectedTeeId = playerTeeIds[player.id] ?? ""
             const selectedTee = tees.find(t => t.id === selectedTeeId)
             const playingHcp = selectedTee
-              ? calcPlayingHandicap(player.handicap, selectedTee.slope)
+              ? calcPlayingHandicap(player.handicap, selectedTee.slope, selectedTee.course_rating, selectedTee.par)
               : null
 
             return (
