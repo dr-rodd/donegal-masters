@@ -119,7 +119,7 @@ export function InlineScorecard({
   player, playingHcp, courseHoles, playerScores, courseId,
 }: {
   player: Player
-  playingHcp: number
+  playingHcp: number | null
   courseHoles: Hole[]
   playerScores: LiveScoreRow[]
   courseId: string
@@ -196,7 +196,7 @@ export function InlineScorecard({
         </div>
         <div className="flex flex-col items-end flex-shrink-0">
           <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>PH</span>
-          <span className={`text-sm font-semibold ${dark}`} style={sf}>{playingHcp}</span>
+          <span className={`text-sm font-semibold ${dark}`} style={sf}>{playingHcp ?? "—"}</span>
         </div>
       </div>
 
@@ -282,6 +282,7 @@ export default function LiveLeaderboardPanel({
   longestDriveWinner, nearestPinWinner, refreshKey,
 }: Props) {
   const [liveScores, setLiveScores]     = useState<LiveScoreRow[]>([])
+  const [liveHandicaps, setLiveHandicaps] = useState<RoundHandicap[]>(roundHandicaps)
   const [validPlayerIds, setValidPlayerIds] = useState<Set<string>>(new Set())
   const [mode, setMode]                 = useState<Mode>("stableford")
   const [strokesView, setStrokesView]   = useState<StrokesView>("nett")
@@ -295,7 +296,7 @@ export default function LiveLeaderboardPanel({
     .sort((a, b) => a.hole_number - b.hole_number)
 
   const fetchScores = useCallback(async () => {
-    const [scoresRes, liveRoundsRes] = await Promise.all([
+    const [scoresRes, liveRoundsRes, hcpRes] = await Promise.all([
       supabase
         .from("live_scores")
         .select("player_id, hole_number, gross_score, stableford_points")
@@ -305,9 +306,14 @@ export default function LiveLeaderboardPanel({
         .select("id, status, blinded")
         .eq("round_id", liveRound.round_id)
         .in("status", ["active", "finalised"]),
+      supabase
+        .from("round_handicaps")
+        .select("round_id, player_id, playing_handicap")
+        .eq("round_id", liveRound.round_id),
     ])
 
     if (scoresRes.data) setLiveScores(scoresRes.data as LiveScoreRow[])
+    if (hcpRes.data) setLiveHandicaps(hcpRes.data as RoundHandicap[])
 
     const liveRoundsData = (liveRoundsRes.data ?? []) as { id: string; status: string; blinded: boolean }[]
     const liveRoundIds = liveRoundsData.map(lr => lr.id)
@@ -537,9 +543,9 @@ export default function LiveLeaderboardPanel({
             // ── Col 4: holes through or F ─────────────────
             const col4 = isFinalised ? "F" : `${holesCompleted}`
 
-            const playingHcp = roundHandicaps.find(
+            const playingHcp = liveHandicaps.find(
               rh => rh.player_id === player.id && rh.round_id === liveRound.round_id
-            )?.playing_handicap ?? 0
+            )?.playing_handicap ?? null
 
             return (
               <Fragment key={player.id}>
