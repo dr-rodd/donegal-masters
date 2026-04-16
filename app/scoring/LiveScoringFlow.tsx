@@ -380,10 +380,11 @@ export default function LiveScoringFlow({
       for (const pid of lockedIds) {
         const player = players.find(p => p.id === pid)
         if (!player) continue
-        const preferred = player.gender === 'M' ? 'Blue' : 'Red'
-        const tee = courseTees.find(t => t.gender === player.gender && t.name === preferred)
-                 ?? courseTees.find(t => t.gender === player.gender)
-                 ?? courseTees[0]
+        const preferredNames = player.gender === 'M' ? ['Blue', 'Slate'] : ['Red', 'Claret']
+        const tee = preferredNames.reduce<typeof courseTees[0] | undefined>(
+          (found, name) => found ?? courseTees.find(t => t.gender === player.gender && t.name === name),
+          undefined
+        ) ?? courseTees.find(t => t.gender === player.gender) ?? courseTees[0]
         if (tee) teeMap[pid] = tee.id
       }
 
@@ -822,8 +823,12 @@ export default function LiveScoringFlow({
       const playerObj = players.find(p => p.id === pid)
       if (!playerObj) return undefined
       const cTees = courseTees.filter(t => t.gender === playerObj.gender)
-      const preferred = playerObj.gender === 'M' ? 'Blue' : 'Red'
-      return (cTees.find(t => t.name === preferred) ?? cTees[0])?.id
+      const preferred = playerObj.gender === 'M' ? ['Blue', 'Slate'] : ['Red', 'Claret']
+      for (const name of preferred) {
+        const t = cTees.find(t => t.name === name)
+        if (t) return t.id
+      }
+      return cTees[0]?.id
     }
 
     function togglePlayer(pid: string) {
