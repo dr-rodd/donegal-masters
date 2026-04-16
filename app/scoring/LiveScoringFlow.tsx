@@ -59,7 +59,7 @@ interface Props {
   nearestPinWinner?: string | null
 }
 
-type LiveStep = "activate" | "setup" | "holes" | "summary" | "committed" | "resuming"
+type LiveStep = "activate" | "setup" | "handicaps" | "holes" | "summary" | "committed" | "resuming"
 
 // ─── Constants ────────────────────────────────────────────
 
@@ -233,6 +233,7 @@ export default function LiveScoringFlow({
   // Setup state
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([])
   const [playerTeeIds, setPlayerTeeIds] = useState<Record<string, string>>({})
+  const [confirmedPhs, setConfirmedPhs] = useState<Record<string, number>>({})
 
   // Scoring state
   const [scores, setScores] = useState<Record<number, Record<string, HoleScore>>>({})
@@ -299,15 +300,16 @@ export default function LiveScoringFlow({
   }, [holeIdx, step])
 
   // Player setups — only for players that have a tee selected.
-  // Always recalculate playing handicap from current HI + tee data; never use
-  // the stale stored round_handicap value (which may have been written by an
-  // old formula). The upsert in handleHoleStart overwrites the DB immediately.
+  // Uses confirmedPhs when set (from the handicap review step), otherwise
+  // calculates fresh from HI + tee. The upsert in handleCommit writes the
+  // confirmed PH to round_handicaps.
   const playerSetups: PlayerSetup[] = selectedPlayerIds
     .filter(id => playerTeeIds[id])
     .map(id => {
       const player = players.find(p => p.id === id)!
       const tee = tees.find(t => t.id === playerTeeIds[id])!
-      const playingHcp = calcPlayingHandicap(player.handicap, tee.slope, tee.course_rating, tee.par)
+      const calculated = calcPlayingHandicap(player.handicap, tee.slope, tee.course_rating, tee.par)
+      const playingHcp = confirmedPhs[id] ?? calculated
       return { player, tee, playingHcp }
     })
 
@@ -925,17 +927,100 @@ export default function LiveScoringFlow({
         </div>
 
         <button
-          onClick={async () => {
+          onClick={() => {
             setScores({}); setHoleIdx(0)
-            await lockPlayers()
-            setStep("holes")
+            const initPhs: Record<string, number> = {}
+            for (const { player, playingHcp } of playerSetups) {
+              initPhs[player.id] = playingHcp
+            }
+            setConfirmedPhs(initPhs)
+            setStep("handicaps")
             window.scrollTo({ top: 0, behavior: "instant" })
           }}
           disabled={!canStart}
           className={`w-full py-4 text-base tracking-[0.2em] uppercase transition-colors
             ${canStart ? "bg-[#C9A84C] text-black hover:bg-[#d4b05a]" : "bg-white/10 text-white/30 cursor-not-allowed"}`}
         >
-          Start Round →
+          Review Handicaps →
+        </button>
+
+      </div>
+    )
+  }
+
+  // ─── Handicap review ──────────────────────────────────────
+
+  if (step === "handicaps") {
+    return (
+      <div className="max-w-lg mx-auto w-full px-4 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] flex flex-col gap-4">
+
+        <div className="flex items-center justify-between mb-2">
+          <button
+            onClick={() => { setConfirmedPhs({}); setStep("setup") }}
+            className="text-white/40 hover:text-white/70 text-sm tracking-widest uppercase transition-colors"
+          >
+            ← Back
+          </button>
+          <span className="text-xs tracking-[0.25em] uppercase text-white/30">Playing Handicaps</span>
+          <span className="w-12" />
+        </div>
+
+        <p className="text-white/40 text-xs text-center tracking-wide -mt-2 mb-1">
+          Adjust if needed, then confirm to start.
+        </p>
+
+        {playerSetups.map(({ player, tee }) => {
+          const calculated = calcPlayingHandicap(player.handicap, tee.slope, tee.course_rating, tee.par)
+          const current = confirmedPhs[player.id] ?? calculated
+          const isModified = current !== calculated
+          const roleLabel = player.role === "dad" ? "Dad" : player.role === "mum" ? "Mum" : "Son"
+
+          return (
+            <div key={player.id} className="bg-[#0f2418] border border-[#1e3d28] rounded-sm px-4 py-4">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <div className="text-white font-semibold text-base">{player.name}</div>
+                  <div className="text-white/40 text-xs mt-0.5 tracking-wide">
+                    {roleLabel} · {tee.name} tee
+                    {isModified && (
+                      <span className="ml-2 text-[#C9A84C]/70">
+                        (calculated {calculated})
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-6">
+                <button
+                  onClick={() => setConfirmedPhs(prev => ({ ...prev, [player.id]: Math.max(0, current - 1) }))}
+                  className="w-12 h-12 rounded-full border border-[#1e3d28] text-white/70 text-2xl flex items-center justify-center hover:border-[#C9A84C]/50 hover:text-white active:bg-[#1e3d28] transition-colors"
+                >
+                  −
+                </button>
+                <span className="text-[#C9A84C] font-[family-name:var(--font-playfair)] text-4xl w-16 text-center">
+                  {current}
+                </span>
+                <button
+                  onClick={() => setConfirmedPhs(prev => ({ ...prev, [player.id]: Math.min(54, current + 1) }))}
+                  className="w-12 h-12 rounded-full border border-[#1e3d28] text-white/70 text-2xl flex items-center justify-center hover:border-[#C9A84C]/50 hover:text-white active:bg-[#1e3d28] transition-colors"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )
+        })}
+
+        <button
+          onClick={async () => {
+            await lockPlayers()
+            setStep("holes")
+            window.scrollTo({ top: 0, behavior: "instant" })
+          }}
+          className="w-full py-4 mt-2 bg-[#C9A84C] text-black text-base tracking-[0.2em] uppercase hover:bg-[#d4b05a] transition-colors"
+        >
+          Confirm &amp; Start →
         </button>
 
       </div>
