@@ -17,7 +17,7 @@
 
 UPDATE players SET handicap = 13.1, gender = 'M' WHERE name = 'John';
 UPDATE players SET handicap = 14.2, gender = 'M' WHERE name = 'Martin';
-UPDATE players SET handicap = 17.0, gender = 'M' WHERE name = 'Peter';
+UPDATE players SET handicap = 16.9, gender = 'M' WHERE name = 'Peter';
 UPDATE players SET handicap = 14.6, gender = 'M' WHERE name = 'Paul';
 UPDATE players SET handicap =  9.4, gender = 'M' WHERE name = 'Ross';
 UPDATE players SET handicap =  5.4, gender = 'M' WHERE name = 'Matthew';
@@ -41,7 +41,7 @@ UPDATE players SET name = 'Mary Ruth', handicap = 18.9, gender = 'F' WHERE name 
 -- PH = ROUND(HI × slope/113 + (CR − par))
 --   John   13.1 × 1.0885 + 0.0 = 14.26 → 14
 --   Martin 14.2 × 1.0885 + 0.0 = 15.46 → 15
---   Peter  17.0 × 1.0885 + 0.0 = 18.50 → 19
+--   Peter  16.9 × 1.0885 + 0.0 = 18.40 → 18
 --   Paul   14.6 × 1.0885 + 0.0 = 15.89 → 16
 --   Ross    9.4 × 1.0885 + 0.0 = 10.23 → 10
 --   Matthew 5.4 × 1.0885 + 0.0 =  5.88 →  6
@@ -56,7 +56,7 @@ UPDATE players SET name = 'Mary Ruth', handicap = 18.9, gender = 'F' WHERE name 
 INSERT INTO round_handicaps (round_id, player_id, playing_handicap) VALUES
   ('22222222-0000-0000-0000-000000000001', (SELECT id FROM players WHERE name = 'John'),      14),
   ('22222222-0000-0000-0000-000000000001', (SELECT id FROM players WHERE name = 'Martin'),    15),
-  ('22222222-0000-0000-0000-000000000001', (SELECT id FROM players WHERE name = 'Peter'),     19),
+  ('22222222-0000-0000-0000-000000000001', (SELECT id FROM players WHERE name = 'Peter'),     18),
   ('22222222-0000-0000-0000-000000000001', (SELECT id FROM players WHERE name = 'Paul'),      16),
   ('22222222-0000-0000-0000-000000000001', (SELECT id FROM players WHERE name = 'Ross'),      10),
   ('22222222-0000-0000-0000-000000000001', (SELECT id FROM players WHERE name = 'Matthew'),    6),
