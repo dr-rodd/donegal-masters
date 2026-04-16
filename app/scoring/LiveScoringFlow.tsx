@@ -79,12 +79,12 @@ const TEE_STYLES: Record<string, { dot: string; active: string }> = {
 
 // ─── Helpers ──────────────────────────────────────────────
 
-// Course Handicap = ROUND(HI × Slope/113)
-// We omit the WHS Course Rating − Par adjustment: stableford scores against
-// individual hole par already account for course difficulty, and Irish clubs
-// conventionally use the simpler formula matching the pre-2020 GUI system.
+// Course Handicap = ROUND(FLOOR(HI) × Slope/113)
+// Traditional Irish convention: truncate the HI decimal before applying slope.
+// This gives e.g. HI 18.9 → 18 shots on slope-114 tees rather than 19 (which
+// Math.round of 19.07 would produce). CR − Par adjustment deliberately omitted.
 function calcPlayingHandicap(hcpIndex: number, slope: number) {
-  return Math.round(hcpIndex * (slope / 113))
+  return Math.round(Math.floor(hcpIndex) * (slope / 113))
 }
 function shotsReceived(si: number, hcp: number) {
   return Math.floor(hcp / 18) + (si <= hcp % 18 ? 1 : 0)
