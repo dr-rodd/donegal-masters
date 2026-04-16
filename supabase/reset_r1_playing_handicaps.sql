@@ -8,7 +8,7 @@ UPDATE round_handicaps SET playing_handicap = 15 WHERE round_id = '22222222-0000
 UPDATE round_handicaps SET playing_handicap = 19 WHERE round_id = '22222222-0000-0000-0000-000000000001' AND player_id = (SELECT id FROM players WHERE name = 'Peter');
 UPDATE round_handicaps SET playing_handicap = 16 WHERE round_id = '22222222-0000-0000-0000-000000000001' AND player_id = (SELECT id FROM players WHERE name = 'Paul');
 UPDATE round_handicaps SET playing_handicap = 10 WHERE round_id = '22222222-0000-0000-0000-000000000001' AND player_id = (SELECT id FROM players WHERE name = 'Ross');
-UPDATE round_handicaps SET playing_handicap = 10 WHERE round_id = '22222222-0000-0000-0000-000000000001' AND player_id = (SELECT id FROM players WHERE name = 'Matthew');
+UPDATE round_handicaps SET playing_handicap =  6 WHERE round_id = '22222222-0000-0000-0000-000000000001' AND player_id = (SELECT id FROM players WHERE name = 'Matthew');
 UPDATE round_handicaps SET playing_handicap =  3 WHERE round_id = '22222222-0000-0000-0000-000000000001' AND player_id = (SELECT id FROM players WHERE name = 'Dave');
 UPDATE round_handicaps SET playing_handicap = 20 WHERE round_id = '22222222-0000-0000-0000-000000000001' AND player_id = (SELECT id FROM players WHERE name = 'Aisling');
 UPDATE round_handicaps SET playing_handicap = 24 WHERE round_id = '22222222-0000-0000-0000-000000000001' AND player_id = (SELECT id FROM players WHERE name = 'Eithne');
