@@ -302,15 +302,16 @@ export default function LiveScoringFlow({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [holeIdx, step])
 
-  // Player setups — only for players that have a tee selected
+  // Player setups — only for players that have a tee selected.
+  // Always recalculate playing handicap from current HI + tee data; never use
+  // the stale stored round_handicap value (which may have been written by an
+  // old formula). The upsert in handleHoleStart overwrites the DB immediately.
   const playerSetups: PlayerSetup[] = selectedPlayerIds
     .filter(id => playerTeeIds[id])
     .map(id => {
       const player = players.find(p => p.id === id)!
       const tee = tees.find(t => t.id === playerTeeIds[id])!
-      const existingHcp = roundHandicaps.find(rh => rh.round_id === roundId && rh.player_id === id)
-      const playingHcp = existingHcp?.playing_handicap
-        ?? calcPlayingHandicap(player.handicap, tee.slope, tee.course_rating, tee.par)
+      const playingHcp = calcPlayingHandicap(player.handicap, tee.slope, tee.course_rating, tee.par)
       return { player, tee, playingHcp }
     })
 
