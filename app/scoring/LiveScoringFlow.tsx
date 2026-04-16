@@ -382,7 +382,10 @@ export default function LiveScoringFlow({
       for (const pid of lockedIds) {
         const player = players.find(p => p.id === pid)
         if (!player) continue
-        const tee = courseTees.find(t => t.gender === player.gender) ?? courseTees[0]
+        const preferred = player.gender === 'M' ? 'Blue' : 'Red'
+        const tee = courseTees.find(t => t.gender === player.gender && t.name === preferred)
+                 ?? courseTees.find(t => t.gender === player.gender)
+                 ?? courseTees[0]
         if (tee) teeMap[pid] = tee.id
       }
 
@@ -817,6 +820,14 @@ export default function LiveScoringFlow({
   if (step === "setup") {
     const courseTees = tees.filter(t => t.course_id === courseId)
 
+    function defaultTeeId(pid: string): string | undefined {
+      const playerObj = players.find(p => p.id === pid)
+      if (!playerObj) return undefined
+      const cTees = courseTees.filter(t => t.gender === playerObj.gender)
+      const preferred = playerObj.gender === 'M' ? 'Blue' : 'Red'
+      return (cTees.find(t => t.name === preferred) ?? cTees[0])?.id
+    }
+
     function togglePlayer(pid: string) {
       const isSelected = selectedPlayerIds.includes(pid)
       if (isSelected) {
@@ -826,6 +837,8 @@ export default function LiveScoringFlow({
         }
       } else if (selectedPlayerIds.length < 4) {
         setSelectedPlayerIds(prev => [...prev, pid])
+        const tid = defaultTeeId(pid)
+        if (tid) setPlayerTeeIds(prev => ({ ...prev, [pid]: tid }))
       }
     }
 
