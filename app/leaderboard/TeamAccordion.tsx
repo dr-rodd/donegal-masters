@@ -24,7 +24,7 @@ export default function TeamAccordion({
   best,
 }: {
   team: Team
-  best: { pts: number; gross: number; role: string }[]
+  best: { pts: number; threshold: number; gross: number; role: string }[]
 }) {
   const [open, setOpen] = useState(false)
 
@@ -70,7 +70,7 @@ export default function TeamAccordion({
                           </td>
                         )
                       }
-                      const isBest = pts === best[i].pts && pts > 0
+                      const isBest = pts > 0 && pts >= best[i].threshold
                       return (
                         <td key={i} className={`text-center py-2 w-9 ${cellStyle(pts, isBest)}`}>
                           {player.gross[i]}<sup className="text-[8px] opacity-70">{pts}</sup>

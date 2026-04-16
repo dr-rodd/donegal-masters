@@ -45,18 +45,12 @@ interface LiveScoreRow {
 
 // ─── Helpers ──────────────────────────────────────────────
 
-const ST_PATRICKS_COURSE_ID = "11111111-0000-0000-0000-000000000003"
-
-function effectivePar(hole: Hole, gender: string, courseId: string) {
-  return gender === "F" && courseId === ST_PATRICKS_COURSE_ID && hole.par_ladies
-    ? hole.par_ladies
-    : hole.par
+function effectivePar(hole: Hole, gender: string, _courseId: string) {
+  return gender === "F" && hole.par_ladies ? hole.par_ladies : hole.par
 }
 
-function effectiveSI(hole: Hole, gender: string, courseId: string) {
-  return gender === "F" && courseId === ST_PATRICKS_COURSE_ID && hole.stroke_index_ladies
-    ? hole.stroke_index_ladies
-    : hole.stroke_index
+function effectiveSI(hole: Hole, gender: string, _courseId: string) {
+  return gender === "F" && hole.stroke_index_ladies ? hole.stroke_index_ladies : hole.stroke_index
 }
 
 function fmtRelative(rel: number): string {

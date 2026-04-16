@@ -161,15 +161,15 @@ function CompositeScorecard({ team, round, holes, scores, roundHandicaps, compos
       const s = playerScoreMaps[pi].get(hole.hole_number)
       return s ? s.stableford_points : null
     })
-    const bestPts = players.reduce((max, _, pi) => {
+    const holePoints = players.map((_, pi) => {
       const s = playerScoreMaps[pi].get(hole.hole_number)
-      return s ? Math.max(max, s.stableford_points) : max
-    }, 0)
-    const hasScores = players.some((_, pi) => playerScoreMaps[pi].has(hole.hole_number))
-    const contributors = players.map((_, pi) => {
-      const s = playerScoreMaps[pi].get(hole.hole_number)
-      return bestPts > 0 && s != null && s.stableford_points === bestPts
+      return s ? s.stableford_points : null
     })
+    const hasScores = players.some((_, pi) => playerScoreMaps[pi].has(hole.hole_number))
+    const positiveDesc = (holePoints.filter(p => p !== null && p > 0) as number[]).sort((a, b) => b - a)
+    const bestPts = positiveDesc.slice(0, 2).reduce((s, v) => s + v, 0)
+    const cutThreshold = positiveDesc.length >= 2 ? positiveDesc[1] : (positiveDesc[0] ?? 0)
+    const contributors = holePoints.map(pts => pts !== null && pts > 0 && pts >= cutThreshold)
     const sourceColors = players.map(p => {
       if (!p.is_composite) return null
       const sourceId = compositeHoleMap.get(`${p.id}:${round.id}:${hole.id}`)
