@@ -96,13 +96,11 @@ function calcStableford(gross: number, par: number, si: number, hcp: number) {
 function nrGross(par: number, si: number, hcp: number) {
   return par + 2 + shotsReceived(si, hcp)
 }
-function effectivePar(hole: Hole, gender: string, courseId: string) {
-  return gender === "F" && courseId === ST_PATRICKS_COURSE_ID && hole.par_ladies
-    ? hole.par_ladies : hole.par
+function effectivePar(hole: Hole, gender: string, _courseId: string) {
+  return gender === "F" && hole.par_ladies ? hole.par_ladies : hole.par
 }
-function effectiveSI(hole: Hole, gender: string, courseId: string) {
-  return gender === "F" && courseId === ST_PATRICKS_COURSE_ID && hole.stroke_index_ladies
-    ? hole.stroke_index_ladies : hole.stroke_index
+function effectiveSI(hole: Hole, gender: string, _courseId: string) {
+  return gender === "F" && hole.stroke_index_ladies ? hole.stroke_index_ladies : hole.stroke_index
 }
 function yardageForTee(hole: Hole, teeName: string): number | null {
   const key = `yardage_${teeName.toLowerCase()}` as keyof Hole
