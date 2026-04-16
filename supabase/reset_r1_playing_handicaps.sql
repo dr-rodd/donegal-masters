@@ -14,8 +14,7 @@ UPDATE round_handicaps SET playing_handicap = 20 WHERE round_id = '22222222-0000
 UPDATE round_handicaps SET playing_handicap = 24 WHERE round_id = '22222222-0000-0000-0000-000000000001' AND player_id = (SELECT id FROM players WHERE name = 'Eithne');
 UPDATE round_handicaps SET playing_handicap = 22 WHERE round_id = '22222222-0000-0000-0000-000000000001' AND player_id = (SELECT id FROM players WHERE name = 'Liz');
 UPDATE round_handicaps SET playing_handicap = 18 WHERE round_id = '22222222-0000-0000-0000-000000000001' AND player_id = (SELECT id FROM players WHERE name = 'Mary Ruth');
--- NOTE: Gillian not in supplied list — update manually if needed:
--- UPDATE round_handicaps SET playing_handicap = ?? WHERE round_id = '22222222-0000-0000-0000-000000000001' AND player_id = (SELECT id FROM players WHERE name = 'Gillian');
+UPDATE round_handicaps SET playing_handicap = 22 WHERE round_id = '22222222-0000-0000-0000-000000000001' AND player_id = (SELECT id FROM players WHERE name = 'Gillian');
 
 
 -- ============================================================
