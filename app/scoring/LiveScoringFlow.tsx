@@ -81,11 +81,9 @@ const TEE_STYLES: Record<string, { dot: string; active: string }> = {
 
 // Golf Ireland WHS (April 2024 rules)
 // Step 1 — Course Handicap : ROUND(HI × Slope/113 + (Course Rating − Par))
-// Step 2 — Playing Handicap: ROUND(Course Handicap × 0.95)   [95% allowance, individual stableford]
-// e.g. HI 18.9, Slope 114, CR 70.5, Par 71 → CH = ROUND(18.57) = 19 → PH = ROUND(18.05) = 18
+// Playing Handicap = ROUND(HI × Slope/113 + (CR − Par))  [no allowance]
 function calcPlayingHandicap(hcpIndex: number, slope: number, courseRating: number, par: number) {
-  const courseHandicap = Math.round(hcpIndex * (slope / 113) + (courseRating - par))
-  return Math.round(courseHandicap * 0.95)
+  return Math.round(hcpIndex * (slope / 113) + (courseRating - par))
 }
 function shotsReceived(si: number, hcp: number) {
   return Math.floor(hcp / 18) + (si <= hcp % 18 ? 1 : 0)
