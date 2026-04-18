@@ -23,12 +23,56 @@ export default async function LeaderboardPage() {
     ...team,
     players: allPlayers.filter(p => p.team_id === team.id),
   }))
-  const holes = holesRes.data
-  const scores = scoresRes.data
+  const holes = holesRes.data ?? []
+  const scores = scoresRes.data ?? []
   const roundHandicaps = hcpsRes.data
   const tees = teesRes.data
   const compositeHoles = compositeHolesRes.data ?? []
   const hasActiveRound = rounds?.some((r: any) => r.status === "active") ?? false
+
+  // Merge in-progress live scores for active rounds so the leaderboard
+  // reflects hole-by-hole entries before scorecards are finalised.
+  const activeRounds = (rounds ?? []).filter((r: any) => r.status === "active")
+  const activeRoundIds = activeRounds.map((r: any) => r.id as string)
+
+  let mergedScores = [...scores]
+  if (activeRoundIds.length > 0) {
+    const { data: liveScores } = await supabase
+      .from("live_scores")
+      .select("player_id, round_id, hole_number, gross_score, stableford_points")
+      .in("round_id", activeRoundIds)
+      .eq("committed", false)
+
+    if (liveScores?.length) {
+      // Build round_id → hole_number → hole_id lookup
+      const holeIdByRoundHole = new Map<string, string>()
+      for (const round of activeRounds as any[]) {
+        const courseId = round.courses?.id
+        for (const hole of holes) {
+          if ((hole as any).course_id === courseId) {
+            holeIdByRoundHole.set(`${round.id}:${(hole as any).hole_number}`, (hole as any).id)
+          }
+        }
+      }
+
+      // Finalized score keys to avoid double-counting
+      const finalizedKeys = new Set(scores.map((s: any) => `${s.player_id}:${s.round_id}:${s.hole_id}`))
+
+      for (const ls of liveScores as any[]) {
+        const holeId = holeIdByRoundHole.get(`${ls.round_id}:${ls.hole_number}`)
+        if (!holeId) continue
+        if (finalizedKeys.has(`${ls.player_id}:${ls.round_id}:${holeId}`)) continue
+        mergedScores.push({
+          player_id: ls.player_id,
+          hole_id: holeId,
+          round_id: ls.round_id,
+          gross_score: ls.gross_score,
+          stableford_points: ls.stableford_points,
+          no_return: false,
+        })
+      }
+    }
+  }
 
   return (
     <div className="min-h-dvh bg-[#0a1a0e] text-white">
@@ -49,11 +93,12 @@ export default async function LeaderboardPage() {
         <LeaderboardClient
           rounds={(rounds ?? []) as any}
           teams={(teams ?? []) as any}
-          holes={holes ?? []}
-          scores={scores ?? []}
+          holes={holes}
+          scores={mergedScores as any}
           roundHandicaps={roundHandicaps ?? []}
           tees={(tees ?? []) as any}
           compositeHoles={compositeHoles as any}
+          activeRoundIds={activeRoundIds}
         />
       </div>
     </div>
