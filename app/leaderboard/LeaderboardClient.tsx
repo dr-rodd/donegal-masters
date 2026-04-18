@@ -398,9 +398,8 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
   const router = useRouter()
   const [modal, setModal] = useState<{ team: Team } | null>(null)
 
-  // Real-time subscription: refresh server data whenever any live score is saved
+  // Real-time subscription: refresh whenever any live score changes
   useEffect(() => {
-    if (!activeRoundIds.length) return
     const channel = supabase
       .channel("leaderboard-live-scores")
       .on("postgres_changes", { event: "*", schema: "public", table: "live_scores" }, () => {
@@ -408,8 +407,7 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeRoundIds.join(",")])
+  }, [])
 
   const sortedRounds = [...rounds].sort((a, b) => a.round_number - b.round_number)
   const roundsByNumber: Record<number, Round> = {}
