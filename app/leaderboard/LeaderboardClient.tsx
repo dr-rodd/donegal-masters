@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useRef, useEffect, Fragment } from "react"
-import { useRouter } from "next/navigation"
+import { useState, useRef, useEffect, useMemo, useCallback, Fragment } from "react"
 import { supabase } from "@/lib/supabase"
 
 // ─── Types ─────────────────────────────────────────────────────
@@ -395,19 +394,56 @@ function ScorecardModal({ team, rounds, holes, scores, roundHandicaps, composite
 // ─── Main component ────────────────────────────────────────────
 
 export default function LeaderboardClient({ rounds, teams, holes, scores, roundHandicaps, tees, compositeHoles, activeRoundIds = [] }: Props) {
-  const router = useRouter()
   const [modal, setModal] = useState<{ team: Team } | null>(null)
+  const [liveScoresRaw, setLiveScoresRaw] = useState<any[]>([])
 
-  // Real-time subscription: refresh whenever any live score changes
+  const fetchLive = useCallback(async () => {
+    const { data } = await supabase
+      .from("live_scores")
+      .select("player_id, round_id, hole_number, gross_score, stableford_points")
+      .eq("committed", false)
+    setLiveScoresRaw(data ?? [])
+  }, [])
+
   useEffect(() => {
+    fetchLive()
     const channel = supabase
       .channel("leaderboard-live-scores")
-      .on("postgres_changes", { event: "*", schema: "public", table: "live_scores" }, () => {
-        router.refresh()
-      })
+      .on("postgres_changes", { event: "*", schema: "public", table: "live_scores" }, fetchLive)
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [])
+  }, [fetchLive])
+
+  // Convert live_scores (hole_number) → Score shape (hole_id) and merge with finalised scores
+  const mergedScores = useMemo(() => {
+    if (!liveScoresRaw.length) return scores
+    const finalizedKeys = new Set(scores.map(s => `${s.player_id}:${s.round_id}:${s.hole_id}`))
+    // Build round_id → (hole_number → hole_id) lookup
+    const holeIdLookup = new Map<string, string>()
+    for (const round of rounds) {
+      if (!round.courses?.id) continue
+      for (const hole of holes) {
+        if (hole.course_id === round.courses.id) {
+          holeIdLookup.set(`${round.id}:${hole.hole_number}`, hole.id)
+        }
+      }
+    }
+    const extra: Score[] = []
+    for (const ls of liveScoresRaw) {
+      const holeId = holeIdLookup.get(`${ls.round_id}:${ls.hole_number}`)
+      if (!holeId) continue
+      if (finalizedKeys.has(`${ls.player_id}:${ls.round_id}:${holeId}`)) continue
+      extra.push({
+        player_id: ls.player_id,
+        hole_id: holeId,
+        round_id: ls.round_id,
+        gross_score: ls.gross_score,
+        stableford_points: ls.stableford_points ?? 0,
+        no_return: false,
+      })
+    }
+    return extra.length ? [...scores, ...extra] : scores
+  }, [scores, liveScoresRaw, rounds, holes])
 
   const sortedRounds = [...rounds].sort((a, b) => a.round_number - b.round_number)
   const roundsByNumber: Record<number, Round> = {}
@@ -417,7 +453,7 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
     const roundPts: Record<number, number> = {}
     for (const r of sortedRounds) {
       const courseHoles = holes.filter(h => h.course_id === r.courses?.id)
-      roundPts[r.round_number] = teamRoundPts(team, courseHoles, scores, r.id)
+      roundPts[r.round_number] = teamRoundPts(team, courseHoles, mergedScores, r.id)
     }
     const total = Object.values(roundPts).reduce((s, p) => s + p, 0)
     return { team, roundPts, total }
@@ -496,7 +532,7 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
           team={modal.team}
           rounds={sortedRounds}
           holes={holes}
-          scores={scores}
+          scores={mergedScores}
           roundHandicaps={roundHandicaps}
           compositeHoles={compositeHoles}
           allTeams={teams}
