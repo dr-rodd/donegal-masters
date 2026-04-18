@@ -27,6 +27,7 @@ export default async function ScorecardPage({
     supabase.from("composite_holes").select("hole_id, round_id, source_player_name").eq("composite_player_id", playerId),
   ])
 
+
   if (!playerRes.data) notFound()
 
   const backHref = from === "individual" ? "/leaderboard/individual" : "/leaderboard"

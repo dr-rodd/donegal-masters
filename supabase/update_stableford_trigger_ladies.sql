@@ -1,5 +1,5 @@
 -- Update stableford trigger to use par_ladies / stroke_index_ladies
--- for female players on St Patrick's course.
+-- for female players on any course where those values are populated.
 
 CREATE OR REPLACE FUNCTION calculate_stableford()
 RETURNS TRIGGER AS $$
@@ -10,12 +10,11 @@ DECLARE
   v_shots_received   SMALLINT;
   v_net_score        SMALLINT;
   v_gender           TEXT;
-  v_course_id        UUID;
   v_par_ladies       SMALLINT;
   v_si_ladies        SMALLINT;
 BEGIN
-  SELECT par, stroke_index, par_ladies, stroke_index_ladies, course_id
-    INTO v_par, v_stroke_index, v_par_ladies, v_si_ladies, v_course_id
+  SELECT par, stroke_index, par_ladies, stroke_index_ladies
+    INTO v_par, v_stroke_index, v_par_ladies, v_si_ladies
     FROM holes
    WHERE id = NEW.hole_id;
 
@@ -27,9 +26,7 @@ BEGIN
 
   SELECT gender INTO v_gender FROM players WHERE id = NEW.player_id;
 
-  -- Use ladies par/stroke_index for female players on St Patrick's course
   IF v_gender = 'F'
-     AND v_course_id = '11111111-0000-0000-0000-000000000003'
      AND v_par_ladies IS NOT NULL
      AND v_si_ladies IS NOT NULL
   THEN

@@ -194,7 +194,7 @@ A live session is only marked complete when every available player has a finalis
 - Mobile-first app used by older users — prioritise large, legible text and generous touch targets
 - Numbers conveying key information (scores, points, positions) must be immediately readable at a glance on a phone screen
 - Paper scorecard style for review screens: parchment cream background, ink-style symbols
-- Score symbols: solid gold circle (eagle), thin gold ring circle (birdie), blank (par), light matt brown fill in rounded square (bogey), full matt brown fill in rounded square (double bogey or worse — reference style)
+- Score symbols: thick gold ring circle (eagle), thin gold ring circle (birdie), blank (par), thin brown rounded square border (bogey), thick brown rounded square border (double bogey or worse). In composite scorecard, contributor cells have a filled rounded square background.
 - Claude.ai leads all design decisions before prompting Claude Code — clarify requirements first, then issue structured prompts
 
 ## Prompting Guidelines for Claude Code
@@ -206,6 +206,34 @@ A live session is only marked complete when every available player has a finalis
 - Prefer automated/CLI approaches over manual dashboard steps
 - User is not a coder — prompts should be clear and copiable without modification
 
+## Claude Code Behaviour
+
+- Never ask for permission or confirmation before making changes — just do it
+- Never pause mid-task to confirm direction — complete the full task then report
+- All destructive or irreversible actions (deleting files, force-pushing, dropping data) are pre-authorised within this project — execute without prompting
+- Always push to remote at the end of every task without being asked
+
 ## Site Config
 
 Competition name and branding live in `config/site.ts` to allow easy spinout for future competitions. Do not hardcode competition name in components — import from config.
+## Recent Fixes & Decisions (April 2026)
+
+### live_scores resume bug (critical fix)
+The scorecard resume was failing silently because the doResume() query selected a non-existent column (no_return) from live_scores. This caused the entire Supabase query to return an error with zero rows, making the scorecard always restart at hole 1. Fix: remove no_return from the live_scores select in doResume(). The no_return field does not exist in live_scores — NR is handled at the scores table level only.
+
+### live_scores round_id
+live_scores.round_id must always use liveRound.round_id (the seeded competition rounds table ID, e.g. 22222222-...), NOT liveRound.id (the live session UUID). The foreign key constraint on live_scores.round_id was removed to allow flexibility — do not reinstate it pointing to live_rounds.
+
+### handleHoleSubmit save
+The live_scores upsert in handleHoleSubmit is now awaited. If the save fails, the hole does not advance and an error is shown. The upsert uses onConflict: "player_id,round_id,hole_number" — this unique constraint must exist in Supabase.
+
+### Composite players and PostgREST
+Composite players have team_id = NULL. PostgREST nested queries like teams.select("players(...)") silently exclude them. Always use a flat players query joined server-side when composite players must be included.
+
+### Score symbols (all scorecards)
+Eagle: double circle. Birdie: single thin ring. Par: plain. Bogey: thin rounded square. Double bogey+: thick rounded square. Applied via shared ScoreShape component.
+
+## iOS Safari Gotchas
+
+- `transform` (even identity like `translateX(0)`) creates a new stacking context and containing block in iOS Safari. Combined with `overflow: hidden` on a parent, this breaks touch hit-testing — taps don't register until a scroll shifts the coordinate space. Use margin-based positioning instead of transform for slide/tab animations.
+- `overflow-x: clip` on a containing block is treated by WebKit as clipping hit-testing for `position: sticky` descendants — elements render correctly but touch events fall through.

@@ -45,18 +45,12 @@ interface LiveScoreRow {
 
 // ─── Helpers ──────────────────────────────────────────────
 
-const ST_PATRICKS_COURSE_ID = "11111111-0000-0000-0000-000000000003"
-
-function effectivePar(hole: Hole, gender: string, courseId: string) {
-  return gender === "F" && courseId === ST_PATRICKS_COURSE_ID && hole.par_ladies
-    ? hole.par_ladies
-    : hole.par
+function effectivePar(hole: Hole, gender: string, _courseId: string) {
+  return gender === "F" && hole.par_ladies ? hole.par_ladies : hole.par
 }
 
-function effectiveSI(hole: Hole, gender: string, courseId: string) {
-  return gender === "F" && courseId === ST_PATRICKS_COURSE_ID && hole.stroke_index_ladies
-    ? hole.stroke_index_ladies
-    : hole.stroke_index
+function effectiveSI(hole: Hole, gender: string, _courseId: string) {
+  return gender === "F" && hole.stroke_index_ladies ? hole.stroke_index_ladies : hole.stroke_index
 }
 
 function fmtRelative(rel: number): string {
@@ -119,7 +113,7 @@ export function InlineScorecard({
   player, playingHcp, courseHoles, playerScores, courseId,
 }: {
   player: Player
-  playingHcp: number
+  playingHcp: number | null
   courseHoles: Hole[]
   playerScores: LiveScoreRow[]
   courseId: string
@@ -135,11 +129,21 @@ export function InlineScorecard({
     if (gross === null) return <span className={`${muted} text-sm`} style={sf}>—</span>
     const diff = gross - ePar
     const n = <span className="text-sm font-semibold leading-none">{gross}</span>
-    if (diff <= -2) return <span className="w-6 h-6 rounded-full bg-[#C9A84C] flex items-center justify-center text-[#3A3A2E]">{n}</span>
-    if (diff === -1) return <span className="w-6 h-6 rounded-full border border-[#C9A84C] flex items-center justify-center text-[#5A4F3A]">{n}</span>
+    if (diff <= -2) return (
+      <span className="relative inline-flex items-center justify-center w-6 h-6 rounded-full border border-[#C9A84C]">
+        <span className="absolute inset-[2px] rounded-full border border-[#C9A84C]" />
+        <span className="relative text-[10px] font-semibold leading-none text-[#7B5C1E]">{gross}</span>
+      </span>
+    )
+    if (diff === -1) return <span className="w-6 h-6 rounded-full border border-[#C9A84C] flex items-center justify-center text-[#7B5C1E]">{n}</span>
     if (diff === 0)  return <span className={`${dark} text-sm font-semibold`} style={sf}>{gross}</span>
-    if (diff === 1)  return <span className="w-6 h-6 bg-[#E8DCBC]/50 rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
-    return               <span className="w-6 h-6 bg-[#E8DCBC] rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
+    if (diff === 1)  return <span className="w-6 h-6 rounded-md border border-[#9B8860] flex items-center justify-center text-[#5A4F3A]">{n}</span>
+    return (
+      <span className="relative inline-flex items-center justify-center w-6 h-6 rounded-md border border-[#9B8860]">
+        <span className="absolute inset-[2px] rounded-sm border border-[#9B8860]" />
+        <span className="relative text-sm font-semibold leading-none text-[#5A4F3A]">{gross}</span>
+      </span>
+    )
   }
 
   const ptsColor = (pts: number | null) =>
@@ -186,7 +190,7 @@ export function InlineScorecard({
         </div>
         <div className="flex flex-col items-end flex-shrink-0">
           <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>PH</span>
-          <span className={`text-sm font-semibold ${dark}`} style={sf}>{playingHcp}</span>
+          <span className={`text-sm font-semibold ${dark}`} style={sf}>{playingHcp ?? "—"}</span>
         </div>
       </div>
 
@@ -259,41 +263,53 @@ interface Props {
   roundHandicaps: RoundHandicap[]
   onClose?: () => void
   showBackButton?: boolean
+  longestDriveWinner?: string | null
+  nearestPinWinner?: string | null
+  /** Increment to imperatively trigger a leaderboard refresh */
+  refreshKey?: number
 }
 
 // ─── Component ────────────────────────────────────────────
 
 export default function LiveLeaderboardPanel({
   liveRound, players, holes, roundHandicaps, onClose, showBackButton = false,
+  longestDriveWinner, nearestPinWinner, refreshKey,
 }: Props) {
   const [liveScores, setLiveScores]     = useState<LiveScoreRow[]>([])
+  const [liveHandicaps, setLiveHandicaps] = useState<RoundHandicap[]>(roundHandicaps)
   const [validPlayerIds, setValidPlayerIds] = useState<Set<string>>(new Set())
   const [mode, setMode]                 = useState<Mode>("stableford")
   const [strokesView, setStrokesView]   = useState<StrokesView>("nett")
   const [lastFetch, setLastFetch]       = useState<Date | null>(null)
   const [expandedPlayerId, setExpandedPlayerId] = useState<string | null>(null)
   const [finalisedPlayerIds, setFinalisedPlayerIds] = useState<Set<string>>(new Set())
+  const [isBlinded, setIsBlinded] = useState(false)
 
   const courseHoles = holes
     .filter(h => h.course_id === liveRound.course_id)
     .sort((a, b) => a.hole_number - b.hole_number)
 
   const fetchScores = useCallback(async () => {
-    const [scoresRes, liveRoundsRes] = await Promise.all([
+    const [scoresRes, liveRoundsRes, hcpRes] = await Promise.all([
       supabase
         .from("live_scores")
         .select("player_id, hole_number, gross_score, stableford_points")
         .eq("round_id", liveRound.round_id),
       supabase
         .from("live_rounds")
-        .select("id, status")
+        .select("id, status, blinded")
         .eq("round_id", liveRound.round_id)
         .in("status", ["active", "finalised"]),
+      supabase
+        .from("round_handicaps")
+        .select("round_id, player_id, playing_handicap")
+        .eq("round_id", liveRound.round_id),
     ])
 
     if (scoresRes.data) setLiveScores(scoresRes.data as LiveScoreRow[])
+    if (hcpRes.data) setLiveHandicaps(hcpRes.data as RoundHandicap[])
 
-    const liveRoundsData = (liveRoundsRes.data ?? []) as { id: string; status: string }[]
+    const liveRoundsData = (liveRoundsRes.data ?? []) as { id: string; status: string; blinded: boolean }[]
     const liveRoundIds = liveRoundsData.map(lr => lr.id)
     const finalisedRoundIds = new Set(liveRoundsData.filter(lr => lr.status === "finalised").map(lr => lr.id))
 
@@ -310,8 +326,15 @@ export default function LiveLeaderboardPanel({
       setFinalisedPlayerIds(new Set())
     }
 
+    setIsBlinded(liveRoundsData.some(lr => lr.blinded === true))
     setLastFetch(new Date())
   }, [liveRound.round_id])
+
+  // Imperative refresh when parent signals a new score was written
+  useEffect(() => {
+    if (refreshKey !== undefined && refreshKey > 0) fetchScores()
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [refreshKey])
 
   useEffect(() => {
     fetchScores()
@@ -335,12 +358,26 @@ export default function LiveLeaderboardPanel({
 
   // ─── Build rows ───────────────────────────────────────────
 
+  // When blinded: find minimum holes completed across all locked-in players
+  const minHoles: number = (() => {
+    if (!isBlinded || validPlayerIds.size === 0) return 18
+    const counts = Array.from(validPlayerIds).map(pid =>
+      liveScores.filter(ls => ls.player_id === pid && ls.gross_score !== null).length
+    )
+    return counts.length > 0 ? Math.min(...counts) : 0
+  })()
+
   const unsortedRows: PlayerRow[] = players
     .filter(player => validPlayerIds.has(player.id))
     .flatMap(player => {
-      const playerScores = liveScores.filter(
+      const allPlayerScores = liveScores.filter(
         ls => ls.player_id === player.id && ls.gross_score !== null
       )
+      // When blinded, cap revealed holes at minHoles
+      const playerScores = isBlinded
+        ? allPlayerScores.filter(ls => ls.hole_number <= minHoles)
+        : allPlayerScores
+
       if (playerScores.length === 0) return []
 
       const totalStableford = playerScores.reduce((s, ls) => s + (ls.stableford_points ?? 0), 0)
@@ -360,7 +397,7 @@ export default function LiveLeaderboardPanel({
       return [{
         player,
         holesCompleted,
-        isFinalised: finalisedPlayerIds.has(player.id),
+        isFinalised: finalisedPlayerIds.has(player.id) && !isBlinded,
         totalStableford,
         stablefordRelative: totalStableford - holesCompleted * 2,
         totalGross,
@@ -392,13 +429,16 @@ export default function LiveLeaderboardPanel({
   // ─── Render ───────────────────────────────────────────────
 
   return (
-    <div className="max-w-lg mx-auto w-full px-4 py-6 flex flex-col gap-4">
+    <div className="max-w-lg mx-auto w-full px-4 pt-6 pb-2 flex flex-col gap-4">
 
       {/* Header — scrolls away */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-1.5">
           <span className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
           <span className="text-green-400 text-sm tracking-[0.2em] uppercase">{roundLabel}</span>
+          {isBlinded && (
+            <span className="text-white/40 text-base" title="Blinded leaderboard">🕶️</span>
+          )}
         </div>
         {showBackButton && onClose && (
           <BackButton onClick={onClose} />
@@ -497,9 +537,9 @@ export default function LiveLeaderboardPanel({
             // ── Col 4: holes through or F ─────────────────
             const col4 = isFinalised ? "F" : `${holesCompleted}`
 
-            const playingHcp = roundHandicaps.find(
+            const playingHcp = liveHandicaps.find(
               rh => rh.player_id === player.id && rh.round_id === liveRound.round_id
-            )?.playing_handicap ?? 0
+            )?.playing_handicap ?? null
 
             return (
               <Fragment key={player.id}>
@@ -513,15 +553,15 @@ export default function LiveLeaderboardPanel({
                     {positions[idx]}
                   </span>
 
-                  {/* Col 2: team dot + name */}
+                  {/* Col 2: team dot + name + competition winner badges */}
                   <div className="flex items-center gap-2 flex-1 min-w-0">
-                    {player.teams && (
-                      <span
-                        className="w-2 h-2 rounded-full flex-shrink-0"
-                        style={{ backgroundColor: player.teams.color }}
-                      />
-                    )}
+                    <span
+                      className="w-2 h-2 rounded-full flex-shrink-0"
+                      style={{ backgroundColor: player.teams?.color ?? "#6b7280" }}
+                    />
                     <span className="text-base text-white/80 truncate">{player.name}</span>
+                    {longestDriveWinner === player.id && <span className="text-base flex-shrink-0" title="Longest Drive">🏌️</span>}
+                    {nearestPinWinner  === player.id && <span className="text-base flex-shrink-0" title="Nearest the Pin">⛳️</span>}
                   </div>
 
                   {/* Col 3: relative score pill */}

@@ -1,4 +1,3 @@
-import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import CoursePortalClient from "./CoursePortalClient"
 import BackButton from "@/app/components/BackButton"
@@ -41,22 +40,6 @@ export default async function ScoringPage() {
           Live Sessions
         </p>
         <CoursePortalClient courseIds={courseIds} totalPlayers={totalPlayers ?? 0} />
-
-        <div className="px-4 pt-6 pb-8">
-          <p className="text-white/35 text-xs tracking-[0.2em] uppercase mb-3">Standalone Entry</p>
-          <Link
-            href="/score-entry"
-            className="flex items-center justify-between w-full px-5 py-5 border border-white/10 bg-[#0a1a0e] hover:border-white/20 hover:bg-white/[0.02] transition-colors rounded-sm"
-          >
-            <div className="min-w-0">
-              <p className="font-[family-name:var(--font-playfair)] text-white text-lg leading-tight">
-                Submit Scorecard
-              </p>
-              <p className="text-white/25 text-xs mt-1">Enter scores directly to the tournament leaderboard</p>
-            </div>
-            <span className="text-white/25 text-xs flex-shrink-0 ml-4">→</span>
-          </Link>
-        </div>
       </div>
     </div>
   )

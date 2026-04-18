@@ -91,35 +91,38 @@ function generateThursday(players: Player[]): string[][] | null {
 /**
  * Friday (day 2):
  * Group 0 (11:00): all 4 mums (shuffled)
- * Group 1 (11:15): all 4 dads (shuffled)
- * Group 2 (11:30): all 4 sons (shuffled)
+ * Group 1 (11:15): all 4 sons (shuffled)
+ * Group 2 (11:30): all 4 dads (shuffled)
  */
 function generateFriday(players: Player[]): string[][] {
   // Exclude composite players — threeball where a role has only 3 non-composites
   const mums = shuffle(players.filter(p => p.role === "mum" && !p.is_composite).map(p => p.id))
   const dads = shuffle(players.filter(p => p.role === "dad" && !p.is_composite).map(p => p.id))
   const sons = shuffle(players.filter(p => p.role === "son" && !p.is_composite).map(p => p.id))
-  return [mums, dads, sons]
+  return [mums, sons, dads]
 }
 
 /**
  * Saturday (day 3):
  * Async. Fetches leaderboard, sorts teams by total points desc, then assigns groups.
  * ranked[0]=1st, ranked[1]=2nd, ranked[2]=3rd, ranked[3]=4th
- * Group 0 (10:00): 3rd-place team + fourthPlayers[0]
- * Group 1 (10:10): 2nd-place team + fourthPlayers[1]
- * Group 2 (10:20): 1st-place team + fourthPlayers[2]
+ * Group 0 (11:00): 3rd-place team + fourthPlayers[0]
+ * Group 1 (11:10): 2nd-place team + fourthPlayers[1]
+ * Group 2 (11:20): 1st-place team + fourthPlayers[2]
+ * Throws a descriptive error rather than returning null so the UI can surface the reason.
  */
-async function generateSaturday(players: Player[]): Promise<string[][] | null> {
-  // Guard: need players with team assignments before running leaderboard ordering
-  const realPlayersCheck = players.filter(p => !p.is_composite && p.team_id)
-  if (realPlayersCheck.length === 0) return null
+async function generateSaturday(players: Player[]): Promise<string[][]> {
+  const realPlayers = players.filter(p => !p.is_composite && p.team_id)
+  if (realPlayers.length === 0) throw new Error("No player data available.")
 
   const { data: leaderboard, error } = await supabase
     .from("leaderboard_summary")
     .select("team_id, total_team_points")
 
-  if (error || !leaderboard || leaderboard.length === 0) return null
+  if (error) throw new Error("Could not fetch leaderboard data. Check your connection.")
+  if (!leaderboard || leaderboard.length === 0) {
+    throw new Error("Saturday groups are drawn from the leaderboard — rounds 1 & 2 must have scores before Saturday tee times can be generated.")
+  }
 
   // Sum total_team_points per team across all rounds
   const teamPoints = new Map<string, number>()
@@ -127,17 +130,15 @@ async function generateSaturday(players: Player[]): Promise<string[][] | null> {
     teamPoints.set(row.team_id, (teamPoints.get(row.team_id) ?? 0) + (row.total_team_points ?? 0))
   }
 
-  // Use only non-composite players; derive team IDs from them
-  const realPlayers = players.filter(p => !p.is_composite)
+  // Derive team IDs from non-composite players
   const teamIds = Array.from(new Set(realPlayers.map(p => p.team_id)))
+  if (teamIds.length < 4) throw new Error("Need all 4 teams represented in player data.")
 
   // Sort teams by points desc, random tiebreak
   const ranked = [...teamIds].sort((a, b) => {
     const diff = (teamPoints.get(b) ?? 0) - (teamPoints.get(a) ?? 0)
     return diff !== 0 ? diff : Math.random() - 0.5
   })
-
-  if (ranked.length < 4) return null
 
   // Build per-team lists of non-composite player IDs
   const playersByTeam = new Map<string, string[]>()
@@ -150,9 +151,8 @@ async function generateSaturday(players: Player[]): Promise<string[][] | null> {
   const thirdTeamPlayers  = playersByTeam.get(ranked[2]) ?? []
   const fourthPlayers     = shuffle(playersByTeam.get(ranked[3]) ?? [])
 
-  // Each of the top-3 teams needs at least 1 non-composite player
   if (!firstTeamPlayers.length || !secondTeamPlayers.length || !thirdTeamPlayers.length) {
-    return null
+    throw new Error("One or more teams have no players — check player data.")
   }
 
   // Distribute 4th-team players 1 per group where available (fewer = threeball for that group)
@@ -214,6 +214,88 @@ function majorityTeam(playerIds: string[], allPlayers: Player[]): Team | undefin
 }
 
 // ─── UI Sub-components ────────────────────────────────────────────────────────
+
+function EditablePlayerRow({
+  playerId,
+  currentGroup,
+  allPlayers,
+  onMove,
+}: {
+  playerId: string
+  currentGroup: number
+  allPlayers: Player[]
+  onMove: (toGroup: number) => void
+}) {
+  const player = allPlayers.find(p => p.id === playerId)
+  if (!player) return null
+
+  const team = player.teams
+  const roleLabel = player.role === "dad" ? "Dad" : player.role === "mum" ? "Mum" : "Son"
+
+  return (
+    <div className="flex items-stretch bg-[#0f2418] border-t border-[#1a3020] first:border-t-0">
+      <div className="w-[3px] flex-shrink-0" style={{ backgroundColor: team?.color ?? "transparent" }} />
+      <div className="flex items-center gap-2 px-3 py-3 flex-1 min-w-0">
+        <span className="flex-1 text-sm text-white truncate">{player.name}</span>
+        <span className="text-xs text-white/30 uppercase tracking-widest flex-shrink-0">{roleLabel}</span>
+        <div className="flex gap-1 flex-shrink-0">
+          {[0, 1, 2].map(gi => (
+            <button
+              key={gi}
+              onClick={() => gi !== currentGroup && onMove(gi)}
+              className={`w-8 h-8 text-xs rounded-sm transition-colors ${
+                gi === currentGroup
+                  ? "bg-[#C9A84C] text-black font-semibold"
+                  : "border border-white/20 text-white/50 hover:border-[#C9A84C]/50 hover:text-[#C9A84C]"
+              }`}
+            >
+              {gi + 1}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function EditableGroupCard({
+  teeTime,
+  label,
+  groupIndex,
+  playerIds,
+  allPlayers,
+  onMovePlayer,
+}: {
+  teeTime: string
+  label?: string
+  groupIndex: number
+  playerIds: string[]
+  allPlayers: Player[]
+  onMovePlayer: (playerId: string, toGroup: number) => void
+}) {
+  return (
+    <div className="border border-[#C9A84C]/30 overflow-hidden rounded-sm">
+      <div className="bg-[#081510] border-b border-[#C9A84C]/20 px-4 py-3 flex items-baseline gap-3">
+        <span className="font-[family-name:var(--font-playfair)] text-2xl text-[#C9A84C]">{teeTime}</span>
+        {label && <span className="text-xs tracking-[0.2em] uppercase text-white/50">{label}</span>}
+      </div>
+      <div>
+        {playerIds.map(pid => (
+          <EditablePlayerRow
+            key={pid}
+            playerId={pid}
+            currentGroup={groupIndex}
+            allPlayers={allPlayers}
+            onMove={toGroup => onMovePlayer(pid, toGroup)}
+          />
+        ))}
+        {playerIds.length === 0 && (
+          <div className="px-4 py-3 text-white/30 text-sm italic">Empty group</div>
+        )}
+      </div>
+    </div>
+  )
+}
 
 function PlayerRow({ playerId, allPlayers }: { playerId: string; allPlayers: Player[] }) {
   const player = allPlayers.find(p => p.id === playerId)
@@ -335,6 +417,8 @@ export default function TeeTimesClient({
   const [confirming, setConfirming] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [editMode, setEditMode] = useState(false)
+  const [editGroups, setEditGroups] = useState<string[][]>([[], [], []])
 
   const cfg = DAYS.find(d => d.day === activeDay)!
 
@@ -346,10 +430,57 @@ export default function TeeTimesClient({
 
   function groupLabel(gi: number): string | undefined {
     if (activeDay === 1) return undefined
-    if (activeDay === 2) return (["Mums", "Dads", "Sons"] as const)[gi]
+    if (activeDay === 2) return (["Mums", "Sons", "Dads"] as const)[gi]
     // Saturday
     if (!hasGroups) return undefined
     return majorityTeam(groups[gi], players)?.name
+  }
+
+  function startEditing() {
+    setEditGroups(groups.map(g => [...g]))
+    setError(null)
+    setEditMode(true)
+  }
+
+  function cancelEditing() {
+    setEditMode(false)
+    setError(null)
+  }
+
+  function movePlayer(playerId: string, toGroup: number) {
+    setEditGroups(prev => {
+      const next = prev.map(g => [...g])
+      // Remove from whichever group currently holds the player
+      for (let i = 0; i < next.length; i++) {
+        next[i] = next[i].filter(id => id !== playerId)
+      }
+      next[toGroup] = [...next[toGroup], playerId]
+      return next
+    })
+  }
+
+  async function saveEdits() {
+    setBusy(true)
+    setError(null)
+    try {
+      await saveGroups(activeDay, editGroups)
+      const newRows: TeeTimeRow[] = editGroups.flatMap((group, gi) =>
+        group.map(player_id => ({
+          day_number: activeDay,
+          group_number: gi + 1,
+          player_id,
+        }))
+      )
+      setTeeTimes(prev => [
+        ...prev.filter(r => r.day_number !== activeDay),
+        ...newRows,
+      ])
+      setEditMode(false)
+    } catch (e: any) {
+      setError(e?.message ?? "An unexpected error occurred.")
+    } finally {
+      setBusy(false)
+    }
   }
 
   async function handleGenerate() {
@@ -365,7 +496,6 @@ export default function TeeTimesClient({
         newGroups = generateFriday(players)
       } else {
         newGroups = await generateSaturday(players)
-        if (!newGroups) throw new Error("Could not generate Saturday groups. Check leaderboard data and team sizes.")
       }
 
       await saveGroups(activeDay, newGroups)
@@ -401,7 +531,7 @@ export default function TeeTimesClient({
           return (
             <button
               key={d.day}
-              onClick={() => { setActiveDay(d.day as 1 | 2 | 3); setError(null) }}
+              onClick={() => { setActiveDay(d.day as 1 | 2 | 3); setError(null); setEditMode(false) }}
               className={`flex-1 py-3 text-sm tracking-[0.15em] uppercase transition-colors relative ${
                 isActive
                   ? "text-[#C9A84C]"
@@ -431,7 +561,23 @@ export default function TeeTimesClient({
       </div>
 
       {/* Groups area */}
-      {hasGroups ? (
+      {editMode ? (
+        <div className="space-y-3 mb-6">
+          <p className="text-xs text-white/40 tracking-[0.15em] uppercase text-center mb-4">
+            Tap a group number to move a player
+          </p>
+          {editGroups.map((group, gi) => (
+            <EditableGroupCard
+              key={gi}
+              teeTime={cfg.times[gi]}
+              groupIndex={gi}
+              playerIds={group}
+              allPlayers={players}
+              onMovePlayer={(pid, toGroup) => movePlayer(pid, toGroup)}
+            />
+          ))}
+        </div>
+      ) : hasGroups ? (
         <div className="space-y-3 mb-6">
           {groups.map((group, gi) => (
             <GroupCard
@@ -449,13 +595,42 @@ export default function TeeTimesClient({
         </div>
       )}
 
-      {/* Generate button */}
-      <button
-        onClick={() => { setError(null); setConfirming(true) }}
-        className="w-full py-4 border border-[#C9A84C] text-[#C9A84C] text-sm tracking-[0.25em] uppercase hover:bg-[#C9A84C] hover:text-black transition-colors"
-      >
-        {hasGroups ? "Regenerate Tee Times" : "Generate Tee Times"}
-      </button>
+      {/* Action buttons */}
+      {editMode ? (
+        <div className="flex gap-3">
+          <button
+            onClick={cancelEditing}
+            disabled={busy}
+            className="flex-1 py-4 border border-white/20 text-white/60 text-sm tracking-[0.2em] uppercase hover:border-white/40 hover:text-white/80 transition-colors disabled:opacity-40"
+          >
+            Cancel
+          </button>
+          <button
+            onClick={saveEdits}
+            disabled={busy}
+            className="flex-1 py-4 border border-[#C9A84C] text-[#C9A84C] text-sm tracking-[0.2em] uppercase hover:bg-[#C9A84C] hover:text-black transition-colors disabled:opacity-40"
+          >
+            {busy ? "Saving…" : "Save Changes"}
+          </button>
+        </div>
+      ) : (
+        <div className="flex flex-col gap-3">
+          {hasGroups && (
+            <button
+              onClick={startEditing}
+              className="w-full py-4 border border-white/25 text-white/60 text-sm tracking-[0.25em] uppercase hover:border-white/50 hover:text-white/80 transition-colors"
+            >
+              Modify Tee Times
+            </button>
+          )}
+          <button
+            onClick={() => { setError(null); setConfirming(true) }}
+            className="w-full py-4 border border-[#C9A84C] text-[#C9A84C] text-sm tracking-[0.25em] uppercase hover:bg-[#C9A84C] hover:text-black transition-colors"
+          >
+            {hasGroups ? "Regenerate Tee Times" : "Generate Tee Times"}
+          </button>
+        </div>
+      )}
 
       {/* Error */}
       {error && (

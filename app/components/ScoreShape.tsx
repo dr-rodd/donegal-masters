@@ -4,15 +4,16 @@ export default function ScoreShape({ gross, par }: { gross: number; par: number 
 
   if (diff <= -2) {
     return (
-      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-[#C9A84C]">
-        <span className={`${f} text-lg font-semibold text-[#1a0a00]`}>{gross}</span>
+      <span className="relative inline-flex items-center justify-center w-8 h-8 rounded-full border border-[#C9A84C]">
+        <span className="absolute inset-[2px] rounded-full border border-[#C9A84C]" />
+        <span className={`relative ${f} text-sm font-semibold text-[#7B5C1E]`}>{gross}</span>
       </span>
     )
   }
   if (diff === -1) {
     return (
-      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full border-2 border-[#2d6a4f]">
-        <span className={`${f} text-lg text-[#1a5235]`}>{gross}</span>
+      <span className="inline-flex items-center justify-center w-8 h-8 rounded-full border border-[#C9A84C]">
+        <span className={`${f} text-lg text-[#7B5C1E]`}>{gross}</span>
       </span>
     )
   }
@@ -21,14 +22,15 @@ export default function ScoreShape({ gross, par }: { gross: number; par: number 
   }
   if (diff === 1) {
     return (
-      <span className="inline-flex items-center justify-center w-7 h-7 border border-gray-400">
-        <span className={`${f} text-base text-gray-500`}>{gross}</span>
+      <span className="inline-flex items-center justify-center w-8 h-8 rounded-md border border-[#9B8860]">
+        <span className={`${f} text-base text-[#5A4F3A]`}>{gross}</span>
       </span>
     )
   }
   return (
-    <span className="inline-flex items-center justify-center w-7 h-7 bg-gray-300">
-      <span className={`${f} text-base text-gray-600`}>{gross}</span>
+    <span className="relative inline-flex items-center justify-center w-8 h-8 rounded-md border border-[#9B8860]">
+      <span className="absolute inset-[2px] rounded-sm border border-[#9B8860]" />
+      <span className={`relative ${f} text-base text-[#5A4F3A]`}>{gross}</span>
     </span>
   )
 }

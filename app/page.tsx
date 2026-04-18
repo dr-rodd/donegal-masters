@@ -1,15 +1,31 @@
 import Link from "next/link";
 import Countdown from "./components/Countdown";
 import SettingsButton from "./components/SettingsButton";
+import { supabase } from "@/lib/supabase";
 
-export default function Home() {
+async function getPortsRevealed(): Promise<boolean> {
+  try {
+    const { data } = await supabase
+      .from("ulster_trip")
+      .select("reveal_at")
+      .single();
+    if (!data?.reveal_at) return false;
+    return new Date(data.reveal_at) <= new Date();
+  } catch {
+    return false;
+  }
+}
+
+export default async function Home() {
+  const portsRevealed = await getPortsRevealed();
+
   return (
     <main
       className="relative min-h-dvh flex flex-col items-center justify-center pt-5 pb-5"
       style={{
         backgroundImage: "url(/rosapenna.jpg)",
         backgroundSize: "cover",
-        backgroundPosition: "center",
+        backgroundPosition: "center 30%",
       }}
     >
       {/* Dark overlay */}
@@ -32,7 +48,7 @@ export default function Home() {
         <img
           src="/Retro_donegal_masters_logo.png"
           alt="The Donegal Masters"
-          style={{ width: "95vw", maxWidth: "360px", marginLeft: "auto", marginRight: "auto", height: "auto", display: "block", filter: "brightness(0) saturate(100%) invert(74%) sepia(27%) saturate(739%) hue-rotate(5deg) brightness(95%) contrast(95%)" }}
+          style={{ width: "90vw", maxWidth: "340px", marginLeft: "auto", marginRight: "auto", height: "auto", display: "block", filter: "brightness(0) saturate(100%) invert(74%) sepia(27%) saturate(739%) hue-rotate(5deg) brightness(95%) contrast(95%)" }}
         />
 
         {/* Subtitle */}
@@ -45,30 +61,33 @@ export default function Home() {
 
         {/* Countdown collapses when expired; nav always in DOM below it */}
         <Countdown>
-          <nav className="flex flex-col gap-3">
+          <nav className="flex flex-col gap-3 w-[300px]">
+            {([
+              { href: "/teams",       label: "Team Selection" },
+              { href: "/tee-times",   label: "Tee Times"      },
+              { href: "/scoring",     label: "Scoring"        },
+              { href: "/leaderboard", label: "Leaderboard"    },
+            ] as const).map(({ href, label }) => (
+              <Link
+                key={href}
+                href={href}
+                className="flex items-center justify-center w-full py-4 px-6 bg-[#0a1a0e]/65 border border-[#C9A84C]/40 text-white text-[15px] tracking-widest uppercase rounded-xl font-[family-name:var(--font-playfair)] hover:bg-[#0a1a0e]/85 hover:border-[#C9A84C] transition-all duration-300"
+                style={{ boxShadow: "inset 0 1px 0 rgba(201,168,76,0.10), 0 2px 16px rgba(0,0,0,0.35)" }}
+              >
+                {label}
+              </Link>
+            ))}
+
+            {/* Ports — pre-reveal: understated; post-reveal: amber glow */}
             <Link
-              href="/teams"
-              className="w-[312px] text-center py-[18px] border-2 border-white/70 text-white text-sm tracking-[0.25em] uppercase rounded-xl hover:border-gold hover:text-gold transition-colors duration-300 opacity-80"
+              href="/ulster"
+              className={
+                portsRevealed
+                  ? "flex items-center justify-center w-full py-4 px-6 bg-[#0a1a0e]/65 border border-[#C9A84C]/40 text-white text-[15px] tracking-widest uppercase rounded-xl font-[family-name:var(--font-playfair)] hover:bg-[#0a1a0e]/85 hover:border-[#C9A84C] transition-all duration-300 animate-ports-glow"
+                  : "flex items-center justify-center w-full py-4 px-6 bg-transparent border border-zinc-700/40 text-white/30 text-[15px] tracking-widest uppercase rounded-xl font-[family-name:var(--font-playfair)] hover:border-zinc-600/60 hover:text-white/40 transition-all duration-300"
+              }
             >
-              Team Selection
-            </Link>
-            <Link
-              href="/tee-times"
-              className="w-[312px] text-center py-[18px] border-2 border-white/70 text-white text-sm tracking-[0.25em] uppercase rounded-xl hover:border-gold hover:text-gold transition-colors duration-300 opacity-80"
-            >
-              Tee Times
-            </Link>
-            <Link
-              href="/scoring"
-              className="w-[312px] text-center py-[18px] border-2 border-white/70 text-white text-sm tracking-[0.25em] uppercase rounded-xl hover:border-gold hover:text-gold transition-colors duration-300 opacity-80"
-            >
-              Scoring
-            </Link>
-            <Link
-              href="/leaderboard"
-              className="w-[312px] text-center py-[18px] border-2 border-white/70 text-white text-sm tracking-[0.25em] uppercase rounded-xl hover:border-gold hover:text-gold transition-colors duration-300 opacity-80"
-            >
-              Leaderboard *
+              Ports
             </Link>
           </nav>
         </Countdown>

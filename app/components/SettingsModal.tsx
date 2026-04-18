@@ -321,7 +321,7 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
             <h2 className="font-[family-name:var(--font-playfair)] text-white text-lg">Settings</h2>
             <button
               onClick={onClose}
-              className="text-white/30 hover:text-white/70 transition-colors text-2xl leading-none"
+              className="text-white/30 hover:text-white/70 transition-colors text-2xl leading-none min-w-[44px] min-h-[44px] flex items-center justify-center"
             >
               ×
             </button>

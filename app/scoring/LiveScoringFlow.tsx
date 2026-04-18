@@ -1,10 +1,11 @@
 "use client"
 
-import React, { useState, useEffect, useRef } from "react"
+import React, { useState, useEffect, useRef, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
 import type { ActiveLiveRound } from "./ScoringClient"
 import LiveLeaderboardPanel from "./LiveLeaderboardPanel"
 import BackButton from "@/app/components/BackButton"
+import { useOfflineQueue } from "./useOfflineQueue"
 
 // ─── Types ────────────────────────────────────────────────
 
@@ -52,9 +53,13 @@ interface Props {
   /** Called whenever the active hole changes (step=holes). Receives (-1, 0)
    *  when not in the holes step so the parent can clear any hole display. */
   onHoleChange?: (holeIdx: number, totalHoles: number) => void
+  longestDriveHole?: number | null
+  nearestPinHole?: number | null
+  longestDriveWinner?: string | null
+  nearestPinWinner?: string | null
 }
 
-type LiveStep = "activate" | "setup" | "holes" | "summary" | "committed" | "resuming"
+type LiveStep = "activate" | "setup" | "handicaps" | "holes" | "summary" | "committed" | "resuming"
 
 // ─── Constants ────────────────────────────────────────────
 
@@ -74,6 +79,9 @@ const TEE_STYLES: Record<string, { dot: string; active: string }> = {
 
 // ─── Helpers ──────────────────────────────────────────────
 
+// Golf Ireland WHS (April 2024 rules)
+// Step 1 — Course Handicap : ROUND(HI × Slope/113 + (Course Rating − Par))
+// Playing Handicap = ROUND(HI × Slope/113 + (CR − Par))  [no allowance]
 function calcPlayingHandicap(hcpIndex: number, slope: number, courseRating: number, par: number) {
   return Math.round(hcpIndex * (slope / 113) + (courseRating - par))
 }
@@ -86,13 +94,11 @@ function calcStableford(gross: number, par: number, si: number, hcp: number) {
 function nrGross(par: number, si: number, hcp: number) {
   return par + 2 + shotsReceived(si, hcp)
 }
-function effectivePar(hole: Hole, gender: string, courseId: string) {
-  return gender === "F" && courseId === ST_PATRICKS_COURSE_ID && hole.par_ladies
-    ? hole.par_ladies : hole.par
+function effectivePar(hole: Hole, gender: string, _courseId: string) {
+  return gender === "F" && hole.par_ladies ? hole.par_ladies : hole.par
 }
-function effectiveSI(hole: Hole, gender: string, courseId: string) {
-  return gender === "F" && courseId === ST_PATRICKS_COURSE_ID && hole.stroke_index_ladies
-    ? hole.stroke_index_ladies : hole.stroke_index
+function effectiveSI(hole: Hole, gender: string, _courseId: string) {
+  return gender === "F" && hole.stroke_index_ladies ? hole.stroke_index_ladies : hole.stroke_index
 }
 function yardageForTee(hole: Hole, teeName: string): number | null {
   const key = `yardage_${teeName.toLowerCase()}` as keyof Hole
@@ -214,6 +220,10 @@ export default function LiveScoringFlow({
   showLeaderboard, onLeaderboardChange,
   autoResume = false,
   onHoleChange,
+  longestDriveHole,
+  nearestPinHole,
+  longestDriveWinner,
+  nearestPinWinner,
 }: Props) {
   const [liveRound, setLiveRound] = useState<ActiveLiveRound | null>(activeLiveRound)
   const [step, setStep] = useState<LiveStep>(
@@ -223,13 +233,13 @@ export default function LiveScoringFlow({
   // Setup state
   const [selectedPlayerIds, setSelectedPlayerIds] = useState<string[]>([])
   const [playerTeeIds, setPlayerTeeIds] = useState<Record<string, string>>({})
+  const [confirmedPhs, setConfirmedPhs] = useState<Record<string, number>>({})
 
   // Scoring state
   const [scores, setScores] = useState<Record<number, Record<string, HoleScore>>>({})
   const [holeIdx, setHoleIdx] = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
-  const [closeConfirm, setCloseConfirm] = useState(false)
   const [selectedSummaryPlayerId, setSelectedSummaryPlayerId] = useState("")
 
   // Edit mode (within summary)
@@ -243,8 +253,20 @@ export default function LiveScoringFlow({
   // Swipe gesture tracking
   const touchStartX = useRef<number | null>(null)
 
+  // Nav-bar state lifted above the swipe container so the button lives outside
+  // the overflow-x-hidden context (avoids iOS touch dead zone)
+  const [holesReady, setHolesReady] = useState(false)
+  const latestScoresRef = useRef<Record<string, HoleScore>>({})
+
   // Activate step state
   const [activatingRoundId, setActivatingRoundId] = useState("")
+
+  // Leaderboard refresh counter — increment to trigger an immediate fetch
+  const [lbRefreshKey, setLbRefreshKey] = useState(0)
+  const bumpLeaderboard = useCallback(() => setLbRefreshKey(k => k + 1), [])
+
+  // Offline score queue — wraps live_scores writes during active hole entry
+  const { enqueue, queueSize, syncState } = useOfflineQueue({ onSynced: bumpLeaderboard })
 
   const availableRounds = rounds.filter(r => r.status === "upcoming" || r.status === "active")
 
@@ -265,15 +287,29 @@ export default function LiveScoringFlow({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, holeIdx, courseHoles.length])
 
-  // Player setups — only for players that have a tee selected
+  // Reset nav-bar ready state whenever the active hole changes
+  useEffect(() => {
+    if (step !== "holes") return
+    const existing = scores[holeIdx] ?? {}
+    latestScoresRef.current = existing
+    setHolesReady(playerSetups.every(({ player }) => {
+      const hs = existing[player.id]
+      return (hs?.gross != null) || hs?.isNR === true
+    }))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holeIdx, step])
+
+  // Player setups — only for players that have a tee selected.
+  // Uses confirmedPhs when set (from the handicap review step), otherwise
+  // calculates fresh from HI + tee. The upsert in handleCommit writes the
+  // confirmed PH to round_handicaps.
   const playerSetups: PlayerSetup[] = selectedPlayerIds
     .filter(id => playerTeeIds[id])
     .map(id => {
       const player = players.find(p => p.id === id)!
       const tee = tees.find(t => t.id === playerTeeIds[id])!
-      const existingHcp = roundHandicaps.find(rh => rh.round_id === roundId && rh.player_id === id)
-      const playingHcp = existingHcp?.playing_handicap
-        ?? calcPlayingHandicap(player.handicap, tee.slope, tee.course_rating, tee.par)
+      const calculated = calcPlayingHandicap(player.handicap, tee.slope, tee.course_rating, tee.par)
+      const playingHcp = confirmedPhs[id] ?? calculated
       return { player, tee, playingHcp }
     })
 
@@ -285,20 +321,25 @@ export default function LiveScoringFlow({
   // selectable until manually unfinalised via the dashboard settings tab.
   useEffect(() => {
     if (step !== "setup" || !liveRound) return
+    console.log("[lockedPlayerIds] all players before lock filter:", players.map(p => ({ id: p.id, name: p.name })))
     supabase
       .from("live_rounds")
       .select("id")
       .eq("round_id", liveRound.round_id)
       .in("status", ["active", "finalised"])
       .neq("id", liveRound.id)
-      .then(async ({ data: otherRounds }) => {
+      .then(async ({ data: otherRounds, error: otherRoundsError }) => {
+        console.log("[lockedPlayerIds] otherRounds:", otherRounds, "error:", otherRoundsError)
         const ids = (otherRounds ?? []).map((r: any) => r.id as string)
         if (ids.length === 0) { setLockedPlayerIds([]); return }
-        const { data: locks } = await supabase
+        const { data: locks, error: locksError } = await supabase
           .from("live_player_locks")
           .select("player_id")
           .in("live_round_id", ids)
-        setLockedPlayerIds(locks?.map(r => r.player_id as string) ?? [])
+        console.log("[lockedPlayerIds] locks:", locks, "error:", locksError)
+        const locked = locks?.map(r => r.player_id as string) ?? []
+        console.log("[lockedPlayerIds] setting lockedPlayerIds:", locked)
+        setLockedPlayerIds(locked)
       })
   }, [step, liveRound?.id])
 
@@ -326,11 +367,13 @@ export default function LiveScoringFlow({
         return
       }
 
-      const { data: existingScores } = await supabase
+      const { data: existingScores, error: resumeErr } = await supabase
         .from("live_scores")
-        .select("player_id, hole_number, gross_score, stableford_points, no_return")
-        .in("player_id", lockedIds)
+        .select("player_id, hole_number, gross_score, stableford_points")
         .eq("round_id", rId)
+        .in("player_id", lockedIds)
+
+      if (resumeErr) return
 
       // Pick tees: first gender-matching tee for the course (playing_handicap
       // already stored in round_handicaps so tee choice only affects yardage display)
@@ -339,7 +382,11 @@ export default function LiveScoringFlow({
       for (const pid of lockedIds) {
         const player = players.find(p => p.id === pid)
         if (!player) continue
-        const tee = courseTees.find(t => t.gender === player.gender) ?? courseTees[0]
+        const preferredNames = player.gender === 'M' ? ['Blue', 'Slate'] : ['Red', 'Claret']
+        const tee = preferredNames.reduce<typeof courseTees[0] | undefined>(
+          (found, name) => found ?? courseTees.find(t => t.gender === player.gender && t.name === name),
+          undefined
+        ) ?? courseTees.find(t => t.gender === player.gender) ?? courseTees[0]
         if (tee) teeMap[pid] = tee.id
       }
 
@@ -352,7 +399,7 @@ export default function LiveScoringFlow({
         if (!scoreState[idx]) scoreState[idx] = {}
         scoreState[idx][row.player_id] = {
           gross: row.gross_score,
-          isNR: row.no_return === true,
+          isNR: false,
           stableford: row.stableford_points,
         }
       }
@@ -437,27 +484,6 @@ export default function LiveScoringFlow({
     setStep("setup")
   }
 
-  // ─── Close round ─────────────────────────────────────────
-
-  async function handleCloseRound() {
-    if (!liveRound) return
-    setSaving(true)
-    await Promise.all([
-      supabase
-        .from("live_rounds")
-        .update({ status: "closed", closed_at: new Date().toISOString() })
-        .eq("id", liveRound.id),
-      supabase
-        .from("live_player_locks")
-        .delete()
-        .eq("live_round_id", liveRound.id),
-    ])
-    setSaving(false)
-    setCloseConfirm(false)
-    resetFlow()
-    onBack()
-  }
-
   // ─── Commit ───────────────────────────────────────────────
 
   // ─── Edit mode helpers ────────────────────────────────────
@@ -537,7 +563,15 @@ export default function LiveScoringFlow({
     setSaving(true)
     setError(null)
     try {
-      // 1. Upsert round_handicaps
+      // Read blinded state fresh from DB at commit time
+      const { data: lrMeta } = await supabase
+        .from("live_rounds")
+        .select("blinded")
+        .eq("id", liveRound.id)
+        .single()
+      const isBlinded = lrMeta?.blinded ?? false
+
+      // 1. Upsert round_handicaps (always — needed for batch commit when blinded)
       await Promise.all(
         playerSetups.map(({ player, playingHcp }) =>
           supabase.from("round_handicaps").upsert(
@@ -547,40 +581,42 @@ export default function LiveScoringFlow({
         )
       )
 
-      // 2. Delete existing scores for these players then insert fresh
-      await Promise.all(
-        playerSetups.map(({ player }) =>
-          supabase.from("scores").delete()
-            .eq("player_id", player.id).eq("round_id", roundId)
+      if (!isBlinded) {
+        // 2. Delete existing scores for these players then insert fresh
+        await Promise.all(
+          playerSetups.map(({ player }) =>
+            supabase.from("scores").delete()
+              .eq("player_id", player.id).eq("round_id", roundId)
+          )
         )
-      )
 
-      // 3. Upsert scores — every hole for every player; missing/blank → NR
-      const scoreRows: any[] = []
-      for (const [hIdx, hole] of courseHoles.entries()) {
-        for (const setup of playerSetups) {
-          const hs = scores[hIdx]?.[setup.player.id]
-          const noReturn = hs?.isNR === true || hs?.gross == null
-          const p = effectivePar(hole, setup.player.gender, courseId)
-          const si = effectiveSI(hole, setup.player.gender, courseId)
-          scoreRows.push({
-            player_id: setup.player.id, hole_id: hole.id, round_id: roundId,
-            gross_score: noReturn ? nrGross(p, si, setup.playingHcp) : hs!.gross!,
-            no_return: noReturn,
-          })
+        // 3. Upsert scores — every hole for every player; missing/blank → NR
+        const scoreRows: any[] = []
+        for (const [hIdx, hole] of courseHoles.entries()) {
+          for (const setup of playerSetups) {
+            const hs = scores[hIdx]?.[setup.player.id]
+            const noReturn = hs?.isNR === true || hs?.gross == null
+            const p = effectivePar(hole, setup.player.gender, courseId)
+            const si = effectiveSI(hole, setup.player.gender, courseId)
+            scoreRows.push({
+              player_id: setup.player.id, hole_id: hole.id, round_id: roundId,
+              gross_score: noReturn ? nrGross(p, si, setup.playingHcp) : hs!.gross!,
+              no_return: noReturn,
+            })
+          }
         }
-      }
-      if (scoreRows.length > 0) {
-        const { error: scoreErr } = await supabase.from("scores")
-          .upsert(scoreRows, { onConflict: "player_id,hole_id,round_id" })
-        if (scoreErr) throw scoreErr
-      }
+        if (scoreRows.length > 0) {
+          const { error: scoreErr } = await supabase.from("scores")
+            .upsert(scoreRows, { onConflict: "player_id,hole_id,round_id" })
+          if (scoreErr) throw scoreErr
+        }
 
-      // 4. Generate composite scores for each role completed by this finalisation
-      const roles = [...new Set(playerSetups.map(s => s.player.role))]
-      roles.forEach(role => {
-        generateCompositeScores(role, roundId, players, courseHoles).catch(() => {})
-      })
+        // 4. Generate composite scores for each role completed by this finalisation
+        const roles = [...new Set(playerSetups.map(s => s.player.role))]
+        roles.forEach(role => {
+          generateCompositeScores(role, roundId, players, courseHoles).catch(() => {})
+        })
+      }
 
       // 5. Mark live_scores committed
       await supabase.from("live_scores")
@@ -588,13 +624,37 @@ export default function LiveScoringFlow({
         .in("player_id", playerSetups.map(p => p.player.id))
         .eq("round_id", roundId)
 
-      // 6. Finalise the live round and return to the course portal
-      // Note: player locks are intentionally kept so the live leaderboard
-      // continues to display finalised players. Locks are only removed on discard.
+      // 6. Finalise the live round
       await supabase
         .from("live_rounds")
         .update({ status: "finalised", closed_at: new Date().toISOString() })
         .eq("id", liveRound.id)
+
+      if (isBlinded) {
+        // Check if all live_rounds with locked players for this round_id are now finalised
+        const { data: stillActive } = await supabase
+          .from("live_rounds")
+          .select("id")
+          .eq("round_id", roundId)
+          .eq("status", "active")
+
+        if (stillActive && stillActive.length > 0) {
+          // Check if any still-active rounds have players
+          const { data: activeLocks } = await supabase
+            .from("live_player_locks")
+            .select("player_id")
+            .in("live_round_id", stillActive.map(r => r.id))
+          if ((activeLocks?.length ?? 0) > 0) {
+            // Others still playing — deferred commit stays deferred
+            onBack()
+            return
+          }
+        }
+
+        // All player groups finalised — batch commit all scores to official table
+        await batchCommitBlindedScores()
+      }
+
       onBack()
     } catch (e: any) {
       setError(e?.message ?? "Failed to commit scores")
@@ -603,25 +663,81 @@ export default function LiveScoringFlow({
     }
   }
 
-  // ─── Close confirm overlay ────────────────────────────────
+  async function batchCommitBlindedScores() {
+    // Find all finalised live_rounds for this round
+    const { data: finalisedRounds } = await supabase
+      .from("live_rounds")
+      .select("id")
+      .eq("round_id", roundId)
+      .eq("status", "finalised")
+    if (!finalisedRounds?.length) return
 
-  if (closeConfirm) {
-    return (
-      <div className="flex-1 flex flex-col items-center justify-center px-6 gap-6 py-12">
-        <div className="text-center">
-          <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white mb-2">Discard Scorecard?</h2>
-          <p className="text-white/40 text-base">This voids the scorecard and releases all players. Scores will not be saved.</p>
-        </div>
-        <div className="flex gap-3 w-full max-w-xs">
-          <button onClick={() => setCloseConfirm(false)} className="flex-1 py-3 border border-white/20 text-white/60 text-base uppercase tracking-wider hover:border-white/40 transition-colors">
-            Cancel
-          </button>
-          <button onClick={handleCloseRound} disabled={saving} className="flex-1 py-3 bg-red-900/60 border border-red-700/50 text-red-300 text-base uppercase tracking-wider hover:bg-red-900/80 disabled:opacity-50 transition-colors">
-            {saving ? "Voiding…" : "Discard"}
-          </button>
-        </div>
-      </div>
-    )
+    // Get all player_ids across all finalised groups
+    const { data: locks } = await supabase
+      .from("live_player_locks")
+      .select("player_id")
+      .in("live_round_id", finalisedRounds.map(r => r.id))
+    const playerIds = [...new Set(locks?.map(l => l.player_id as string) ?? [])]
+    if (!playerIds.length) return
+
+    // Get round_handicaps (written by each group's step 1)
+    const { data: rhData } = await supabase
+      .from("round_handicaps")
+      .select("player_id, playing_handicap")
+      .eq("round_id", roundId)
+      .in("player_id", playerIds)
+    const hcpMap = new Map(rhData?.map(r => [r.player_id as string, r.playing_handicap as number]) ?? [])
+
+    // Get live_scores for all players
+    const { data: lsData } = await supabase
+      .from("live_scores")
+      .select("player_id, hole_number, gross_score, stableford_points")
+      .eq("round_id", roundId)
+      .in("player_id", playerIds)
+    if (!lsData?.length) return
+
+    // Delete existing official scores for these players (clean slate)
+    await Promise.all(playerIds.map(pid =>
+      supabase.from("scores").delete()
+        .eq("player_id", pid).eq("round_id", roundId)
+    ))
+
+    // Build score rows — detect NR from gross matching the expected NR value
+    const scoreRows: any[] = []
+    for (const ls of lsData) {
+      if (ls.gross_score == null) continue
+      const hole = courseHoles.find(h => h.hole_number === ls.hole_number)
+      if (!hole) continue
+      const player = players.find(p => p.id === ls.player_id)
+      if (!player) continue
+      const hcp = hcpMap.get(ls.player_id) ?? 0
+      const ePar = effectivePar(hole, player.gender, courseId)
+      const eSI  = effectiveSI(hole, player.gender, courseId)
+      const sr   = shotsReceived(eSI, hcp)
+      const expectedNrGross = ePar + 2 + sr
+      const isNR = ls.gross_score === expectedNrGross && (ls.stableford_points ?? 1) === 0
+      scoreRows.push({
+        player_id: ls.player_id,
+        hole_id: hole.id,
+        round_id: roundId,
+        gross_score: ls.gross_score,
+        no_return: isNR,
+      })
+    }
+
+    if (scoreRows.length > 0) {
+      const { error } = await supabase.from("scores")
+        .upsert(scoreRows, { onConflict: "player_id,hole_id,round_id" })
+      if (error) throw error
+    }
+
+    // Generate composite scores for all roles
+    const roles = [...new Set(
+      playerIds.map(pid => players.find(p => p.id === pid)?.role).filter(Boolean) as string[]
+    )]
+    roles.forEach(role => {
+      generateCompositeScores(role, roundId, players, courseHoles).catch(() => {})
+    })
   }
 
   // ─── Leaderboard panel (non-holes steps) ─────────────────
@@ -634,6 +750,9 @@ export default function LiveScoringFlow({
         holes={holes}
         roundHandicaps={roundHandicaps}
         onClose={() => onLeaderboardChange(false)}
+        longestDriveWinner={longestDriveWinner}
+        nearestPinWinner={nearestPinWinner}
+        refreshKey={lbRefreshKey}
       />
     )
   }
@@ -702,6 +821,18 @@ export default function LiveScoringFlow({
   if (step === "setup") {
     const courseTees = tees.filter(t => t.course_id === courseId)
 
+    function defaultTeeId(pid: string): string | undefined {
+      const playerObj = players.find(p => p.id === pid)
+      if (!playerObj) return undefined
+      const cTees = courseTees.filter(t => t.gender === playerObj.gender)
+      const preferred = playerObj.gender === 'M' ? ['Blue', 'Slate'] : ['Red', 'Claret']
+      for (const name of preferred) {
+        const t = cTees.find(t => t.name === name)
+        if (t) return t.id
+      }
+      return cTees[0]?.id
+    }
+
     function togglePlayer(pid: string) {
       const isSelected = selectedPlayerIds.includes(pid)
       if (isSelected) {
@@ -711,12 +842,17 @@ export default function LiveScoringFlow({
         }
       } else if (selectedPlayerIds.length < 4) {
         setSelectedPlayerIds(prev => [...prev, pid])
+        const tid = defaultTeeId(pid)
+        if (tid) setPlayerTeeIds(prev => ({ ...prev, [pid]: tid }))
       }
     }
 
     function setTeeForPlayer(pid: string, tid: string) {
       setPlayerTeeIds(prev => ({ ...prev, [pid]: tid }))
     }
+
+    const availablePlayers = players.filter(p => !lockedPlayerIds.includes(p.id))
+    console.log("[setup] lockedPlayerIds:", lockedPlayerIds, "availablePlayers:", availablePlayers.map(p => ({ id: p.id, name: p.name })))
 
     return (
       <div className="max-w-lg mx-auto w-full px-4 py-6 flex flex-col gap-5">
@@ -725,7 +861,7 @@ export default function LiveScoringFlow({
             Select Players (1–4)
           </label>
 
-          {players.filter(p => !lockedPlayerIds.includes(p.id)).map(player => {
+          {availablePlayers.map(player => {
             const isSelected = selectedPlayerIds.includes(player.id)
             const playerCourseTees = courseTees.filter(t => t.gender === player.gender)
             const selectedTeeId = playerTeeIds[player.id] ?? ""
@@ -745,9 +881,7 @@ export default function LiveScoringFlow({
                       : "border-white/20 text-white/60 hover:border-white/40"}`}
                 >
                   <div className="flex items-center gap-2">
-                    {player.teams && (
-                      <span className="w-2 h-2 rounded-full" style={{ backgroundColor: player.teams.color }} />
-                    )}
+                    <span className="w-2 h-2 rounded-full" style={{ backgroundColor: player.teams?.color ?? "#6b7280" }} />
                     <span>{player.name}</span>
                   </div>
                   <span className="text-sm opacity-50">HCP {player.handicap}</span>
@@ -793,22 +927,102 @@ export default function LiveScoringFlow({
         </div>
 
         <button
-          onClick={async () => {
+          onClick={() => {
             setScores({}); setHoleIdx(0)
-            await lockPlayers()
-            setStep("holes")
+            const initPhs: Record<string, number> = {}
+            for (const { player, playingHcp } of playerSetups) {
+              initPhs[player.id] = playingHcp
+            }
+            setConfirmedPhs(initPhs)
+            setStep("handicaps")
             window.scrollTo({ top: 0, behavior: "instant" })
           }}
           disabled={!canStart}
           className={`w-full py-4 text-base tracking-[0.2em] uppercase transition-colors
             ${canStart ? "bg-[#C9A84C] text-black hover:bg-[#d4b05a]" : "bg-white/10 text-white/30 cursor-not-allowed"}`}
         >
-          Start Round →
+          Review Handicaps →
         </button>
 
-        <button onClick={() => setCloseConfirm(true)} className="text-center text-white/20 text-sm tracking-widest uppercase hover:text-red-400/60 transition-colors">
-          Close Live Round
+      </div>
+    )
+  }
+
+  // ─── Handicap review ──────────────────────────────────────
+
+  if (step === "handicaps") {
+    return (
+      <div className="max-w-lg mx-auto w-full px-4 pt-6 pb-[calc(1.5rem+env(safe-area-inset-bottom,0px))] flex flex-col gap-4">
+
+        <div className="flex items-center justify-between mb-2">
+          <button
+            onClick={() => { setConfirmedPhs({}); setStep("setup") }}
+            className="text-white/40 hover:text-white/70 text-sm tracking-widest uppercase transition-colors"
+          >
+            ← Back
+          </button>
+          <span className="text-xs tracking-[0.25em] uppercase text-white/30">Playing Handicaps</span>
+          <span className="w-12" />
+        </div>
+
+        <p className="text-white/40 text-xs text-center tracking-wide -mt-2 mb-1">
+          Adjust if needed, then confirm to start.
+        </p>
+
+        {playerSetups.map(({ player, tee }) => {
+          const calculated = calcPlayingHandicap(player.handicap, tee.slope, tee.course_rating, tee.par)
+          const current = confirmedPhs[player.id] ?? calculated
+          const isModified = current !== calculated
+          const roleLabel = player.role === "dad" ? "Dad" : player.role === "mum" ? "Mum" : "Son"
+
+          return (
+            <div key={player.id} className="bg-[#0f2418] border border-[#1e3d28] rounded-sm px-4 py-4">
+              <div className="flex items-start justify-between mb-4">
+                <div>
+                  <div className="text-white font-semibold text-base">{player.name}</div>
+                  <div className="text-white/40 text-xs mt-0.5 tracking-wide">
+                    {roleLabel} · {tee.name} tee
+                    {isModified && (
+                      <span className="ml-2 text-[#C9A84C]/70">
+                        (calculated {calculated})
+                      </span>
+                    )}
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-center gap-6">
+                <button
+                  onClick={() => setConfirmedPhs(prev => ({ ...prev, [player.id]: Math.max(0, current - 1) }))}
+                  className="w-12 h-12 rounded-full border border-[#1e3d28] text-white/70 text-2xl flex items-center justify-center hover:border-[#C9A84C]/50 hover:text-white active:bg-[#1e3d28] transition-colors"
+                >
+                  −
+                </button>
+                <span className="text-[#C9A84C] font-[family-name:var(--font-playfair)] text-4xl w-16 text-center">
+                  {current}
+                </span>
+                <button
+                  onClick={() => setConfirmedPhs(prev => ({ ...prev, [player.id]: Math.min(54, current + 1) }))}
+                  className="w-12 h-12 rounded-full border border-[#1e3d28] text-white/70 text-2xl flex items-center justify-center hover:border-[#C9A84C]/50 hover:text-white active:bg-[#1e3d28] transition-colors"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+          )
+        })}
+
+        <button
+          onClick={async () => {
+            await lockPlayers()
+            setStep("holes")
+            window.scrollTo({ top: 0, behavior: "instant" })
+          }}
+          className="w-full py-4 mt-2 bg-[#C9A84C] text-black text-base tracking-[0.2em] uppercase hover:bg-[#d4b05a] transition-colors"
+        >
+          Confirm &amp; Start →
         </button>
+
       </div>
     )
   }
@@ -839,7 +1053,6 @@ export default function LiveScoringFlow({
     }
 
     async function handleHoleSubmit(holeScores: Record<string, HoleScore>) {
-      // Save to live_scores (non-blocking)
       const rows = playerSetups
         .map(({ player, playingHcp }) => {
           const hs = holeScores[player.id]
@@ -854,11 +1067,22 @@ export default function LiveScoringFlow({
             committed: false,
           }
         }).filter(Boolean)
+
       if (rows.length > 0) {
-        supabase.from("live_scores").upsert(rows as any, { onConflict: "player_id,round_id,hole_number" })
-          .then(() => {}) // fire and forget
+        setSaving(true)
+        const { error: saveErr } = await supabase
+          .from("live_scores")
+          .upsert(rows as any, { onConflict: "player_id,round_id,hole_number" })
+        setSaving(false)
+        if (saveErr) {
+          // Save locally and continue — will auto-retry every 15 s
+          enqueue(rows as any[], hole.hole_number)
+        } else {
+          bumpLeaderboard()
+        }
       }
 
+      setError(null)
       const updated: Record<string, HoleScore> = {}
       for (const { player, playingHcp } of playerSetups) {
         const hs = holeScores[player.id]
@@ -882,6 +1106,7 @@ export default function LiveScoringFlow({
     }
 
     return (
+      <>
       <div
         className="overflow-x-hidden"
         onTouchStart={(e) => { touchStartX.current = e.touches[0].clientX }}
@@ -894,20 +1119,24 @@ export default function LiveScoringFlow({
         }}
       >
         <div
-          className="flex transition-transform duration-300 ease-out"
-          style={{ width: "200%", transform: showLeaderboard ? "translateX(-50%)" : "translateX(0)" }}
+          className="flex items-start"
+          style={{ width: "200%", marginLeft: showLeaderboard ? "-100%" : "0", transition: "margin-left 300ms ease-out" }}
         >
           {/* Left panel: hole score entry */}
           <div style={{ width: "50%" }}>
             <HoleCard
-              key={hole.id}
+              key={`${hole.id}-${Object.keys(scores[holeIdx] ?? {}).length}`}
               hole={hole}
               playerSetups={playerSetups}
               courseId={courseId}
               existingScores={existingHoleScores}
               runningTotals={runningTotals}
-              onSubmit={handleHoleSubmit}
-              onBack={handleHoleBack}
+              longestDriveHole={longestDriveHole}
+              nearestPinHole={nearestPinHole}
+              onScoresChange={(scores, ready) => {
+                latestScoresRef.current = scores
+                setHolesReady(ready)
+              }}
             />
           </div>
           {/* Right panel: live leaderboard */}
@@ -918,11 +1147,56 @@ export default function LiveScoringFlow({
                 players={players}
                 holes={holes}
                 roundHandicaps={roundHandicaps}
+                longestDriveWinner={longestDriveWinner}
+                nearestPinWinner={nearestPinWinner}
+                refreshKey={lbRefreshKey}
               />
             )}
           </div>
         </div>
       </div>
+
+      {/* Nav bar — rendered OUTSIDE overflow-x-hidden so iOS touch zones are correct */}
+      {!showLeaderboard && (
+        <div className="fixed bottom-0 left-0 z-50 w-screen px-4 bg-[#0a1a0e] border-t border-[#1e3d28] pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex flex-col gap-2">
+          {(queueSize > 0 || syncState === "synced") && (
+            <div className="flex items-center gap-2 py-1.5 px-3 rounded-sm bg-[#0f2418] border border-[#1e3d28]">
+              {syncState === "synced" ? (
+                <span className="text-emerald-400 text-xs tracking-wide">✓ Scores synced</span>
+              ) : (
+                <>
+                  <span className="w-2 h-2 rounded-full bg-amber-400 animate-pulse flex-shrink-0" />
+                  <span className="text-white/50 text-xs tracking-wide">
+                    Scores saved locally — syncing when connected
+                  </span>
+                </>
+              )}
+            </div>
+          )}
+          <div className="flex gap-3">
+            <button
+              onClick={handleHoleBack}
+              disabled={saving}
+              className="flex-1 py-4 border border-white/20 text-white/50 text-2xl
+                hover:border-white/40 hover:text-white/70 active:bg-white/5 disabled:opacity-30 transition-colors rounded-sm"
+              aria-label="Previous hole"
+            >
+              ←
+            </button>
+            <button
+              onClick={() => handleHoleSubmit(latestScoresRef.current)}
+              disabled={!holesReady || saving}
+              className="flex-[2] py-4 bg-[#C9A84C] text-black text-2xl font-bold
+                hover:bg-[#d4b05a] disabled:opacity-30 disabled:cursor-not-allowed
+                active:scale-[0.98] transition-all rounded-sm"
+              aria-label="Next hole"
+            >
+              {saving ? "…" : "→"}
+            </button>
+          </div>
+        </div>
+      )}
+      </>
     )
   }
 
@@ -945,9 +1219,7 @@ export default function LiveScoringFlow({
           <div className="sticky top-[77px] z-10 bg-[#0a1a0e] border-b border-[#1e3d28] px-4 py-3 flex items-center justify-between">
             <BackButton onClick={() => setEditingPlayerId(null)} />
             <div className="flex items-center gap-2">
-              {player.teams && (
-                <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams.color }} />
-              )}
+              <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams?.color ?? "#6b7280" }} />
               <span className="text-white/80 text-base font-semibold">{player.name}</span>
             </div>
             <div className="w-[60px]" />
@@ -1085,9 +1357,7 @@ export default function LiveScoringFlow({
                       : "border-[#1e3d28] bg-[#0f2418] hover:border-white/20"}`}
                 >
                   <div className="flex items-center gap-1.5 mb-1">
-                    {player.teams && (
-                      <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams.color }} />
-                    )}
+                    <span className="w-2 h-2 rounded-full flex-shrink-0" style={{ backgroundColor: player.teams?.color ?? "#6b7280" }} />
                     <span className={`text-base font-medium leading-tight ${isSel ? "text-white" : "text-white/55"}`}>
                       {player.name.split(" ")[0]}
                     </span>
@@ -1148,11 +1418,21 @@ export default function LiveScoringFlow({
             if (gross === null) return <span className="text-[#A89880] text-base">—</span>
             const diff = gross - ePar
             const n = <span className="text-base font-semibold leading-none">{gross}</span>
-            if (diff <= -2) return <span className="w-7 h-7 rounded-full bg-[#C9A84C] flex items-center justify-center text-[#3A3A2E]">{n}</span>
-            if (diff === -1) return <span className="w-7 h-7 rounded-full border border-[#C9A84C] flex items-center justify-center text-[#5A4F3A]">{n}</span>
+            if (diff <= -2) return (
+              <span className="relative inline-flex items-center justify-center w-7 h-7 rounded-full border border-[#C9A84C]">
+                <span className="absolute inset-[2px] rounded-full border border-[#C9A84C]" />
+                <span className="relative text-[10px] font-semibold leading-none text-[#7B5C1E]">{gross}</span>
+              </span>
+            )
+            if (diff === -1) return <span className="w-7 h-7 rounded-full border border-[#C9A84C] flex items-center justify-center text-[#7B5C1E]">{n}</span>
             if (diff === 0)  return <span className="text-[#3A3A2E] text-sm font-semibold" style={{ fontFamily: "Georgia, serif" }}>{gross}</span>
-            if (diff === 1)  return <span className="w-7 h-7 bg-[#E8DCBC]/50 rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
-            return               <span className="w-7 h-7 bg-[#E8DCBC] rounded-md flex items-center justify-center text-[#5A4F3A]">{n}</span>
+            if (diff === 1)  return <span className="w-7 h-7 rounded-md border border-[#9B8860] flex items-center justify-center text-[#5A4F3A]">{n}</span>
+            return (
+              <span className="relative inline-flex items-center justify-center w-7 h-7 rounded-md border border-[#9B8860]">
+                <span className="absolute inset-[2px] rounded-sm border border-[#9B8860]" />
+                <span className="relative text-base font-semibold leading-none text-[#5A4F3A]">{gross}</span>
+              </span>
+            )
           }
 
           const ptsColor = (pts: number | null) =>
@@ -1167,46 +1447,45 @@ export default function LiveScoringFlow({
           const dark  = "text-[#3A3A2E]"
 
           return (
-            <div className="rounded-xl shadow-[0_4px_24px_rgba(0,0,0,0.22)] relative" style={{ background: "#F5F0E8" }}>
+            // Outer wrapper has no border-radius — rounded-xl on a sticky ancestor
+            // triggers implicit overflow clipping in WebKit, breaking position:sticky.
+            // Rounding is applied only to the first and last rows instead.
+            <div className="shadow-[0_4px_24px_rgba(0,0,0,0.22)] flex flex-col">
 
               {/* Course banner — scrolls with page, does not stick */}
               <div className="rounded-t-xl px-4 py-3 border-b border-[#2a5540]" style={{ background: "#1C3E2A" }}>
                 <p className="text-white text-base font-semibold" style={sf}>{courseNameLabel}</p>
               </div>
 
-              {/* Sticky: player details row + column header row */}
-              <div className="sticky top-[77px] z-10">
-
-                {/* Player details row */}
-                <div className="flex items-end gap-4 px-4 py-2.5 border-b border-[#D4CBBA]" style={{ background: "#EAE4D5" }}>
-                  <div className="flex flex-col flex-1 min-w-0">
-                    <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>Player</span>
-                    <span className="font-[family-name:var(--font-playfair)] text-xl text-[#2C2C1E] font-semibold leading-tight truncate">{player.name}</span>
-                  </div>
-                  <div className="flex flex-col items-end flex-shrink-0">
-                    <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>Tee</span>
-                    <div className="flex items-center gap-1.5">
-                      <span className={`w-3 h-3 rounded-full flex-shrink-0 ${TEE_STYLES[tee.name]?.dot ?? "bg-white/40"}`} />
-                      <span className={`text-base font-semibold ${dark}`} style={sf}>{tee.name}</span>
-                    </div>
-                  </div>
-                  <div className="flex flex-col items-end flex-shrink-0">
-                    <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>PH</span>
-                    <span className={`text-base font-semibold ${dark}`} style={sf}>{playingHcp}</span>
+              {/* Player details row — sticky below page header (header = h-11 44px + py-2 16px + border 1px = 61px) */}
+              <div className="sticky top-[61px] z-10 flex items-end gap-4 px-4 py-2.5 border-b border-[#D4CBBA] bg-[#EAE4D5]">
+                <div className="flex flex-col flex-1 min-w-0">
+                  <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>Player</span>
+                  <span className="font-[family-name:var(--font-playfair)] text-xl text-[#2C2C1E] font-semibold leading-tight truncate">{player.name}</span>
+                </div>
+                <div className="flex flex-col items-end flex-shrink-0">
+                  <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>Tee</span>
+                  <div className="flex items-center gap-1.5">
+                    <span className={`w-3 h-3 rounded-full flex-shrink-0 ${TEE_STYLES[tee.name]?.dot ?? "bg-white/40"}`} />
+                    <span className={`text-base font-semibold ${dark}`} style={sf}>{tee.name}</span>
                   </div>
                 </div>
-
-                {/* Column headers */}
-                <div className={`${grid} px-3 py-2 border-b border-[#D4CBBA]`} style={{ background: "#EAE4D5" }}>
-                  {(["Hole","Yds","Par","SI","Score","Pts"] as const).map((h, i) => (
-                    <span key={h} className={`text-[11px] tracking-[0.15em] uppercase font-semibold ${muted} ${i === 4 ? "text-center" : i === 5 ? "text-right" : ""}`} style={sf}>{h}</span>
-                  ))}
+                <div className="flex flex-col items-end flex-shrink-0">
+                  <span className={`text-[10px] tracking-[0.15em] uppercase ${muted}`} style={sf}>PH</span>
+                  <span className={`text-base font-semibold ${dark}`} style={sf}>{playingHcp}</span>
                 </div>
               </div>
 
-              {/* Front 9 */}
+              {/* Column headers — sticky below player row (61px header + 61px player row = 122px) */}
+              <div className={`sticky top-[122px] z-10 ${grid} px-3 py-2 border-b-2 border-gray-200 bg-gray-50`}>
+                {(["Hole","Yds","Par","SI","Score","Pts"] as const).map((h, i) => (
+                  <span key={h} className={`text-sm uppercase tracking-wide text-gray-400 ${i === 0 ? "font-semibold font-[family-name:var(--font-playfair)]" : "font-normal"} ${i === 4 ? "text-center" : i === 5 ? "text-right" : ""}`}>{h}</span>
+                ))}
+              </div>
+
+              {/* Front 9 — explicit bg needed now that the outer card has no background */}
               {rows.slice(0, 9).map(({ hole, idx, isNR, gross, pts, ePar, eSI, yardage }) => (
-                <div key={hole.id} className={`${grid} px-3 py-2 items-center border-b border-[#E2DAC8] ${idx % 2 === 1 ? "bg-[#EEE8D6]" : ""}`}>
+                <div key={hole.id} className={`${grid} px-3 py-2 items-center border-b border-[#E2DAC8] ${idx % 2 === 1 ? "bg-[#EEE8D6]" : "bg-[#F5F0E8]"}`}>
                   <span className={`text-base font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
                   <span className={`text-base ${muted}`} style={sf}>{yardage ?? "—"}</span>
                   <span className={`text-base ${dark}`} style={sf}>{ePar}</span>
@@ -1216,8 +1495,8 @@ export default function LiveScoringFlow({
                 </div>
               ))}
 
-              {/* Out subtotal — gold fill, bolder text */}
-              <div className={`${grid} px-3 py-2.5 items-center border-b border-[#C9A84C]/20`} style={{ background: "rgba(201,168,76,0.16)" }}>
+              {/* Out subtotal */}
+              <div className={`${grid} px-3 py-2.5 items-center border-t-2 bg-[#EBE0C6]`} style={{ borderColor: "rgba(201,168,76,0.5)" }}>
                 <span className="text-sm font-bold tracking-widest uppercase text-[#5C4520]" style={sf}>Out</span>
                 <span className={`text-sm ${muted}`} style={sf}>{front9Yards > 0 ? front9Yards : "—"}</span>
                 <span className={`text-sm font-bold ${dark}`} style={sf}>{front9Par}</span>
@@ -1226,9 +1505,9 @@ export default function LiveScoringFlow({
                 <span className={`text-right text-lg font-bold text-[#7B6C3E]`} style={sf}>{front9Pts}</span>
               </div>
 
-              {/* Back 9 — pos = idx+1; bg when idx is even (pos is odd) */}
+              {/* Back 9 — explicit bg needed */}
               {rows.slice(9).map(({ hole, idx, isNR, gross, pts, ePar, eSI, yardage }) => (
-                <div key={hole.id} className={`${grid} px-3 py-2 items-center border-b border-[#E2DAC8] ${idx % 2 === 0 ? "bg-[#EEE8D6]" : ""}`}>
+                <div key={hole.id} className={`${grid} px-3 py-2 items-center border-b border-[#E2DAC8] ${idx % 2 === 0 ? "bg-[#EEE8D6]" : "bg-[#F5F0E8]"}`}>
                   <span className={`text-base font-semibold ${dark}`} style={sf}>{hole.hole_number}</span>
                   <span className={`text-base ${muted}`} style={sf}>{yardage ?? "—"}</span>
                   <span className={`text-base ${dark}`} style={sf}>{ePar}</span>
@@ -1238,8 +1517,8 @@ export default function LiveScoringFlow({
                 </div>
               ))}
 
-              {/* In subtotal — gold fill, bolder text */}
-              <div className={`${grid} px-3 py-2.5 items-center border-b border-[#C9A84C]/20`} style={{ background: "rgba(201,168,76,0.16)" }}>
+              {/* In subtotal */}
+              <div className={`${grid} px-3 py-2.5 items-center border-t-2 bg-[#EBE0C6]`} style={{ borderColor: "rgba(201,168,76,0.5)" }}>
                 <span className="text-sm font-bold tracking-widest uppercase text-[#5C4520]" style={sf}>In</span>
                 <span className={`text-sm ${muted}`} style={sf}>{back9Yards > 0 ? back9Yards : "—"}</span>
                 <span className={`text-sm font-bold ${dark}`} style={sf}>{back9Par}</span>
@@ -1248,10 +1527,10 @@ export default function LiveScoringFlow({
                 <span className={`text-right text-lg font-bold text-[#7B6C3E]`} style={sf}>{back9Pts}</span>
               </div>
 
-              {/* Total — deepest gold, heaviest weight */}
-              <div className={`${grid} px-3 py-3 items-center border-t border-[#C9A84C]/35 rounded-b-xl`} style={{ background: "rgba(201,168,76,0.35)" }}>
+              {/* Total */}
+              <div className={`${grid} px-3 py-3 items-center border-t-2 rounded-b-xl bg-[#E6D7B1]`} style={{ borderColor: "rgba(201,168,76,0.6)" }}>
                 <span className="text-sm font-bold tracking-widest uppercase text-[#4A3810]" style={sf}>Tot</span>
-                <span className={`text-sm font-semibold ${muted}`} style={sf}>{totalYards > 0 ? totalYards : "—"}</span>
+                <span className={`text-sm font-semibold text-[#5C4520]`} style={sf}>{totalYards > 0 ? totalYards : "—"}</span>
                 <span className={`text-sm font-bold ${dark}`} style={sf}>{totalPar}</span>
                 <span />
                 <span className={`text-center text-xl font-extrabold ${dark}`} style={sf}>{hasAnyScore && totalGross > 0 ? totalGross : "—"}</span>
@@ -1301,9 +1580,6 @@ export default function LiveScoringFlow({
         >
           Score Another Player
         </button>
-        <button onClick={() => setCloseConfirm(true)} className="text-white/20 text-sm tracking-widest uppercase hover:text-red-400/60 transition-colors">
-          Close Live Round
-        </button>
       </div>
     )
   }
@@ -1315,14 +1591,16 @@ export default function LiveScoringFlow({
 
 function HoleCard({
   hole, playerSetups, courseId,
-  existingScores, runningTotals, onSubmit, onBack,
+  existingScores, runningTotals, onScoresChange,
+  longestDriveHole, nearestPinHole,
 }: {
   hole: Hole
   playerSetups: PlayerSetup[]; courseId: string
   existingScores: Record<string, HoleScore>
   runningTotals: Record<string, number>
-  onSubmit: (scores: Record<string, HoleScore>) => void
-  onBack: () => void
+  onScoresChange: (scores: Record<string, HoleScore>, allReady: boolean) => void
+  longestDriveHole?: number | null
+  nearestPinHole?: number | null
 }) {
   const [holeScores, setHoleScores] = useState<Record<string, HoleScore>>(() => {
     const init: Record<string, HoleScore> = {}
@@ -1331,18 +1609,62 @@ function HoleCard({
     }
     return init
   })
+  const [competitionAlertDismissed, setCompetitionAlertDismissed] = useState(false)
 
   const allHaveGross = playerSetups.every(({ player }) => {
     const hs = holeScores[player.id]
     return hs?.gross !== null || hs?.isNR === true
   })
 
+  // Report scores to parent so the nav bar (outside overflow-x-hidden) can enable/disable
+  useEffect(() => {
+    onScoresChange(holeScores, allHaveGross)
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [holeScores, allHaveGross])
+
+  const isLongestDrive = longestDriveHole === hole.hole_number
+  const isNearestPin   = nearestPinHole   === hole.hole_number
+  const isCompetitionHole = isLongestDrive || isNearestPin
+  const showCompetitionAlert = isCompetitionHole && !competitionAlertDismissed
+
+  const nextHoleNum = hole.hole_number + 1
+  const nextIsLongestDrive = longestDriveHole === nextHoleNum
+  const nextIsNearestPin   = nearestPinHole   === nextHoleNum
+  const showNextHoleAlert  = (nextIsLongestDrive || nextIsNearestPin) && nextHoleNum <= 18
+
   function set(pid: string, update: Partial<HoleScore>) {
     setHoleScores(prev => ({ ...prev, [pid]: { ...prev[pid], ...update } }))
   }
 
   return (
-    <div className="max-w-lg mx-auto w-full px-4 pt-4 pb-2 flex flex-col gap-4">
+    <div className="max-w-lg mx-auto w-full px-4 pt-4 pb-[calc(6rem+env(safe-area-inset-bottom,0px))] flex flex-col gap-4">
+
+      {/* Competition hole alert — current hole */}
+      {showCompetitionAlert && (
+        <div className="border border-[#C9A84C]/50 bg-[#C9A84C]/10 rounded-sm px-4 py-3 flex items-start justify-between gap-3">
+          <div className="flex items-center gap-2">
+            <span className="text-lg">{isLongestDrive ? "🏌️" : "⛳️"}</span>
+            <p className="text-[#C9A84C] text-sm font-medium">
+              Note: Hole {hole.hole_number} — {isLongestDrive ? "Longest Drive" : "Nearest the Pin"}
+            </p>
+          </div>
+          <button
+            onClick={() => setCompetitionAlertDismissed(true)}
+            className="text-white/30 hover:text-white/60 text-lg leading-none flex-shrink-0"
+            aria-label="Dismiss"
+          >×</button>
+        </div>
+      )}
+
+      {/* Next-hole preview banner */}
+      {showNextHoleAlert && (
+        <div className="border border-white/15 bg-white/5 rounded-sm px-4 py-2.5 flex items-center gap-2">
+          <span className="text-base">{nextIsLongestDrive ? "🏌️" : "⛳️"}</span>
+          <p className="text-white/50 text-xs">
+            Next hole: {nextIsLongestDrive ? "Longest Drive" : "Nearest the Pin"}
+          </p>
+        </div>
+      )}
 
       {/* One tile per player */}
       <div className="flex flex-col gap-3">
@@ -1363,33 +1685,13 @@ function HoleCard({
               playingHcp={playingHcp}
               runningTotal={runningTotals[player.id] ?? 0}
               yardage={yardageForTee(hole, tee.name)}
+              isLongestDrive={isLongestDrive}
+              isNearestPin={isNearestPin}
               onChange={v  => set(player.id, { gross: v, isNR: false })}
               onToggleNR={() => set(player.id, hs.isNR ? { isNR: false, gross: null } : { isNR: true, gross: null })}
             />
           )
         })}
-      </div>
-
-      {/* Sticky nav bar — always visible at viewport bottom */}
-      <div className="sticky bottom-0 -mx-4 px-4 bg-[#0a1a0e] border-t border-[#1e3d28] pt-3 pb-[calc(0.75rem+env(safe-area-inset-bottom,0px))] flex gap-3">
-        <button
-          onClick={onBack}
-          className="flex-1 py-4 border border-white/20 text-white/50 text-2xl
-            hover:border-white/40 hover:text-white/70 active:bg-white/5 transition-colors rounded-sm"
-          aria-label="Previous hole"
-        >
-          ←
-        </button>
-        <button
-          onClick={() => onSubmit(holeScores)}
-          disabled={!allHaveGross}
-          className="flex-[2] py-4 bg-[#C9A84C] text-black text-2xl font-bold
-            hover:bg-[#d4b05a] disabled:opacity-30 disabled:cursor-not-allowed
-            active:scale-[0.98] transition-all rounded-sm"
-          aria-label="Next hole"
-        >
-          →
-        </button>
       </div>
 
     </div>
@@ -1404,6 +1706,7 @@ function HoleCard({
 function LivePlayerTile({
   hole, effectivePar, effectiveSI, playerName, teamColor,
   score, isNR, playingHcp, yardage, runningTotal,
+  isLongestDrive, isNearestPin,
   onChange, onToggleNR,
 }: {
   hole: Hole
@@ -1416,6 +1719,8 @@ function LivePlayerTile({
   playingHcp: number
   yardage?: number | null
   runningTotal: number
+  isLongestDrive?: boolean
+  isNearestPin?: boolean
   onChange: (v: number | null) => void
   onToggleNR: () => void
 }) {
@@ -1468,12 +1773,14 @@ function LivePlayerTile({
 
         {/* Row 1: hole info + NR toggle */}
         <div className="flex items-center justify-between px-4 pt-3 pb-2">
-          <div className="flex items-baseline gap-3">
+          <div className="flex items-center gap-3">
             <span className="text-white/50 text-base">
               Par <span className="text-white font-semibold">{effectivePar}</span>
             </span>
             <span className="text-white/30 text-base">SI {effectiveSI}</span>
             {yardage && <span className="text-white/25 text-sm">{yardage} yds</span>}
+            {isLongestDrive && <span className="text-lg" title="Longest Drive">🏌️</span>}
+            {isNearestPin   && <span className="text-lg" title="Nearest the Pin">⛳️</span>}
           </div>
           <button
             onClick={onToggleNR}

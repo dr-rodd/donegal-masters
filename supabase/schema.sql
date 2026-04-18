@@ -232,36 +232,51 @@ CREATE TRIGGER trg_scores_updated_at
 -- ============================================================
 
 CREATE OR REPLACE VIEW leaderboard_by_round AS
+WITH ranked AS (
+  SELECT
+    r.id           AS round_id,
+    r.round_number,
+    c.name         AS course_name,
+    t.id           AS team_id,
+    t.name         AS team_name,
+    t.color        AS team_color,
+    h.hole_number,
+    h.par,
+    s.stableford_points,
+    ROW_NUMBER() OVER (
+      PARTITION BY r.id, t.id, h.hole_number
+      ORDER BY s.stableford_points DESC
+    ) AS rn
+  FROM scores s
+  JOIN players p ON p.id = s.player_id
+  JOIN teams   t ON t.id = p.team_id
+  JOIN holes   h ON h.id = s.hole_id
+  JOIN rounds  r ON r.id = s.round_id
+  JOIN courses c ON c.id = r.course_id
+  WHERE NOT p.is_composite
+),
+top2 AS (
+  SELECT
+    round_id, round_number, course_name,
+    team_id, team_name, team_color,
+    hole_number, par,
+    SUM(stableford_points) AS best_stableford_points
+  FROM ranked
+  WHERE rn <= 2
+  GROUP BY
+    round_id, round_number, course_name,
+    team_id, team_name, team_color,
+    hole_number, par
+)
 SELECT
-  r.id                     AS round_id,
-  r.round_number,
-  c.name                   AS course_name,
-  t.id                     AS team_id,
-  t.name                   AS team_name,
-  t.color                  AS team_color,
-  h.hole_number,
-  h.par,
-  MAX(s.stableford_points) AS best_stableford_points,
-  SUM(MAX(s.stableford_points)) OVER (
-    PARTITION BY r.id, t.id
-    ORDER BY h.hole_number
+  *,
+  SUM(best_stableford_points) OVER (
+    PARTITION BY round_id, team_id
+    ORDER BY hole_number
     ROWS BETWEEN UNBOUNDED PRECEDING AND CURRENT ROW
-  )                        AS running_team_total
-FROM scores s
-JOIN players p ON p.id = s.player_id
-JOIN teams   t ON t.id = p.team_id
-JOIN holes   h ON h.id = s.hole_id
-JOIN rounds  r ON r.id = s.round_id
-JOIN courses c ON c.id = r.course_id
-GROUP BY
-  r.id, r.round_number,
-  c.name,
-  t.id, t.name, t.color,
-  h.hole_number, h.par
-ORDER BY
-  r.round_number,
-  h.hole_number,
-  t.name;
+  ) AS running_team_total
+FROM top2
+ORDER BY round_number, hole_number, team_name;
 
 
 -- ============================================================
