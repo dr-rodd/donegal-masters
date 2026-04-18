@@ -1,8 +1,24 @@
 import Link from "next/link";
 import Countdown from "./components/Countdown";
 import SettingsButton from "./components/SettingsButton";
+import { supabase } from "@/lib/supabase";
 
-export default function Home() {
+async function getPortsRevealed(): Promise<boolean> {
+  try {
+    const { data } = await supabase
+      .from("ulster_trip")
+      .select("reveal_at")
+      .single();
+    if (!data?.reveal_at) return false;
+    return new Date(data.reveal_at) <= new Date();
+  } catch {
+    return false;
+  }
+}
+
+export default async function Home() {
+  const portsRevealed = await getPortsRevealed();
+
   return (
     <main
       className="relative min-h-dvh flex flex-col items-center justify-center pt-5 pb-5"
@@ -61,6 +77,18 @@ export default function Home() {
                 {label}
               </Link>
             ))}
+
+            {/* Ports — pre-reveal: understated; post-reveal: amber glow */}
+            <Link
+              href="/ulster"
+              className={
+                portsRevealed
+                  ? "flex items-center justify-center w-full py-4 px-6 bg-[#0a1a0e]/65 border border-[#C9A84C]/40 text-white text-[15px] tracking-widest uppercase rounded-xl font-[family-name:var(--font-playfair)] hover:bg-[#0a1a0e]/85 hover:border-[#C9A84C] transition-all duration-300 animate-ports-glow"
+                  : "flex items-center justify-center w-full py-4 px-6 bg-transparent border border-zinc-700/40 text-white/30 text-[15px] tracking-widest uppercase rounded-xl font-[family-name:var(--font-playfair)] hover:border-zinc-600/60 hover:text-white/40 transition-all duration-300"
+              }
+            >
+              Ports
+            </Link>
           </nav>
         </Countdown>
 
