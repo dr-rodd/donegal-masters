@@ -68,7 +68,7 @@ export default async function MatchesPage() {
   return (
     <div className="flex flex-col gap-6">
       {hasPending && (
-        <form action={activateAllMatches}>
+        <form action={async () => { "use server"; await activateAllMatches() }}>
           <button
             type="submit"
             className="w-full py-3 rounded-xl bg-[#1e3d28] border border-[#C9A84C]/30 text-[#C9A84C] text-sm tracking-wider uppercase font-[family-name:var(--font-playfair)] hover:border-[#C9A84C]/60 transition-colors"
