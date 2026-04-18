@@ -454,6 +454,16 @@ export default function LiveScoringFlow({
         playerSetups.map(({ player }) => ({ live_round_id: liveRound.id, player_id: player.id })),
         { onConflict: "live_round_id,player_id" }
       )
+    await supabase
+      .from("round_handicaps")
+      .upsert(
+        playerSetups.map(({ player, playingHcp }) => ({
+          round_id: liveRound.round_id,
+          player_id: player.id,
+          playing_handicap: playingHcp,
+        })),
+        { onConflict: "round_id,player_id" }
+      )
   }
 
   function syncLiveRound(r: ActiveLiveRound | null) {
