@@ -1,6 +1,8 @@
 "use client"
 
-import { useState, useRef, Fragment } from "react"
+import { useState, useRef, useEffect, Fragment } from "react"
+import { useRouter } from "next/navigation"
+import { supabase } from "@/lib/supabase"
 
 // ─── Types ─────────────────────────────────────────────────────
 
@@ -20,6 +22,7 @@ interface Props {
   roundHandicaps: RoundHcp[]
   tees: unknown[]
   compositeHoles: CompositeHole[]
+  activeRoundIds?: string[]
 }
 
 // ─── Scorecard styling constants ───────────────────────────────
@@ -391,8 +394,22 @@ function ScorecardModal({ team, rounds, holes, scores, roundHandicaps, composite
 
 // ─── Main component ────────────────────────────────────────────
 
-export default function LeaderboardClient({ rounds, teams, holes, scores, roundHandicaps, tees, compositeHoles }: Props) {
+export default function LeaderboardClient({ rounds, teams, holes, scores, roundHandicaps, tees, compositeHoles, activeRoundIds = [] }: Props) {
+  const router = useRouter()
   const [modal, setModal] = useState<{ team: Team } | null>(null)
+
+  // Real-time subscription: refresh server data whenever any live score is saved
+  useEffect(() => {
+    if (!activeRoundIds.length) return
+    const channel = supabase
+      .channel("leaderboard-live-scores")
+      .on("postgres_changes", { event: "*", schema: "public", table: "live_scores" }, () => {
+        router.refresh()
+      })
+      .subscribe()
+    return () => { supabase.removeChannel(channel) }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeRoundIds.join(",")])
 
   const sortedRounds = [...rounds].sort((a, b) => a.round_number - b.round_number)
   const roundsByNumber: Record<number, Round> = {}
