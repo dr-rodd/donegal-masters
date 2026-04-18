@@ -375,6 +375,19 @@ export default function LiveScoringFlow({
 
       if (resumeErr) return
 
+      // Load confirmed playing handicaps from round_handicaps so that any
+      // admin correction (e.g. SQL update) takes effect after a page reload.
+      const { data: rhData } = await supabase
+        .from("round_handicaps")
+        .select("player_id, playing_handicap")
+        .eq("round_id", rId)
+        .in("player_id", lockedIds)
+      if (rhData?.length) {
+        const phs: Record<string, number> = {}
+        for (const rh of rhData) phs[rh.player_id] = rh.playing_handicap
+        setConfirmedPhs(phs)
+      }
+
       // Pick tees: first gender-matching tee for the course (playing_handicap
       // already stored in round_handicaps so tee choice only affects yardage display)
       const courseTees = tees.filter(t => t.course_id === cId)
