@@ -8,6 +8,7 @@ function revalidateMatch(id: string) {
   revalidatePath(`/ulster/matches/${id}`)
 }
 
+
 export async function updateMatchStatus(
   id: string,
   status: "pending" | "live" | "complete"
@@ -18,6 +19,16 @@ export async function updateMatchStatus(
     .eq("id", id)
   if (error) return { error: error.message }
   revalidateMatch(id)
+  return {}
+}
+
+export async function activateAllMatches(): Promise<{ error?: string }> {
+  const { error } = await supabaseAdmin
+    .from("ulster_matches")
+    .update({ status: "live" })
+    .eq("status", "pending")
+  if (error) return { error: error.message }
+  revalidatePath("/ulster/matches")
   return {}
 }
 

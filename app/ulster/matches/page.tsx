@@ -1,5 +1,6 @@
 import Link from "next/link"
 import { supabase } from "@/lib/supabase"
+import { activateAllMatches } from "./actions"
 
 const FORMAT_LABELS: Record<string, string> = {
   "4bbb_matchplay": "4BBB Matchplay",
@@ -62,8 +63,20 @@ export default async function MatchesPage() {
     )
   }
 
+  const hasPending = grouped.pending.length > 0
+
   return (
     <div className="flex flex-col gap-6">
+      {hasPending && (
+        <form action={activateAllMatches}>
+          <button
+            type="submit"
+            className="w-full py-3 rounded-xl bg-[#1e3d28] border border-[#C9A84C]/30 text-[#C9A84C] text-sm tracking-wider uppercase font-[family-name:var(--font-playfair)] hover:border-[#C9A84C]/60 transition-colors"
+          >
+            Go Live — Activate All
+          </button>
+        </form>
+      )}
       {STATUS_ORDER.map(status => {
         const list = grouped[status]
         if (!list.length) return null
