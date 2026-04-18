@@ -255,8 +255,8 @@ SELECT id, handicap FROM players
 WHERE lower(name) = 'liz'
   AND (SELECT count(*) FROM players WHERE lower(name) = 'liz') = 1;
 
--- Paul
+-- Peter
 INSERT INTO ulster_players (player_id, handicap_index)
 SELECT id, handicap FROM players
-WHERE lower(name) = 'paul'
-  AND (SELECT count(*) FROM players WHERE lower(name) = 'paul') = 1;
+WHERE lower(name) = 'peter'
+  AND (SELECT count(*) FROM players WHERE lower(name) = 'peter') = 1;
