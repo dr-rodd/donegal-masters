@@ -23,17 +23,57 @@ function getTimeLeft(): TimeLeft | null {
   };
 }
 
-export default function Countdown({ children }: { children: React.ReactNode }) {
-  const [mounted, setMounted]       = useState(false);
-  const [timeLeft, setTimeLeft]     = useState<TimeLeft | null>(null);
-  const [timerGone, setTimerGone]   = useState(false);
+// ── Static shell ──────────────────────────────────────────────────────────────
+// Rendered on the server AND by the client before hydration completes.
+// Must be structurally identical on both sides — no Date.now(), no window.
+// Layout matches the pre-expiry countdown so there is no shift on mount.
+function StaticShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="flex flex-col items-center w-full">
 
-  // Initialise + start ticker
+      {/* Timer block — always visible in shell so server/client HTML is identical */}
+      <div className="grid w-full" style={{ gridTemplateRows: "1fr" }}>
+        <div className="overflow-hidden flex flex-col items-center">
+
+          <div className="flex items-center gap-4 mb-2">
+            <div className="h-px w-16 bg-gold/40" />
+            <div className="w-1.5 h-1.5 rounded-full bg-gold/60" />
+            <div className="h-px w-16 bg-gold/40" />
+          </div>
+
+          {/* Fixed-height placeholder — matches digit block height to prevent CLS */}
+          <div className="h-[84px]" />
+
+          <div className="mt-2" />
+        </div>
+      </div>
+
+      {/* Divider always above nav */}
+      <div className="flex items-center gap-4 mb-3">
+        <div className="h-px w-16 bg-gold/40" />
+        <div className="w-1.5 h-1.5 rounded-full bg-gold/60" />
+        <div className="h-px w-16 bg-gold/40" />
+      </div>
+
+      {children}
+    </div>
+  );
+}
+
+// ── Main component ────────────────────────────────────────────────────────────
+export default function Countdown({ children }: { children: React.ReactNode }) {
+  const [mounted, setMounted]     = useState(false);
+  const [timeLeft, setTimeLeft]   = useState<TimeLeft | null>(null);
+  const [timerGone, setTimerGone] = useState(false);
+
+  // Initialise + start ticker.
+  // React 18 batches both setState calls here into one re-render, so when the
+  // countdown is already expired setMounted(true) + setTimerGone(true) resolve
+  // together — the shell is never briefly shown with the timer block visible.
   useEffect(() => {
     setMounted(true);
     const initial = getTimeLeft();
     if (!initial) {
-      // Already expired on page load — skip straight to nav
       setTimerGone(true);
       return;
     }
@@ -49,13 +89,16 @@ export default function Countdown({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(t);
   }, [timeLeft, mounted, timerGone]);
 
-  // collapsing = timer just hit zero but DOM element not yet removed
-  const collapsing = mounted && !timeLeft && !timerGone;
+  // ── Before hydration: return the static shell so server HTML == client HTML ──
+  if (!mounted) return <StaticShell>{children}</StaticShell>;
+
+  // ── After mount: full dynamic rendering ──────────────────────────────────────
+  const collapsing = !timeLeft && !timerGone; // mounted is always true here
 
   return (
     <div className="flex flex-col items-center w-full">
 
-      {/* ── Collapsible timer block ── */}
+      {/* Collapsible timer block — absent once timerGone */}
       {!timerGone && (
         <div
           className="grid w-full"
@@ -64,20 +107,15 @@ export default function Countdown({ children }: { children: React.ReactNode }) {
             transition: "grid-template-rows 700ms ease-in-out",
           }}
         >
-          {/* overflow:hidden on inner div is what makes the grid collapse visible */}
           <div className="overflow-hidden flex flex-col items-center">
 
-            {/* Divider above timer */}
             <div className="flex items-center gap-4 mb-2">
               <div className="h-px w-16 bg-gold/40" />
               <div className="w-1.5 h-1.5 rounded-full bg-gold/60" />
               <div className="h-px w-16 bg-gold/40" />
             </div>
 
-            {/* Timer digits — placeholder preserves height before hydration */}
-            {!mounted ? (
-              <div className="h-[84px]" />
-            ) : timeLeft ? (
+            {timeLeft ? (
               <div className="flex gap-5 sm:gap-8 bg-black/40 px-5 py-4 backdrop-blur-sm">
                 {[
                   { label: "Days",    value: timeLeft.days },
@@ -100,20 +138,19 @@ export default function Countdown({ children }: { children: React.ReactNode }) {
               </div>
             ) : null}
 
-            {/* Spacer so divider below timer has breathing room */}
             <div className="mt-2" />
           </div>
         </div>
       )}
 
-      {/* ── Divider always present above nav ── */}
+      {/* Divider always present above nav */}
       <div className="flex items-center gap-4 mb-3">
         <div className="h-px w-16 bg-gold/40" />
         <div className="w-1.5 h-1.5 rounded-full bg-gold/60" />
         <div className="h-px w-16 bg-gold/40" />
       </div>
 
-      {/* ── Nav buttons — always in the DOM, slide up naturally ── */}
+      {/* Nav buttons — always in DOM */}
       {children}
     </div>
   );
