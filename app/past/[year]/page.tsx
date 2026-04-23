@@ -5,8 +5,9 @@ import PastTournamentClient from "./PastTournamentClient"
 
 export const dynamic = "force-dynamic"
 
-export default async function PastYearPage({ params }: { params: { year: string } }) {
-  const year = parseInt(params.year, 10)
+export default async function PastYearPage({ params }: { params: Promise<{ year: string }> }) {
+  const { year: yearStr } = await params
+  const year = parseInt(yearStr, 10)
   if (isNaN(year) || year < 2026) notFound()
 
   const [roundsRes, teamsRes, playersRes, holesRes, scoresRes, hcpsRes, teesRes, compositeHolesRes] = await Promise.all([
