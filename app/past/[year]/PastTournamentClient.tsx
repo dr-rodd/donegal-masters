@@ -7,7 +7,7 @@ import IndividualClient from "@/app/leaderboard/individual/IndividualClient"
 
 type Course       = { id: string; name: string }
 type Round        = { id: string; round_number: number; status?: string; played_on?: string | null; courses: Course | null }
-type Player       = { id: string; name: string; role: string; handicap: number; is_composite?: boolean; gender?: string; team_id?: string | null; teams: { name: string; color: string } | null }
+type Player       = { id: string; name: string; role: string; handicap: number; is_composite?: boolean; gender: string; team_id: string | null; teams: { name: string; color: string } | null }
 type Team         = { id: string; name: string; color: string; players: Player[] }
 type Hole         = { id: string; hole_number: number; par: number; stroke_index: number; course_id: string }
 type Score        = { player_id: string; hole_id: string; gross_score: number; stableford_points: number; no_return: boolean; round_id: string }

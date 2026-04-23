@@ -59,7 +59,7 @@ export default async function PastPage() {
     supabase.from("holes").select("id, course_id"),
   ])
 
-  const allRounds  = (roundsRes.data ?? []) as RoundRow[]
+  const allRounds  = (roundsRes.data ?? []) as unknown as RoundRow[]
   const allTeams   = (teamsRes.data ?? []) as TeamRow[]
   const allPlayers = (playersRes.data ?? []) as PlayerRow[]
   const allScores  = (scoresRes.data ?? []) as ScoreRow[]
