@@ -23,14 +23,15 @@ type Score   = { player_id: string; hole_id: string; round_id: string; stablefor
 type CompositeHole = { composite_player_id: string; hole_id: string; round_id: string; source_player_name: string }
 
 interface Props {
-  rounds:         Round[]
-  players:        Player[]
-  holes:          Hole[]
-  scores:         Score[]
-  roundHandicaps: RoundHcp[]
-  tees:           Tee[]
-  compositeHoles: CompositeHole[]
-  readOnly?:      boolean
+  rounds:          Round[]
+  players:         Player[]
+  holes:           Hole[]
+  scores:          Score[]
+  roundHandicaps:  RoundHcp[]
+  tees:            Tee[]
+  compositeHoles:  CompositeHole[]
+  readOnly?:       boolean
+  stickyTopOffset?: string
 }
 
 // ─── Scorecard helpers ─────────────────────────────────────────
@@ -612,7 +613,7 @@ function MatchplaySection({ playerA, playerB, rounds, holes, scores, noShots, on
 
 // ─── Main component ────────────────────────────────────────────
 
-export default function IndividualClient({ rounds, players, holes, scores, roundHandicaps, tees, compositeHoles, readOnly = false }: Props) {
+export default function IndividualClient({ rounds, players, holes, scores, roundHandicaps, tees, compositeHoles, readOnly = false, stickyTopOffset = "0px" }: Props) {
   const [viewMode, setViewMode]       = useState<ViewMode>("stableford")
   const [strokesView, setStrokesView] = useState<StrokesView>("gross")
   const [playerAId, setPlayerAId]     = useState("")
@@ -731,7 +732,7 @@ export default function IndividualClient({ rounds, players, holes, scores, round
           <div className="border border-[#1e3d28]">
 
             {/* Sticky column headers */}
-            <div className="sticky top-0 z-10 grid grid-cols-[20px_1fr_40px_40px_40px_56px] gap-x-1 items-center px-3 py-1 bg-[#0a1a0e] border-b border-[#1e3d28]">
+            <div className="sticky z-10 grid grid-cols-[20px_1fr_40px_40px_40px_56px] gap-x-1 items-center px-3 py-1 bg-[#0a1a0e] border-b border-[#1e3d28]" style={{ top: stickyTopOffset }}>
               <span className="text-[10px] tracking-widest uppercase text-white/25">Pos</span>
               <span className="text-[10px] tracking-widests uppercase text-white/25">Player</span>
               {rounds.map(r => (

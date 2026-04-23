@@ -10,7 +10,7 @@ export default async function PastYearPage({ params }: { params: { year: string 
   if (isNaN(year) || year < 2026) notFound()
 
   const [roundsRes, teamsRes, playersRes, holesRes, scoresRes, hcpsRes, teesRes, compositeHolesRes] = await Promise.all([
-    supabase.from("rounds").select("id, round_number, status, courses(id, name)").eq("edition_year", year).order("round_number"),
+    supabase.from("rounds").select("id, round_number, status, played_on, courses(id, name)").eq("edition_year", year).order("round_number"),
     supabase.from("teams").select("id, name, color").eq("edition_year", year).order("name"),
     supabase.from("players").select("id, name, role, handicap, is_composite, gender, team_id").eq("edition_year", year).order("name"),
     supabase.from("holes").select("id, hole_number, par, stroke_index, course_id").order("hole_number"),

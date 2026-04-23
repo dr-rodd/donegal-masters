@@ -6,7 +6,7 @@ import IndividualClient from "@/app/leaderboard/individual/IndividualClient"
 // ─── Types ─────────────────────────────────────────────────────
 
 type Course       = { id: string; name: string }
-type Round        = { id: string; round_number: number; status?: string; courses: Course | null }
+type Round        = { id: string; round_number: number; status?: string; played_on?: string | null; courses: Course | null }
 type Player       = { id: string; name: string; role: string; handicap: number; is_composite?: boolean; gender?: string; team_id?: string | null; teams: { name: string; color: string } | null }
 type Team         = { id: string; name: string; color: string; players: Player[] }
 type Hole         = { id: string; hole_number: number; par: number; stroke_index: number; course_id: string }
@@ -15,15 +15,47 @@ type RoundHcp     = { round_id: string; player_id: string; playing_handicap: num
 type CompHole     = { composite_player_id: string; round_id: string; hole_id: string; source_player_id?: string; source_player_name?: string }
 
 interface Props {
-  year:          number
-  rounds:        Round[]
-  teams:         Team[]
-  players:       Player[]
-  holes:         Hole[]
-  scores:        Score[]
+  year:           number
+  rounds:         Round[]
+  teams:          Team[]
+  players:        Player[]
+  holes:          Hole[]
+  scores:         Score[]
   roundHandicaps: RoundHcp[]
-  tees:          unknown[]
+  tees:           unknown[]
   compositeHoles: CompHole[]
+}
+
+// ─── Date helpers ──────────────────────────────────────────────
+
+const MONTHS = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
+
+// Fallback dates for years where played_on was not populated
+const KNOWN_DATES: Record<number, string> = {
+  2026: "16–18 Apr 2026",
+}
+
+function formatDateRange(rounds: Round[]): string | null {
+  const dates = rounds
+    .map(r => r.played_on)
+    .filter((d): d is string => !!d)
+    .map(d => new Date(d))
+    .sort((a, b) => a.getTime() - b.getTime())
+
+  if (!dates.length) return null
+
+  const first = dates[0]
+  const last  = dates[dates.length - 1]
+  const month = MONTHS[first.getMonth()]
+  const year  = first.getFullYear()
+
+  if (first.toDateString() === last.toDateString()) {
+    return `${first.getDate()} ${month} ${year}`
+  }
+  if (first.getMonth() === last.getMonth() && first.getFullYear() === last.getFullYear()) {
+    return `${first.getDate()}–${last.getDate()} ${month} ${year}`
+  }
+  return `${first.getDate()} ${MONTHS[first.getMonth()]} – ${last.getDate()} ${MONTHS[last.getMonth()]} ${last.getFullYear()}`
 }
 
 // ─── Winner computation ────────────────────────────────────────
@@ -57,20 +89,25 @@ function computeWinner(teams: Team[], rounds: Round[], holes: Hole[], scores: Sc
   return { teams: winners.map(r => r.team), total: topScore }
 }
 
+// ─── Sticky offset for archive header ─────────────────────────
+// Archive header = banner (py-2 + text-xs + border ≈ 33px) + nav (py-4 + h-11 + border ≈ 77px) = 110px
+const ARCHIVE_STICKY_OFFSET = "110px"
+
 // ─── Component ─────────────────────────────────────────────────
 
 export default function PastTournamentClient({ year, rounds, teams, players, holes, scores, roundHandicaps, tees, compositeHoles }: Props) {
   const sortedRounds = [...rounds].sort((a, b) => a.round_number - b.round_number)
   const courseNames  = sortedRounds.map(r => r.courses?.name).filter(Boolean) as string[]
   const winner       = computeWinner(teams, sortedRounds, holes, scores)
+  const dateRange    = formatDateRange(sortedRounds) ?? KNOWN_DATES[year] ?? null
 
   return (
     <div className="max-w-lg mx-auto px-4 pb-16">
 
       {/* ── Hero ───────────────────────────────────────────── */}
-      <div className="py-8 space-y-4">
+      <div className="py-8 space-y-3">
 
-        {/* Course list */}
+        {/* Venue + courses */}
         {courseNames.length > 0 && (
           <p className="text-white/35 text-sm tracking-wide">
             Rosapenna Hotel &amp; Golf Resort
@@ -79,10 +116,15 @@ export default function PastTournamentClient({ year, rounds, teams, players, hol
           </p>
         )}
 
+        {/* Date range */}
+        {dateRange && (
+          <p className="text-white/25 text-xs tracking-[0.15em] uppercase">{dateRange}</p>
+        )}
+
         {/* Champion badge */}
         {winner && (
           <div
-            className="border rounded-sm px-5 py-4"
+            className="border rounded-sm px-5 py-4 mt-1"
             style={{
               borderColor: `${winner.teams[0].color}50`,
               background:  `${winner.teams[0].color}12`,
@@ -120,6 +162,7 @@ export default function PastTournamentClient({ year, rounds, teams, players, hol
           activeRoundIds={[]}
           currentYear={year}
           readOnly
+          stickyTopOffset={ARCHIVE_STICKY_OFFSET}
         />
       </section>
 
@@ -135,6 +178,7 @@ export default function PastTournamentClient({ year, rounds, teams, players, hol
           tees={tees as any}
           compositeHoles={compositeHoles as any}
           readOnly
+          stickyTopOffset={ARCHIVE_STICKY_OFFSET}
         />
       </section>
 
