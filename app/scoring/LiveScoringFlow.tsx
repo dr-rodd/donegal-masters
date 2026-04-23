@@ -57,6 +57,7 @@ interface Props {
   nearestPinHole?: number | null
   longestDriveWinner?: string | null
   nearestPinWinner?: string | null
+  currentYear: number
 }
 
 type LiveStep = "activate" | "setup" | "handicaps" | "holes" | "summary" | "committed" | "resuming"
@@ -149,6 +150,7 @@ async function generateCompositeScores(
   roundId: string,
   allPlayers: Player[],
   courseHoles: Hole[],
+  currentYear: number,
 ) {
   const realSameRole = allPlayers.filter(p => !p.is_composite && p.role === finalisedRole)
   const compositeSameRole = allPlayers.filter(p => p.is_composite && p.role === finalisedRole)
@@ -182,6 +184,7 @@ async function generateCompositeScores(
         hole_id: holeId,
         source_player_id: sourceId,
         source_player_name: sourcePlayer.name,
+        edition_year: currentYear,
       }
     })
 
@@ -196,6 +199,7 @@ async function generateCompositeScores(
         gross_score: s?.gross_score ?? (hole.par + 2),
         stableford_points: s?.stableford_points ?? 0,
         no_return: s?.no_return ?? false,
+        edition_year: currentYear,
       }
     })
 
@@ -206,7 +210,7 @@ async function generateCompositeScores(
       onConflict: "round_id,player_id,hole_id",
     })
     await supabase.from("round_handicaps").upsert(
-      { round_id: roundId, player_id: compositePlayer.id, playing_handicap: 0 },
+      { round_id: roundId, player_id: compositePlayer.id, playing_handicap: 0, edition_year: currentYear },
       { onConflict: "round_id,player_id" },
     )
   }
@@ -224,6 +228,7 @@ export default function LiveScoringFlow({
   nearestPinHole,
   longestDriveWinner,
   nearestPinWinner,
+  currentYear,
 }: Props) {
   const [liveRound, setLiveRound] = useState<ActiveLiveRound | null>(activeLiveRound)
   const [step, setStep] = useState<LiveStep>(
@@ -266,7 +271,7 @@ export default function LiveScoringFlow({
   const bumpLeaderboard = useCallback(() => setLbRefreshKey(k => k + 1), [])
 
   // Offline score queue — wraps live_scores writes during active hole entry
-  const { enqueue, queueSize, syncState } = useOfflineQueue({ onSynced: bumpLeaderboard })
+  const { enqueue, queueSize, syncState } = useOfflineQueue({ onSynced: bumpLeaderboard, currentYear })
 
   const availableRounds = rounds.filter(r => r.status === "upcoming" || r.status === "active")
 
@@ -451,7 +456,7 @@ export default function LiveScoringFlow({
     await supabase
       .from("live_player_locks")
       .upsert(
-        playerSetups.map(({ player }) => ({ live_round_id: liveRound.id, player_id: player.id })),
+        playerSetups.map(({ player }) => ({ live_round_id: liveRound.id, player_id: player.id, edition_year: currentYear })),
         { onConflict: "live_round_id,player_id" }
       )
     await supabase
@@ -496,6 +501,7 @@ export default function LiveScoringFlow({
         course_id: round.courses.id,
         round_id: activatingRoundId,
         status: "active",
+        edition_year: currentYear,
       })
       .select("id, course_id, round_id, activated_by, rounds(round_number), courses(name)")
       .single()
@@ -553,6 +559,7 @@ export default function LiveScoringFlow({
           gross_score: gross,
           stableford_points: hs.isNR ? 0 : calcStableford(gross, p, si, setup.playingHcp),
           committed: false,
+          edition_year: currentYear,
         })
       } else {
         deleteHoleNums.push(hole.hole_number)
@@ -565,7 +572,7 @@ export default function LiveScoringFlow({
         : Promise.resolve(),
       deleteHoleNums.length > 0
         ? supabase.from("live_scores").delete()
-            .eq("player_id", playerId).eq("round_id", roundId).in("hole_number", deleteHoleNums)
+            .eq("player_id", playerId).eq("round_id", roundId).in("hole_number", deleteHoleNums).eq("edition_year", currentYear)
         : Promise.resolve(),
     ])
 
@@ -598,7 +605,7 @@ export default function LiveScoringFlow({
       await Promise.all(
         playerSetups.map(({ player, playingHcp }) =>
           supabase.from("round_handicaps").upsert(
-            { round_id: roundId, player_id: player.id, playing_handicap: playingHcp },
+            { round_id: roundId, player_id: player.id, playing_handicap: playingHcp, edition_year: currentYear },
             { onConflict: "round_id,player_id" }
           )
         )
@@ -609,7 +616,7 @@ export default function LiveScoringFlow({
         await Promise.all(
           playerSetups.map(({ player }) =>
             supabase.from("scores").delete()
-              .eq("player_id", player.id).eq("round_id", roundId)
+              .eq("player_id", player.id).eq("round_id", roundId).eq("edition_year", currentYear)
           )
         )
 
@@ -625,6 +632,7 @@ export default function LiveScoringFlow({
               player_id: setup.player.id, hole_id: hole.id, round_id: roundId,
               gross_score: noReturn ? nrGross(p, si, setup.playingHcp) : hs!.gross!,
               no_return: noReturn,
+              edition_year: currentYear,
             })
           }
         }
@@ -637,7 +645,7 @@ export default function LiveScoringFlow({
         // 4. Generate composite scores for each role completed by this finalisation
         const roles = [...new Set(playerSetups.map(s => s.player.role))]
         roles.forEach(role => {
-          generateCompositeScores(role, roundId, players, courseHoles).catch(() => {})
+          generateCompositeScores(role, roundId, players, courseHoles, currentYear).catch(() => {})
         })
       }
 
@@ -646,6 +654,7 @@ export default function LiveScoringFlow({
         .update({ committed: true })
         .in("player_id", playerSetups.map(p => p.player.id))
         .eq("round_id", roundId)
+        .eq("edition_year", currentYear)
 
       // 6. Finalise the live round
       await supabase
@@ -722,7 +731,7 @@ export default function LiveScoringFlow({
     // Delete existing official scores for these players (clean slate)
     await Promise.all(playerIds.map(pid =>
       supabase.from("scores").delete()
-        .eq("player_id", pid).eq("round_id", roundId)
+        .eq("player_id", pid).eq("round_id", roundId).eq("edition_year", currentYear)
     ))
 
     // Build score rows — detect NR from gross matching the expected NR value
@@ -745,6 +754,7 @@ export default function LiveScoringFlow({
         round_id: roundId,
         gross_score: ls.gross_score,
         no_return: isNR,
+        edition_year: currentYear,
       })
     }
 
@@ -759,7 +769,7 @@ export default function LiveScoringFlow({
       playerIds.map(pid => players.find(p => p.id === pid)?.role).filter(Boolean) as string[]
     )]
     roles.forEach(role => {
-      generateCompositeScores(role, roundId, players, courseHoles).catch(() => {})
+      generateCompositeScores(role, roundId, players, courseHoles, currentYear).catch(() => {})
     })
   }
 
@@ -776,6 +786,7 @@ export default function LiveScoringFlow({
         longestDriveWinner={longestDriveWinner}
         nearestPinWinner={nearestPinWinner}
         refreshKey={lbRefreshKey}
+        currentYear={currentYear}
       />
     )
   }
@@ -1088,6 +1099,7 @@ export default function LiveScoringFlow({
             gross_score: gross,
             stableford_points: hs.isNR ? 0 : calcStableford(gross, p, si, playingHcp),
             committed: false,
+            edition_year: currentYear,
           }
         }).filter(Boolean)
 
@@ -1173,6 +1185,7 @@ export default function LiveScoringFlow({
                 longestDriveWinner={longestDriveWinner}
                 nearestPinWinner={nearestPinWinner}
                 refreshKey={lbRefreshKey}
+                currentYear={currentYear}
               />
             )}
           </div>

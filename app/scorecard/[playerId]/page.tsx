@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase"
+import { getCurrentYear } from "@/lib/getCurrentYear"
 import { notFound } from "next/navigation"
 import Link from "next/link"
 import ScorecardClient from "./ScorecardClient"
@@ -17,14 +18,16 @@ export default async function ScorecardPage({
   const { from, round } = await searchParams
   const initialRoundIdx = round ? Math.max(0, parseInt(round, 10)) : 0
 
+  const currentYear = await getCurrentYear()
+
   const [playerRes, roundsRes, holesRes, scoresRes, hcpsRes, teesRes, compositeHolesRes] = await Promise.all([
-    supabase.from("players").select("id, name, role, gender, handicap, is_composite, teams(name, color)").eq("id", playerId).single(),
-    supabase.from("rounds").select("id, round_number, status, courses(id, name)").order("round_number"),
+    supabase.from("players").select("id, name, role, gender, handicap, is_composite, teams(name, color)").eq("id", playerId).eq("edition_year", currentYear).single(),
+    supabase.from("rounds").select("id, round_number, status, courses(id, name)").eq("edition_year", currentYear).order("round_number"),
     supabase.from("holes").select("id, hole_number, par, stroke_index, course_id, yardage_black, yardage_blue, yardage_white, yardage_red, yardage_sandstone, yardage_slate, yardage_granite, yardage_claret").order("hole_number"),
-    supabase.from("scores").select("hole_id, round_id, gross_score, stableford_points, no_return").eq("player_id", playerId),
-    supabase.from("round_handicaps").select("round_id, playing_handicap").eq("player_id", playerId),
+    supabase.from("scores").select("hole_id, round_id, gross_score, stableford_points, no_return").eq("player_id", playerId).eq("edition_year", currentYear),
+    supabase.from("round_handicaps").select("round_id, playing_handicap").eq("player_id", playerId).eq("edition_year", currentYear),
     supabase.from("tees").select("id, course_id, name, gender, par"),
-    supabase.from("composite_holes").select("hole_id, round_id, source_player_name").eq("composite_player_id", playerId),
+    supabase.from("composite_holes").select("hole_id, round_id, source_player_name").eq("composite_player_id", playerId).eq("edition_year", currentYear),
   ])
 
 

@@ -22,6 +22,7 @@ interface Props {
   tees: unknown[]
   compositeHoles: CompositeHole[]
   activeRoundIds?: string[]
+  currentYear: number
 }
 
 // ─── Scorecard styling constants ───────────────────────────────
@@ -393,7 +394,7 @@ function ScorecardModal({ team, rounds, holes, scores, roundHandicaps, composite
 
 // ─── Main component ────────────────────────────────────────────
 
-export default function LeaderboardClient({ rounds, teams, holes, scores, roundHandicaps, tees, compositeHoles, activeRoundIds = [] }: Props) {
+export default function LeaderboardClient({ rounds, teams, holes, scores, roundHandicaps, tees, compositeHoles, activeRoundIds = [], currentYear }: Props) {
   const [modal, setModal] = useState<{ team: Team } | null>(null)
   const [liveScoresRaw, setLiveScoresRaw] = useState<any[]>([])
 
@@ -402,17 +403,21 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
       .from("live_scores")
       .select("player_id, round_id, hole_number, gross_score, stableford_points")
       .eq("committed", false)
+      .eq("edition_year", currentYear)
     setLiveScoresRaw(data ?? [])
-  }, [])
+  }, [currentYear])
 
   useEffect(() => {
     fetchLive()
     const channel = supabase
       .channel("leaderboard-live-scores")
-      .on("postgres_changes", { event: "*", schema: "public", table: "live_scores" }, fetchLive)
+      .on("postgres_changes", { event: "*", schema: "public", table: "live_scores" }, (payload: any) => {
+        if (payload.new?.edition_year !== currentYear) return
+        fetchLive()
+      })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [fetchLive])
+  }, [fetchLive, currentYear])
 
   // Convert live_scores (hole_number) → Score shape (hole_id) and merge with finalised scores
   const mergedScores = useMemo(() => {

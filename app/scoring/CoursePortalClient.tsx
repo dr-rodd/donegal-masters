@@ -33,7 +33,7 @@ interface CourseCardState {
   finalisedCount: number
 }
 
-export default function CoursePortalClient({ courseIds, totalPlayers }: { courseIds: Record<string, string>; totalPlayers: number }) {
+export default function CoursePortalClient({ courseIds, totalPlayers, currentYear }: { courseIds: Record<string, string>; totalPlayers: number; currentYear: number }) {
   const router = useRouter()
   const [cards, setCards] = useState<CourseCardState[]>(
     COURSES.map(c => ({ course: { ...c, id: courseIds[c.name] ?? "" }, status: "not-live", activeCount: 0, finalisedCount: 0 }))
@@ -44,6 +44,7 @@ export default function CoursePortalClient({ courseIds, totalPlayers }: { course
       .from("live_rounds")
       .select("id, course_id, round_id, status, session_finalised_at")
       .in("status", ["active", "finalised"])
+      .eq("edition_year", currentYear)
 
     const liveRounds: LiveRound[] = data ?? []
 
@@ -54,6 +55,7 @@ export default function CoursePortalClient({ courseIds, totalPlayers }: { course
         .from("live_player_locks")
         .select("live_round_id, player_id")
         .in("live_round_id", allIds)
+        .eq("edition_year", currentYear)
       lockRows = (data ?? []) as { live_round_id: string; player_id: string }[]
     }
 

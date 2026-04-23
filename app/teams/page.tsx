@@ -1,15 +1,17 @@
 import { supabase } from "@/lib/supabase"
+import { getCurrentYear } from "@/lib/getCurrentYear"
 import TeamsClient from "./TeamsClient"
 import BackButton from "@/app/components/BackButton"
 
 export const dynamic = "force-dynamic"
 
 export default async function TeamsPage() {
+  const currentYear = await getCurrentYear()
   const [{ data: teams }, { data: players }, { data: rounds }, { data: lockSetting }] =
     await Promise.all([
-      supabase.from("teams").select("id, name, color").order("name"),
-      supabase.from("players").select("id, name, role, handicap, team_id, gender, is_composite").order("name"),
-      supabase.from("rounds").select("status"),
+      supabase.from("teams").select("id, name, color").eq("edition_year", currentYear).order("name"),
+      supabase.from("players").select("id, name, role, handicap, team_id, gender, is_composite").eq("edition_year", currentYear).order("name"),
+      supabase.from("rounds").select("status").eq("edition_year", currentYear),
       supabase.from("settings").select("value").eq("key", "teams_locked").maybeSingle(),
     ])
 
@@ -34,6 +36,7 @@ export default async function TeamsPage() {
           players={(players ?? []) as any}
           initialLocked={initialLocked}
           isActive={hasActiveRound}
+          currentYear={currentYear}
         />
       </div>
     </div>

@@ -1,8 +1,12 @@
 import Link from "next/link"
 import SettingsClient from "./SettingsClient"
 import BackButton from "@/app/components/BackButton"
+import { getCurrentYear } from "@/lib/getCurrentYear"
 
-export default function SettingsPage() {
+export const dynamic = "force-dynamic"
+
+export default async function SettingsPage() {
+  const currentYear = await getCurrentYear()
   return (
     <div className="min-h-dvh bg-[#0a1a0e] text-white">
       <div className="border-b border-[#1e3d28]">
@@ -18,7 +22,7 @@ export default function SettingsPage() {
       <div className="max-w-5xl mx-auto px-4 py-8">
         <h2 className="font-[family-name:var(--font-playfair)] text-2xl text-white mb-2">Settings</h2>
         <p className="text-white/30 text-sm mb-8 tracking-wide">Administrative actions — password required.</p>
-        <SettingsClient />
+        <SettingsClient currentYear={currentYear} />
       </div>
     </div>
   )

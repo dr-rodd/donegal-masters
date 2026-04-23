@@ -306,11 +306,13 @@ export default function TeamsClient({
   players: initialPlayers,
   initialLocked,
   isActive,
+  currentYear,
 }: {
   teams: Team[]
   players: Player[]
   initialLocked: boolean
   isActive: boolean
+  currentYear: number
 }) {
   const router = useRouter()
 
@@ -376,22 +378,22 @@ export default function TeamsClient({
       // temporarily removes them from the constraint, allowing the dragged player
       // to land without a conflict. Sons have no such index so parallel would work,
       // but this sequence is safe for all roles.
-      const r1 = await supabase.from("players").update({ team_id: null }).eq("id", displaced.id)
+      const r1 = await supabase.from("players").update({ team_id: null }).eq("id", displaced.id).eq("edition_year", currentYear)
       if (r1.error) {
         setPlayers(prevPlayers)
         setError("Failed to save — try again")
         console.error("Team swap failed (clear displaced):", r1.error)
         return
       }
-      const r2 = await supabase.from("players").update({ team_id: targetTeamId }).eq("id", dragged.id)
+      const r2 = await supabase.from("players").update({ team_id: targetTeamId }).eq("id", dragged.id).eq("edition_year", currentYear)
       if (r2.error) {
-        await supabase.from("players").update({ team_id: displaced.team_id }).eq("id", displaced.id)
+        await supabase.from("players").update({ team_id: displaced.team_id }).eq("id", displaced.id).eq("edition_year", currentYear)
         setPlayers(prevPlayers)
         setError("Failed to save — try again")
         console.error("Team swap failed (move dragged):", r2.error)
         return
       }
-      const r3 = await supabase.from("players").update({ team_id: originalTeamId }).eq("id", displaced.id)
+      const r3 = await supabase.from("players").update({ team_id: originalTeamId }).eq("id", displaced.id).eq("edition_year", currentYear)
       if (r3.error) {
         setPlayers(prevPlayers)
         setError("Failed to save — try again")
@@ -399,7 +401,7 @@ export default function TeamsClient({
       }
     } else {
       setPlayers(prev => prev.map(p => p.id === playerId ? { ...p, team_id: targetTeamId } : p))
-      const { error: writeError } = await supabase.from("players").update({ team_id: targetTeamId }).eq("id", playerId)
+      const { error: writeError } = await supabase.from("players").update({ team_id: targetTeamId }).eq("id", playerId).eq("edition_year", currentYear)
       if (writeError) {
         setPlayers(prevPlayers)
         setError("Failed to save — try again")
@@ -431,7 +433,7 @@ export default function TeamsClient({
       // Lock — definitive save of all current assignments, then persist lock state
       const results = await Promise.all(
         players.map(p =>
-          supabase.from("players").update({ team_id: p.team_id }).eq("id", p.id)
+          supabase.from("players").update({ team_id: p.team_id }).eq("id", p.id).eq("edition_year", currentYear)
         )
       )
       const writeError = results.find(r => r.error)?.error
@@ -471,14 +473,14 @@ export default function TeamsClient({
     setEditingTeamId(null)
     if (!trimmed) return
     setTeams(prev => prev.map(t => t.id === teamId ? { ...t, name: trimmed } : t))
-    await supabase.from("teams").update({ name: trimmed }).eq("id", teamId)
+    await supabase.from("teams").update({ name: trimmed }).eq("id", teamId).eq("edition_year", currentYear)
   }
 
   // ── Player editing ────────────────────────────────────────────
 
   async function updatePlayer(id: string, changes: PlayerUpdate) {
     setPlayers(prev => prev.map(p => p.id === id ? { ...p, ...changes } : p))
-    await supabase.from("players").update(changes).eq("id", id)
+    await supabase.from("players").update(changes).eq("id", id).eq("edition_year", currentYear)
   }
 
   // ── Render ────────────────────────────────────────────────────

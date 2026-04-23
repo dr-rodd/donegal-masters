@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase"
+import { getCurrentYear } from "@/lib/getCurrentYear"
 import Link from "next/link"
 import LeaderboardClient from "./LeaderboardClient"
 import Poller from "@/app/components/Poller"
@@ -7,15 +8,16 @@ import BackButton from "@/app/components/BackButton"
 export const dynamic = "force-dynamic"
 
 export default async function LeaderboardPage() {
+  const currentYear = await getCurrentYear()
   const [roundsRes, teamsRes, playersRes, holesRes, scoresRes, hcpsRes, teesRes, compositeHolesRes] = await Promise.all([
-    supabase.from("rounds").select("id, round_number, status, courses(id, name)").order("round_number"),
-    supabase.from("teams").select("id, name, color").order("name"),
-    supabase.from("players").select("id, name, role, handicap, is_composite, gender, team_id").order("name"),
+    supabase.from("rounds").select("id, round_number, status, courses(id, name)").eq("edition_year", currentYear).order("round_number"),
+    supabase.from("teams").select("id, name, color").eq("edition_year", currentYear).order("name"),
+    supabase.from("players").select("id, name, role, handicap, is_composite, gender, team_id").eq("edition_year", currentYear).order("name"),
     supabase.from("holes").select("id, hole_number, par, stroke_index, course_id").order("hole_number"),
-    supabase.from("scores").select("player_id, hole_id, gross_score, stableford_points, no_return, round_id"),
-    supabase.from("round_handicaps").select("round_id, player_id, playing_handicap"),
+    supabase.from("scores").select("player_id, hole_id, gross_score, stableford_points, no_return, round_id").eq("edition_year", currentYear),
+    supabase.from("round_handicaps").select("round_id, player_id, playing_handicap").eq("edition_year", currentYear),
     supabase.from("tees").select("id, course_id, name, gender, par"),
-    supabase.from("composite_holes").select("composite_player_id, round_id, hole_id, source_player_id"),
+    supabase.from("composite_holes").select("composite_player_id, round_id, hole_id, source_player_id").eq("edition_year", currentYear),
   ])
   const rounds = roundsRes.data
   const allPlayers = playersRes.data ?? []
@@ -39,6 +41,7 @@ export default async function LeaderboardPage() {
     .from("live_scores")
     .select("player_id, round_id, hole_number, gross_score, stableford_points")
     .eq("committed", false)
+    .eq("edition_year", currentYear)
 
   let mergedScores = [...scores]
   if (liveScores?.length) {
@@ -96,6 +99,7 @@ export default async function LeaderboardPage() {
           tees={(tees ?? []) as any}
           compositeHoles={compositeHoles as any}
           activeRoundIds={activeRoundIds}
+          currentYear={currentYear}
         />
       </div>
     </div>

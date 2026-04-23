@@ -111,13 +111,14 @@ function generateFriday(players: Player[]): string[][] {
  * Group 2 (11:20): 1st-place team + fourthPlayers[2]
  * Throws a descriptive error rather than returning null so the UI can surface the reason.
  */
-async function generateSaturday(players: Player[]): Promise<string[][]> {
+async function generateSaturday(players: Player[], currentYear: number): Promise<string[][]> {
   const realPlayers = players.filter(p => !p.is_composite && p.team_id)
   if (realPlayers.length === 0) throw new Error("No player data available.")
 
   const { data: leaderboard, error } = await supabase
     .from("leaderboard_summary")
     .select("team_id, total_team_points")
+    .eq("edition_year", currentYear)
 
   if (error) throw new Error("Could not fetch leaderboard data. Check your connection.")
   if (!leaderboard || leaderboard.length === 0) {
@@ -165,12 +166,13 @@ async function generateSaturday(players: Player[]): Promise<string[][]> {
 
 // ─── Save function ────────────────────────────────────────────────────────────
 
-async function saveGroups(day: number, groups: string[][]): Promise<void> {
+async function saveGroups(day: number, groups: string[][], currentYear: number): Promise<void> {
   // Delete existing rows for that day
   const { error: deleteError } = await supabase
     .from("tee_times")
     .delete()
     .eq("day_number", day)
+    .eq("edition_year", currentYear)
 
   if (deleteError) throw new Error(deleteError.message)
 
@@ -180,6 +182,7 @@ async function saveGroups(day: number, groups: string[][]): Promise<void> {
       day_number: day,
       group_number: gi + 1,
       player_id,
+      edition_year: currentYear,
     }))
   )
 
@@ -408,9 +411,11 @@ function ConfirmModal({
 export default function TeeTimesClient({
   players,
   teeTimes: initialTeeTimes,
+  currentYear,
 }: {
   players: Player[]
   teeTimes: TeeTimeRow[]
+  currentYear: number
 }) {
   const [activeDay, setActiveDay] = useState<1 | 2 | 3>(1)
   const [teeTimes, setTeeTimes] = useState<TeeTimeRow[]>(initialTeeTimes)
@@ -463,7 +468,7 @@ export default function TeeTimesClient({
     setBusy(true)
     setError(null)
     try {
-      await saveGroups(activeDay, editGroups)
+      await saveGroups(activeDay, editGroups, currentYear)
       const newRows: TeeTimeRow[] = editGroups.flatMap((group, gi) =>
         group.map(player_id => ({
           day_number: activeDay,
@@ -495,10 +500,10 @@ export default function TeeTimesClient({
       } else if (activeDay === 2) {
         newGroups = generateFriday(players)
       } else {
-        newGroups = await generateSaturday(players)
+        newGroups = await generateSaturday(players, currentYear)
       }
 
-      await saveGroups(activeDay, newGroups)
+      await saveGroups(activeDay, newGroups, currentYear)
 
       // Update local state: remove old rows for this day, add new ones
       const newRows: TeeTimeRow[] = newGroups.flatMap((group, gi) =>

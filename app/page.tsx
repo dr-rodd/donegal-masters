@@ -1,8 +1,12 @@
 import Link from "next/link";
 import Countdown from "./components/Countdown";
 import SettingsButton from "./components/SettingsButton";
+import { getCurrentYear } from "@/lib/getCurrentYear";
 
-export default function Home() {
+export const dynamic = "force-dynamic"
+
+export default async function Home() {
+  const currentYear = await getCurrentYear()
   return (
     <main
       className="relative min-h-dvh flex flex-col items-center justify-center pt-5 pb-5"
@@ -15,7 +19,7 @@ export default function Home() {
       {/* Dark overlay */}
       <div className="absolute inset-0 bg-black/55 pointer-events-none" />
 
-      <SettingsButton />
+      <SettingsButton currentYear={currentYear} />
 
       {/* Content */}
       <div className="relative z-10 flex flex-col items-center text-center w-full">

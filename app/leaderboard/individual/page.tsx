@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase"
+import { getCurrentYear } from "@/lib/getCurrentYear"
 import Link from "next/link"
 import IndividualClient from "./IndividualClient"
 import Poller from "@/app/components/Poller"
@@ -7,15 +8,16 @@ import BackButton from "@/app/components/BackButton"
 export const revalidate = 30
 
 export default async function IndividualPage() {
+  const currentYear = await getCurrentYear()
   const [roundsRes, playersRes, teamsRes, holesRes, scoresRes, hcpsRes, teesRes, compositeHolesRes] = await Promise.all([
-    supabase.from("rounds").select("id, round_number, status, courses(id, name)").order("round_number"),
-    supabase.from("players").select("id, name, role, handicap, gender, team_id, is_composite").order("name"),
-    supabase.from("teams").select("id, name, color"),
+    supabase.from("rounds").select("id, round_number, status, courses(id, name)").eq("edition_year", currentYear).order("round_number"),
+    supabase.from("players").select("id, name, role, handicap, gender, team_id, is_composite").eq("edition_year", currentYear).order("name"),
+    supabase.from("teams").select("id, name, color").eq("edition_year", currentYear),
     supabase.from("holes").select("id, hole_number, par, stroke_index, course_id, yardage_black, yardage_blue, yardage_white, yardage_red, yardage_sandstone, yardage_slate, yardage_granite, yardage_claret").order("hole_number"),
-    supabase.from("scores").select("player_id, hole_id, round_id, stableford_points, gross_score, no_return"),
-    supabase.from("round_handicaps").select("round_id, player_id, playing_handicap"),
+    supabase.from("scores").select("player_id, hole_id, round_id, stableford_points, gross_score, no_return").eq("edition_year", currentYear),
+    supabase.from("round_handicaps").select("round_id, player_id, playing_handicap").eq("edition_year", currentYear),
     supabase.from("tees").select("id, course_id, name, gender, par"),
-    supabase.from("composite_holes").select("composite_player_id, hole_id, round_id, source_player_name"),
+    supabase.from("composite_holes").select("composite_player_id, hole_id, round_id, source_player_name").eq("edition_year", currentYear),
   ])
 
   const teams = teamsRes.data ?? []

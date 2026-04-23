@@ -52,6 +52,7 @@ interface Props {
   holes: Hole[]
   tees: Tee[]
   roundHandicaps: RoundHandicap[]
+  currentYear: number
 }
 
 type View = "dashboard" | "scoring" | "live-board" | "settings"
@@ -70,7 +71,7 @@ function effectiveSIDash(hole: Hole, gender: string) {
 // ─── Component ────────────────────────────────────────────
 
 export default function CourseDashboardClient({
-  courseName, courseId, players, rounds, holes, tees, roundHandicaps,
+  courseName, courseId, players, rounds, holes, tees, roundHandicaps, currentYear,
 }: Props) {
   const [view, setView]                       = useState<View>("dashboard")
   const [scoringLiveRound, setScoringLiveRound] = useState<ActiveLiveRound | null>(null)
@@ -135,6 +136,7 @@ export default function CourseDashboardClient({
       .select("id, course_id, round_id, status, session_finalised_at, activated_at, activated_by, rounds(round_number), courses(name), blinded")
       .eq("course_id", courseId)
       .in("status", ["active", "finalised"])
+      .eq("edition_year", currentYear)
 
     console.log("[fetchScorecards] liveRoundsData:", liveRoundsData, "error:", liveRoundsError)
 
@@ -236,7 +238,7 @@ export default function CourseDashboardClient({
 
     const { data, error } = await supabase
       .from("live_rounds")
-      .insert({ course_id: courseId, round_id: courseRound.id, status: "active" })
+      .insert({ course_id: courseId, round_id: courseRound.id, status: "active", edition_year: currentYear })
       .select("id, course_id, round_id, activated_by, rounds(round_number), courses(name)")
       .single()
     setStarting(false)
@@ -289,7 +291,7 @@ export default function CourseDashboardClient({
     // Create a new active round for just this player
     const { data: newRound } = await supabase
       .from("live_rounds")
-      .insert({ course_id: courseId, round_id: roundId, status: "active" })
+      .insert({ course_id: courseId, round_id: roundId, status: "active", edition_year: currentYear })
       .select("id").single()
     if (newRound) {
       await supabase.from("live_player_locks").insert({ live_round_id: newRound.id, player_id: playerId })
@@ -339,12 +341,14 @@ export default function CourseDashboardClient({
         .update({ status: "active", session_finalised_at: null })
         .eq("course_id", courseId)
         .eq("status", "finalised")
+        .eq("edition_year", currentYear)
       // Also clear flag on any active rounds that may have it set
       await supabase
         .from("live_rounds")
         .update({ session_finalised_at: null })
         .eq("course_id", courseId)
         .not("session_finalised_at", "is", null)
+        .eq("edition_year", currentYear)
       setSettingsUnfinaliseSession(false)
     } catch (e: any) {
       setSettingsError(e?.message ?? "Unfinalise failed — please try again")
@@ -362,6 +366,7 @@ export default function CourseDashboardClient({
         .from("live_rounds")
         .select("id, round_id")
         .eq("course_id", courseId)
+        .eq("edition_year", currentYear)
 
       if (fetchErr) throw fetchErr
 
@@ -379,8 +384,8 @@ export default function CourseDashboardClient({
         // Delete committed scores and handicaps from official tables (finalised scorecards)
         if (playerIds.length > 0 && rIds.length > 0) {
           const scoreDeletes = rIds.flatMap(rid => [
-            supabase.from("scores").delete().eq("round_id", rid).in("player_id", playerIds),
-            supabase.from("round_handicaps").delete().eq("round_id", rid).in("player_id", playerIds),
+            supabase.from("scores").delete().eq("round_id", rid).in("player_id", playerIds).eq("edition_year", currentYear),
+            supabase.from("round_handicaps").delete().eq("round_id", rid).in("player_id", playerIds).eq("edition_year", currentYear),
           ])
           await Promise.all(scoreDeletes)
         }
@@ -388,7 +393,7 @@ export default function CourseDashboardClient({
         // Delete live data
         await Promise.all([
           supabase.from("live_player_locks").delete().in("live_round_id", lrIds),
-          rIds.length > 0 ? supabase.from("live_scores").delete().in("round_id", rIds) : Promise.resolve(),
+          rIds.length > 0 ? supabase.from("live_scores").delete().in("round_id", rIds).eq("edition_year", currentYear) : Promise.resolve(),
         ])
 
         const { error: deleteErr } = await supabase
@@ -421,6 +426,7 @@ export default function CourseDashboardClient({
       .select("id")
       .eq("course_id", courseId)
       .eq("status", "finalised")
+      .eq("edition_year", currentYear)
     if (!finalisedRounds?.length) return
 
     const { data: locks } = await supabase
@@ -467,6 +473,7 @@ export default function CourseDashboardClient({
         round_id: roundId,
         gross_score: ls.gross_score,
         no_return: isNR,
+        edition_year: currentYear,
       })
     }
 
@@ -485,6 +492,7 @@ export default function CourseDashboardClient({
         .update({ blinded: value })
         .eq("course_id", courseId)
         .in("status", ["active", "finalised"])
+        .eq("edition_year", currentYear)
       if (!value) {
         // Turning off blinded — immediately push any deferred scores
         await pushDeferredScores()
@@ -1119,6 +1127,7 @@ export default function CourseDashboardClient({
           nearestPinHole={nearestPinHole}
           longestDriveWinner={longestDriveWinner}
           nearestPinWinner={nearestPinWinner}
+          currentYear={currentYear}
         />
       )}
 
@@ -1133,6 +1142,7 @@ export default function CourseDashboardClient({
           showBackButton={false}
           longestDriveWinner={longestDriveWinner}
           nearestPinWinner={nearestPinWinner}
+          currentYear={currentYear}
         />
       )}
 

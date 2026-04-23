@@ -45,15 +45,15 @@ const ACTIONS: ActionConfig[] = [
 
 const PASSWORD = "donegal2026"
 
-async function executeAction(action: Action): Promise<void> {
+async function executeAction(action: Action, currentYear: number): Promise<void> {
   if (action === "reset-scores") {
     const [a, b, c, d, e, f] = await Promise.all([
-      supabase.from("scores").delete().not("round_id", "is", null),
-      supabase.from("round_handicaps").delete().not("round_id", "is", null),
-      supabase.from("composite_holes").delete().not("id", "is", null),
-      supabase.from("live_scores").delete().not("id", "is", null),
-      supabase.from("live_player_locks").delete().not("id", "is", null),
-      supabase.from("live_rounds").delete().not("id", "is", null),
+      supabase.from("scores").delete().eq("edition_year", currentYear),
+      supabase.from("round_handicaps").delete().eq("edition_year", currentYear),
+      supabase.from("composite_holes").delete().eq("edition_year", currentYear),
+      supabase.from("live_scores").delete().eq("edition_year", currentYear),
+      supabase.from("live_player_locks").delete().eq("edition_year", currentYear),
+      supabase.from("live_rounds").delete().eq("edition_year", currentYear),
     ])
     if (a.error) throw new Error(a.error.message)
     if (b.error) throw new Error(b.error.message)
@@ -63,12 +63,12 @@ async function executeAction(action: Action): Promise<void> {
     if (f.error) throw new Error(f.error.message)
     await revalidateLeaderboards()
   } else {
-    const { error } = await supabase.from("players").update({ team_id: null }).not("id", "is", null)
+    const { error } = await supabase.from("players").update({ team_id: null }).eq("edition_year", currentYear)
     if (error) throw new Error(error.message)
   }
 }
 
-function LiveSessionCard({ session, onVoided }: { session: LiveSession; onVoided: () => void }) {
+function LiveSessionCard({ session, onVoided, currentYear }: { session: LiveSession; onVoided: () => void; currentYear: number }) {
   const [confirming, setConfirming] = useState(false)
   const [password, setPassword]     = useState("")
   const [wrongPw, setWrongPw]       = useState(false)
@@ -107,8 +107,8 @@ function LiveSessionCard({ session, onVoided }: { session: LiveSession; onVoided
       // Also clear committed and in-progress scores for these players in this round
       if (playerIds.length > 0) {
         await Promise.all([
-          supabase.from("scores").delete().eq("round_id", session.round_id).in("player_id", playerIds),
-          supabase.from("live_scores").delete().eq("round_id", session.round_id).in("player_id", playerIds),
+          supabase.from("scores").delete().eq("round_id", session.round_id).in("player_id", playerIds).eq("edition_year", currentYear),
+          supabase.from("live_scores").delete().eq("round_id", session.round_id).in("player_id", playerIds).eq("edition_year", currentYear),
         ])
       }
 
@@ -170,7 +170,7 @@ function LiveSessionCard({ session, onVoided }: { session: LiveSession; onVoided
   )
 }
 
-function LiveSessionsPanel({ onSuccess }: { onSuccess: (msg: string) => void }) {
+function LiveSessionsPanel({ onSuccess, currentYear }: { onSuccess: (msg: string) => void; currentYear: number }) {
   const [sessions, setSessions] = useState<LiveSession[]>([])
   const [loading, setLoading]   = useState(true)
 
@@ -180,11 +180,12 @@ function LiveSessionsPanel({ onSuccess }: { onSuccess: (msg: string) => void }) 
         .from("live_rounds")
         .select("id, round_id, activated_at, rounds(round_number, courses(name)), live_player_locks(player_id, players(name))")
         .eq("status", "active")
+        .eq("edition_year", currentYear)
     ).then(({ data }) => {
       setSessions((data as unknown as LiveSession[]) ?? [])
       setLoading(false)
     }).catch(() => setLoading(false))
-  }, [])
+  }, [currentYear])
 
   function handleVoided(id: string) {
     setSessions(prev => prev.filter(s => s.id !== id))
@@ -208,6 +209,7 @@ function LiveSessionsPanel({ onSuccess }: { onSuccess: (msg: string) => void }) 
               key={session.id}
               session={session}
               onVoided={() => handleVoided(session.id)}
+              currentYear={currentYear}
             />
           ))
         )}
@@ -216,7 +218,7 @@ function LiveSessionsPanel({ onSuccess }: { onSuccess: (msg: string) => void }) 
   )
 }
 
-function ActionCard({ config, onSuccess }: { config: ActionConfig; onSuccess: (msg: string) => void }) {
+function ActionCard({ config, onSuccess, currentYear }: { config: ActionConfig; onSuccess: (msg: string) => void; currentYear: number }) {
   const [open, setOpen]         = useState(false)
   const [password, setPassword] = useState("")
   const [wrongPw, setWrongPw]   = useState(false)
@@ -233,7 +235,7 @@ function ActionCard({ config, onSuccess }: { config: ActionConfig; onSuccess: (m
     if (password !== PASSWORD) { setWrongPw(true); return }
     setStatus("loading")
     try {
-      await executeAction(config.id)
+      await executeAction(config.id, currentYear)
       setOpen(false)
       setPassword("")
       setStatus("idle")
@@ -307,7 +309,7 @@ function ActionCard({ config, onSuccess }: { config: ActionConfig; onSuccess: (m
   )
 }
 
-export default function SettingsModal({ onClose }: { onClose: () => void }) {
+export default function SettingsModal({ onClose, currentYear }: { onClose: () => void; currentYear: number }) {
   const [successMsg, setSuccessMsg] = useState<string | null>(null)
 
   return (
@@ -335,11 +337,11 @@ export default function SettingsModal({ onClose }: { onClose: () => void }) {
               </div>
             )}
 
-            <LiveSessionsPanel onSuccess={setSuccessMsg} />
+            <LiveSessionsPanel onSuccess={setSuccessMsg} currentYear={currentYear} />
 
             <div className="pt-1 space-y-3">
               {ACTIONS.map(config => (
-                <ActionCard key={config.id} config={config} onSuccess={setSuccessMsg} />
+                <ActionCard key={config.id} config={config} onSuccess={setSuccessMsg} currentYear={currentYear} />
               ))}
             </div>
           </div>

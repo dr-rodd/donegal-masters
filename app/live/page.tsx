@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase"
+import { getCurrentYear } from "@/lib/getCurrentYear"
 import Link from "next/link"
 import LiveClient from "./LiveClient"
 import BackButton from "@/app/components/BackButton"
@@ -6,14 +7,17 @@ import BackButton from "@/app/components/BackButton"
 export const dynamic = "force-dynamic"
 
 export default async function LivePage() {
+  const currentYear = await getCurrentYear()
   const [playersRes, roundsRes, holesRes, teesRes, hcpsRes] = await Promise.all([
     supabase
       .from("players")
       .select("id, name, role, handicap, gender, is_composite, teams(name, color)")
+      .eq("edition_year", currentYear)
       .order("name"),
     supabase
       .from("rounds")
       .select("id, round_number, status, courses(id, name)")
+      .eq("edition_year", currentYear)
       .order("round_number"),
     supabase
       .from("holes")
@@ -24,7 +28,8 @@ export default async function LivePage() {
       .select("id, course_id, name, gender, par, course_rating, slope"),
     supabase
       .from("round_handicaps")
-      .select("round_id, player_id, playing_handicap"),
+      .select("round_id, player_id, playing_handicap")
+      .eq("edition_year", currentYear),
   ])
 
   return (
@@ -45,6 +50,7 @@ export default async function LivePage() {
         holes={(holesRes.data ?? []) as any}
         tees={(teesRes.data ?? []) as any}
         roundHandicaps={hcpsRes.data ?? []}
+        currentYear={currentYear}
       />
     </div>
   )
