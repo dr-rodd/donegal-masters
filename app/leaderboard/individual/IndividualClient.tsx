@@ -30,6 +30,7 @@ interface Props {
   roundHandicaps: RoundHcp[]
   tees:           Tee[]
   compositeHoles: CompositeHole[]
+  readOnly?:      boolean
 }
 
 // ─── Scorecard helpers ─────────────────────────────────────────
@@ -611,7 +612,7 @@ function MatchplaySection({ playerA, playerB, rounds, holes, scores, noShots, on
 
 // ─── Main component ────────────────────────────────────────────
 
-export default function IndividualClient({ rounds, players, holes, scores, roundHandicaps, tees, compositeHoles }: Props) {
+export default function IndividualClient({ rounds, players, holes, scores, roundHandicaps, tees, compositeHoles, readOnly = false }: Props) {
   const [viewMode, setViewMode]       = useState<ViewMode>("stableford")
   const [strokesView, setStrokesView] = useState<StrokesView>("gross")
   const [playerAId, setPlayerAId]     = useState("")

@@ -23,6 +23,7 @@ interface Props {
   compositeHoles: CompositeHole[]
   activeRoundIds?: string[]
   currentYear: number
+  readOnly?: boolean
 }
 
 // ─── Scorecard styling constants ───────────────────────────────
@@ -394,7 +395,7 @@ function ScorecardModal({ team, rounds, holes, scores, roundHandicaps, composite
 
 // ─── Main component ────────────────────────────────────────────
 
-export default function LeaderboardClient({ rounds, teams, holes, scores, roundHandicaps, tees, compositeHoles, activeRoundIds = [], currentYear }: Props) {
+export default function LeaderboardClient({ rounds, teams, holes, scores, roundHandicaps, tees, compositeHoles, activeRoundIds = [], currentYear, readOnly = false }: Props) {
   const [modal, setModal] = useState<{ team: Team } | null>(null)
   const [liveScoresRaw, setLiveScoresRaw] = useState<any[]>([])
 
@@ -408,6 +409,7 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
   }, [currentYear])
 
   useEffect(() => {
+    if (readOnly) return
     fetchLive()
     const channel = supabase
       .channel("leaderboard-live-scores")
@@ -417,7 +419,7 @@ export default function LeaderboardClient({ rounds, teams, holes, scores, roundH
       })
       .subscribe()
     return () => { supabase.removeChannel(channel) }
-  }, [fetchLive, currentYear])
+  }, [fetchLive, currentYear, readOnly])
 
   // Convert live_scores (hole_number) → Score shape (hole_id) and merge with finalised scores
   const mergedScores = useMemo(() => {
