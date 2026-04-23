@@ -59,6 +59,10 @@ export default async function PastPage() {
     supabase.from("holes").select("id, course_id"),
   ])
 
+  // Supabase's generated types infer .courses as an array because PostgREST doesn't detect
+  // many-to-one FK cardinality. At runtime this join returns a single object, not an array.
+  // The double-cast aligns the types with actual runtime shape. Prefer `!inner` join syntax
+  // on future queries to avoid this pattern.
   const allRounds  = (roundsRes.data ?? []) as unknown as RoundRow[]
   const allTeams   = (teamsRes.data ?? []) as TeamRow[]
   const allPlayers = (playersRes.data ?? []) as PlayerRow[]

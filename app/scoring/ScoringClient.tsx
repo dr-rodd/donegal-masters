@@ -43,11 +43,12 @@ interface Props {
   tees: Tee[]
   roundHandicaps: RoundHandicap[]
   activeLiveRound: ActiveLiveRound | null
+  currentYear: number
 }
 
 type View = "landing" | "live" | "leaderboard"
 
-export default function ScoringClient({ players, rounds, holes, tees, roundHandicaps, activeLiveRound }: Props) {
+export default function ScoringClient({ players, rounds, holes, tees, roundHandicaps, activeLiveRound, currentYear }: Props) {
   const [view, setView] = useState<View>("landing")
   const [liveRound, setLiveRound] = useState<ActiveLiveRound | null>(activeLiveRound)
   const [showLiveLeaderboard, setShowLiveLeaderboard] = useState(false)
@@ -115,6 +116,7 @@ export default function ScoringClient({ players, rounds, holes, tees, roundHandi
           onLiveRoundChange={setLiveRound}
           showLeaderboard={showLiveLeaderboard}
           onLeaderboardChange={setShowLiveLeaderboard}
+          currentYear={currentYear}
         />
       )}
 
@@ -126,6 +128,7 @@ export default function ScoringClient({ players, rounds, holes, tees, roundHandi
           roundHandicaps={roundHandicaps}
           onClose={() => setView("landing")}
           showBackButton={true}
+          currentYear={currentYear}
         />
       )}
     </div>

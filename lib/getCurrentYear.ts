@@ -26,7 +26,7 @@ export async function getCurrentYear(): Promise<number> {
 
   cachedYear = data.current_year
   cacheSetAt = now
-  return cachedYear
+  return data.current_year
 }
 
 export function invalidateCurrentYearCache(): void {
