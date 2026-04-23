@@ -5,10 +5,16 @@ import Link from "next/link"
 import { supabase } from "@/lib/supabase"
 import LiveScoringFlow from "../LiveScoringFlow"
 import LiveLeaderboardPanel from "../LiveLeaderboardPanel"
-import type { ActiveLiveRound } from "../ScoringClient"
 import BackButton from "@/app/components/BackButton"
 
 // ─── Types ────────────────────────────────────────────────
+
+export interface ActiveLiveRound {
+  id: string; course_id: string; round_id: string; activated_by: string | null
+  rounds: { round_number: number } | null
+  courses: { name: string } | null
+  blinded?: boolean
+}
 
 interface LiveRoundFull extends ActiveLiveRound {
   activated_at: string

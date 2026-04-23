@@ -2,7 +2,7 @@
 
 import React, { useState, useEffect, useRef, useCallback } from "react"
 import { supabase } from "@/lib/supabase"
-import type { ActiveLiveRound } from "./ScoringClient"
+import type { ActiveLiveRound } from "./[slug]/CourseDashboardClient"
 import LiveLeaderboardPanel from "./LiveLeaderboardPanel"
 import BackButton from "@/app/components/BackButton"
 import { useOfflineQueue } from "./useOfflineQueue"
