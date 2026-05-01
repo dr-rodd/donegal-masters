@@ -34,9 +34,11 @@ function persistQueue(q: QueuedScore[]) {
 interface UseOfflineQueueOptions {
   /** Called after one or more queued items sync successfully */
   onSynced?: () => void
+  /** Edition year to stamp onto every row at enqueue time */
+  currentYear: number
 }
 
-export function useOfflineQueue({ onSynced }: UseOfflineQueueOptions = {}) {
+export function useOfflineQueue({ onSynced, currentYear }: UseOfflineQueueOptions) {
   const [queue, setQueue] = useState<QueuedScore[]>([])
   const queueRef  = useRef<QueuedScore[]>([])
   const syncing   = useRef(false)
@@ -98,7 +100,7 @@ export function useOfflineQueue({ onSynced }: UseOfflineQueueOptions = {}) {
   const enqueue = useCallback((rows: any[], holeNumber: number) => {
     const item: QueuedScore = {
       id: `${Date.now()}-${Math.random().toString(36).slice(2)}`,
-      rows,
+      rows: rows.map(r => ({ ...r, edition_year: currentYear })),
       holeNumber,
       enqueuedAt: Date.now(),
     }

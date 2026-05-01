@@ -1,4 +1,5 @@
 import { supabase } from "@/lib/supabase"
+import { getCurrentYear } from "@/lib/getCurrentYear"
 import TeeTimesClient from "./TeeTimesClient"
 import Link from "next/link"
 import BackButton from "@/app/components/BackButton"
@@ -6,14 +7,17 @@ import BackButton from "@/app/components/BackButton"
 export const dynamic = "force-dynamic"
 
 export default async function TeeTimesPage() {
+  const currentYear = await getCurrentYear()
   const [playersRes, teeTimesRes] = await Promise.all([
     supabase
       .from("players")
       .select("id, name, role, team_id, is_composite, teams(id, name, color)")
+      .eq("edition_year", currentYear)
       .order("name"),
     supabase
       .from("tee_times")
       .select("day_number, group_number, player_id")
+      .eq("edition_year", currentYear)
       .order("day_number")
       .order("group_number"),
   ])
@@ -37,6 +41,7 @@ export default async function TeeTimesPage() {
       <TeeTimesClient
         players={(players ?? []) as any}
         teeTimes={teeTimes ?? []}
+        currentYear={currentYear}
       />
     </div>
   )

@@ -1,13 +1,15 @@
 import { supabase } from "@/lib/supabase"
+import { getCurrentYear } from "@/lib/getCurrentYear"
 import CoursePortalClient from "./CoursePortalClient"
 import BackButton from "@/app/components/BackButton"
 
 export const dynamic = "force-dynamic"
 
 export default async function ScoringPage() {
+  const currentYear = await getCurrentYear()
   const [{ data: courses }, { count: totalPlayers }] = await Promise.all([
     supabase.from("courses").select("id, name"),
-    supabase.from("players").select("id", { count: "exact", head: true }).eq("is_composite", false),
+    supabase.from("players").select("id", { count: "exact", head: true }).eq("is_composite", false).eq("edition_year", currentYear),
   ])
 
   // Key by slug using candidate name matching — avoids fragile exact-name lookups
@@ -39,7 +41,7 @@ export default async function ScoringPage() {
         <p className="text-white/35 text-xs tracking-[0.2em] uppercase px-4 pt-5 pb-1">
           Live Sessions
         </p>
-        <CoursePortalClient courseIds={courseIds} totalPlayers={totalPlayers ?? 0} />
+        <CoursePortalClient courseIds={courseIds} totalPlayers={totalPlayers ?? 0} currentYear={currentYear} />
       </div>
     </div>
   )

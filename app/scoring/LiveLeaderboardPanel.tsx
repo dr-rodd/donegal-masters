@@ -267,13 +267,14 @@ interface Props {
   nearestPinWinner?: string | null
   /** Increment to imperatively trigger a leaderboard refresh */
   refreshKey?: number
+  currentYear: number
 }
 
 // ─── Component ────────────────────────────────────────────
 
 export default function LiveLeaderboardPanel({
   liveRound, players, holes, roundHandicaps, onClose, showBackButton = false,
-  longestDriveWinner, nearestPinWinner, refreshKey,
+  longestDriveWinner, nearestPinWinner, refreshKey, currentYear,
 }: Props) {
   const [liveScores, setLiveScores]     = useState<LiveScoreRow[]>([])
   const [liveHandicaps, setLiveHandicaps] = useState<RoundHandicap[]>(roundHandicaps)
@@ -294,16 +295,19 @@ export default function LiveLeaderboardPanel({
       supabase
         .from("live_scores")
         .select("player_id, hole_number, gross_score, stableford_points")
-        .eq("round_id", liveRound.round_id),
+        .eq("round_id", liveRound.round_id)
+        .eq("edition_year", currentYear),
       supabase
         .from("live_rounds")
         .select("id, status, blinded")
         .eq("round_id", liveRound.round_id)
-        .in("status", ["active", "finalised"]),
+        .in("status", ["active", "finalised"])
+        .eq("edition_year", currentYear),
       supabase
         .from("round_handicaps")
         .select("round_id, player_id, playing_handicap")
-        .eq("round_id", liveRound.round_id),
+        .eq("round_id", liveRound.round_id)
+        .eq("edition_year", currentYear),
     ])
 
     if (scoresRes.data) setLiveScores(scoresRes.data as LiveScoreRow[])
@@ -347,7 +351,7 @@ export default function LiveLeaderboardPanel({
         schema: "public",
         table: "live_scores",
         filter: `round_id=eq.${liveRound.round_id}`,
-      }, () => fetchScores())
+      }, (payload: any) => { if (payload.new?.edition_year !== currentYear) return; fetchScores() })
       .subscribe()
 
     return () => {

@@ -63,6 +63,7 @@ interface Props {
   holes: Hole[]
   tees: Tee[]
   roundHandicaps: RoundHandicap[]
+  currentYear: number
 }
 
 // ─── Helpers ──────────────────────────────────────────────
@@ -138,7 +139,7 @@ type Tab = "entry" | "leaderboard"
 type EntryStep = "mode" | "setup" | "holes" | "confirm" | "committed"
 type EntryMode = "solo" | "group"
 
-export default function LiveClient({ players, rounds, holes, tees, roundHandicaps }: Props) {
+export default function LiveClient({ players, rounds, holes, tees, roundHandicaps, currentYear }: Props) {
   const [tab, setTab] = useState<Tab>("entry")
   const realPlayers = players.filter(p => !p.is_composite)
 
@@ -169,6 +170,7 @@ export default function LiveClient({ players, rounds, holes, tees, roundHandicap
           holes={holes}
           tees={tees}
           roundHandicaps={roundHandicaps}
+          currentYear={currentYear}
         />
       ) : (
         <LiveLeaderboard
@@ -176,6 +178,7 @@ export default function LiveClient({ players, rounds, holes, tees, roundHandicap
           rounds={rounds}
           holes={holes}
           roundHandicaps={roundHandicaps}
+          currentYear={currentYear}
         />
       )}
     </div>
@@ -184,12 +187,13 @@ export default function LiveClient({ players, rounds, holes, tees, roundHandicap
 
 // ─── Entry flow ───────────────────────────────────────────
 
-function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
+function EntryFlow({ players, rounds, holes, tees, roundHandicaps, currentYear }: {
   players: Player[]
   rounds: Round[]
   holes: Hole[]
   tees: Tee[]
   roundHandicaps: RoundHandicap[]
+  currentYear: number
 }) {
   const [step, setStep] = useState<EntryStep>("mode")
   const [mode, setMode] = useState<EntryMode>("solo")
@@ -286,7 +290,7 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
       await Promise.all(
         playerSetups.map(({ player, playingHcp }) =>
           supabase.from("round_handicaps").upsert(
-            { round_id: selectedRound.id, player_id: player.id, playing_handicap: playingHcp },
+            { round_id: selectedRound.id, player_id: player.id, playing_handicap: playingHcp, edition_year: currentYear },
             { onConflict: "round_id,player_id" }
           )
         )
@@ -307,6 +311,7 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
             round_id: selectedRound.id,
             gross_score: noReturn ? nrGross(p, si, playingHcp) : hs!.gross!,
             no_return: noReturn,
+            edition_year: currentYear,
           })
         }
       }
@@ -324,6 +329,7 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
         .update({ committed: true })
         .in("player_id", setupPlayers.map(p => p.id))
         .eq("round_id", selectedRound.id)
+        .eq("edition_year", currentYear)
 
       setStep("committed")
     } catch (e: any) {
@@ -498,6 +504,7 @@ function EntryFlow({ players, rounds, holes, tees, roundHandicaps }: {
         teeName={selectedTee?.name ?? ""}
         existingScores={existingScores}
         roundId={selectedRound?.id ?? ""}
+        currentYear={currentYear}
         onSubmit={(hs) => handleHoleSubmit(holeIdx, hs)}
         onBack={() => handleHoleBack(holeIdx)}
       />
@@ -623,13 +630,14 @@ interface HoleCardProps {
   teeName: string
   existingScores: Record<string, HoleScore>
   roundId: string
+  currentYear: number
   onSubmit: (scores: Record<string, HoleScore>) => void
   onBack: () => void
 }
 
 function HoleCard({
   hole, holeIdx, totalHoles, playerSetups, courseId, teeName,
-  existingScores, roundId, onSubmit, onBack
+  existingScores, roundId, currentYear, onSubmit, onBack
 }: HoleCardProps) {
   const [holeScores, setHoleScores] = useState<Record<string, HoleScore>>(() => {
     const init: Record<string, HoleScore> = {}
@@ -681,6 +689,7 @@ function HoleCard({
             fairway_hit: hs.fairway ?? null,
             putts: hs.putts ?? null,
             committed: false,
+            edition_year: currentYear,
           }
         })
         .filter(Boolean)
@@ -874,6 +883,7 @@ interface LiveLeaderboardProps {
   rounds: Round[]
   holes: Hole[]
   roundHandicaps: RoundHandicap[]
+  currentYear: number
 }
 
 interface LiveScoreRow {
@@ -885,7 +895,7 @@ interface LiveScoreRow {
   committed: boolean
 }
 
-function LiveLeaderboard({ players, rounds, holes, roundHandicaps }: LiveLeaderboardProps) {
+function LiveLeaderboard({ players, rounds, holes, roundHandicaps, currentYear }: LiveLeaderboardProps) {
   const [liveScores, setLiveScores] = useState<LiveScoreRow[]>([])
   const [loading, setLoading] = useState(true)
   const [lastFetch, setLastFetch] = useState<Date | null>(null)
@@ -899,6 +909,7 @@ function LiveLeaderboard({ players, rounds, holes, roundHandicaps }: LiveLeaderb
       .from("live_scores")
       .select("player_id, round_id, hole_number, gross_score, stableford_points, committed")
       .in("round_id", roundIds)
+      .eq("edition_year", currentYear)
     if (data) setLiveScores(data as LiveScoreRow[])
     setLastFetch(new Date())
     setLoading(false)

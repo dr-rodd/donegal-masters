@@ -1,5 +1,6 @@
 import { notFound } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import { getCurrentYear } from "@/lib/getCurrentYear"
 import CourseDashboardClient from "./CourseDashboardClient"
 
 export const dynamic = "force-dynamic"
@@ -20,6 +21,8 @@ export default async function CourseDashboardPage({
   const candidates = SLUG_NAMES[slug]
   if (!candidates) notFound()
 
+  const currentYear = await getCurrentYear()
+
   const [
     coursesRes,
     playersRes,
@@ -32,10 +35,12 @@ export default async function CourseDashboardPage({
     supabase
       .from("players")
       .select("id, name, role, handicap, gender, is_composite, teams(name, color)")
+      .eq("edition_year", currentYear)
       .order("name"),
     supabase
       .from("rounds")
       .select("id, round_number, status, courses(id, name)")
+      .eq("edition_year", currentYear)
       .order("round_number"),
     supabase
       .from("holes")
@@ -50,7 +55,8 @@ export default async function CourseDashboardPage({
       .select("id, course_id, name, gender, par, course_rating, slope"),
     supabase
       .from("round_handicaps")
-      .select("round_id, player_id, playing_handicap"),
+      .select("round_id, player_id, playing_handicap")
+      .eq("edition_year", currentYear),
   ])
 
   const course = (coursesRes.data ?? []).find(c =>
@@ -67,6 +73,7 @@ export default async function CourseDashboardPage({
       holes={(holesRes.data ?? []) as any}
       tees={(teesRes.data ?? []) as any}
       roundHandicaps={hcpsRes.data ?? []}
+      currentYear={currentYear}
     />
   )
 }

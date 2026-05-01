@@ -38,15 +38,15 @@ const ACTIONS: ActionConfig[] = [
 
 const PASSWORD = "donegal2026"
 
-async function executeAction(action: Action): Promise<void> {
+async function executeAction(action: Action, currentYear: number): Promise<void> {
   if (action === "reset-scores") {
     const [scoresRes, hcpsRes, compositeRes, liveScoresRes, liveLocksRes, liveRoundsRes] = await Promise.all([
-      supabaseAdmin.from("scores").delete().not("round_id", "is", null),
-      supabaseAdmin.from("round_handicaps").delete().not("round_id", "is", null),
-      supabaseAdmin.from("composite_holes").delete().not("id", "is", null),
-      supabaseAdmin.from("live_scores").delete().not("id", "is", null),
-      supabaseAdmin.from("live_player_locks").delete().not("id", "is", null),
-      supabaseAdmin.from("live_rounds").delete().not("id", "is", null),
+      supabaseAdmin.from("scores").delete().eq("edition_year", currentYear),
+      supabaseAdmin.from("round_handicaps").delete().eq("edition_year", currentYear),
+      supabaseAdmin.from("composite_holes").delete().eq("edition_year", currentYear),
+      supabaseAdmin.from("live_scores").delete().eq("edition_year", currentYear),
+      supabaseAdmin.from("live_player_locks").delete().eq("edition_year", currentYear),
+      supabaseAdmin.from("live_rounds").delete().eq("edition_year", currentYear),
     ])
     if (scoresRes.error) throw new Error(scoresRes.error.message)
     if (hcpsRes.error) throw new Error(hcpsRes.error.message)
@@ -58,12 +58,12 @@ async function executeAction(action: Action): Promise<void> {
     const { error } = await supabaseAdmin
       .from("players")
       .update({ team_id: null })
-      .not("id", "is", null)
+      .eq("edition_year", currentYear)
     if (error) throw new Error(error.message)
   }
 }
 
-export default function SettingsClient() {
+export default function SettingsClient({ currentYear }: { currentYear: number }) {
   const router = useRouter()
   const [activeAction, setActiveAction] = useState<Action | null>(null)
   const [password, setPassword]         = useState("")
@@ -97,7 +97,7 @@ export default function SettingsClient() {
     if (!activeAction || !config) return
     setStatus("loading")
     try {
-      await executeAction(activeAction)
+      await executeAction(activeAction, currentYear)
       if (activeAction === "reset-scores") await revalidateLeaderboards()
       setStatus("success")
       setMessage(config.successMessage)

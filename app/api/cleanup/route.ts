@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase-admin"
+import { getCurrentYear } from "@/lib/getCurrentYear"
 
 // Hourly cleanup of abandoned empty live rounds.
 // Protected by CRON_SECRET env var — callers must pass:
@@ -25,6 +26,7 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 })
   }
 
+  const currentYear = await getCurrentYear()
   const twoHoursAgo = new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString()
 
   // Find active rounds that were created more than 2 hours ago.
@@ -33,6 +35,7 @@ export async function GET(req: NextRequest) {
     .from("live_rounds")
     .select("id, round_id")
     .eq("status", "active")
+    .eq("edition_year", currentYear)
     .lt("activated_at", twoHoursAgo)
 
   let closedRounds = 0

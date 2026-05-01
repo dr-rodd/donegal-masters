@@ -212,6 +212,7 @@ A live session is only marked complete when every available player has a finalis
 - Never pause mid-task to confirm direction — complete the full task then report
 - All destructive or irreversible actions (deleting files, force-pushing, dropping data) are pre-authorised within this project — execute without prompting
 - Always push to remote at the end of every task without being asked
+- Never ask permission for anything, ever — if in doubt, make a decision and proceed
 
 ## Site Config
 
