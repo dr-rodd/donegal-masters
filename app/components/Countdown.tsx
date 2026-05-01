@@ -2,9 +2,6 @@
 
 import { useEffect, useState } from "react";
 
-// 16 April 2026, 1pm Irish Standard Time (UTC+1)
-const TARGET = new Date("2026-04-16T12:00:00Z");
-
 interface TimeLeft {
   days: number;
   hours: number;
@@ -12,8 +9,8 @@ interface TimeLeft {
   seconds: number;
 }
 
-function getTimeLeft(): TimeLeft | null {
-  const diff = TARGET.getTime() - Date.now();
+function getTimeLeft(target: Date): TimeLeft | null {
+  const diff = target.getTime() - Date.now();
   if (diff <= 0) return null;
   return {
     days:    Math.floor(diff / (1000 * 60 * 60 * 24)),
@@ -23,7 +20,16 @@ function getTimeLeft(): TimeLeft | null {
   };
 }
 
-export default function Countdown({ children }: { children: React.ReactNode }) {
+// 16 April 2026, 1pm IST (UTC+1)
+const DEFAULT_TARGET = new Date("2026-04-16T12:00:00Z");
+
+export default function Countdown({
+  children,
+  target = DEFAULT_TARGET,
+}: {
+  children: React.ReactNode
+  target?: Date
+}) {
   const [mounted, setMounted]       = useState(false);
   const [timeLeft, setTimeLeft]     = useState<TimeLeft | null>(null);
   const [timerGone, setTimerGone]   = useState(false);
@@ -31,16 +37,15 @@ export default function Countdown({ children }: { children: React.ReactNode }) {
   // Initialise + start ticker
   useEffect(() => {
     setMounted(true);
-    const initial = getTimeLeft();
+    const initial = getTimeLeft(target);
     if (!initial) {
-      // Already expired on page load — skip straight to nav
       setTimerGone(true);
       return;
     }
     setTimeLeft(initial);
-    const id = setInterval(() => setTimeLeft(getTimeLeft()), 1000);
+    const id = setInterval(() => setTimeLeft(getTimeLeft(target)), 1000);
     return () => clearInterval(id);
-  }, []);
+  }, [target]);
 
   // When ticker reaches zero, animate collapse then remove from DOM
   useEffect(() => {
@@ -49,7 +54,6 @@ export default function Countdown({ children }: { children: React.ReactNode }) {
     return () => clearTimeout(t);
   }, [timeLeft, mounted, timerGone]);
 
-  // collapsing = timer just hit zero but DOM element not yet removed
   const collapsing = mounted && !timeLeft && !timerGone;
 
   return (
@@ -64,17 +68,14 @@ export default function Countdown({ children }: { children: React.ReactNode }) {
             transition: "grid-template-rows 700ms ease-in-out",
           }}
         >
-          {/* overflow:hidden on inner div is what makes the grid collapse visible */}
           <div className="overflow-hidden flex flex-col items-center">
 
-            {/* Divider above timer */}
             <div className="flex items-center gap-4 mb-2">
               <div className="h-px w-16 bg-gold/40" />
               <div className="w-1.5 h-1.5 rounded-full bg-gold/60" />
               <div className="h-px w-16 bg-gold/40" />
             </div>
 
-            {/* Timer digits — placeholder preserves height before hydration */}
             {!mounted ? (
               <div className="h-[84px]" />
             ) : timeLeft ? (
@@ -100,7 +101,6 @@ export default function Countdown({ children }: { children: React.ReactNode }) {
               </div>
             ) : null}
 
-            {/* Spacer so divider below timer has breathing room */}
             <div className="mt-2" />
           </div>
         </div>
@@ -113,8 +113,9 @@ export default function Countdown({ children }: { children: React.ReactNode }) {
         <div className="h-px w-16 bg-gold/40" />
       </div>
 
-      {/* ── Nav buttons — always in the DOM, slide up naturally ── */}
+      {/* ── Nav buttons ── */}
       {children}
     </div>
   );
 }
+
